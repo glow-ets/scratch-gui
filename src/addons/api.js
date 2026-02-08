@@ -115,9 +115,20 @@ const getEditorMode = () => {
     return 'editor';
 };
 
-const language = reduxInstance.state.locales.locale.split('-')[0];
+/**
+ * @returns {string} Locale code
+ */
+const getLocale = () => {
+    const locale = reduxInstance.state.locales.locale;
+    if (Object.prototype.hasOwnProperty.call(l10nEntries, locale)) {
+        return locale;
+    }
+    return locale.split('-')[0];
+};
+const language = getLocale();
+
 const getTranslations = async () => {
-    if (l10nEntries[language]) {
+    if (Object.prototype.hasOwnProperty.call(l10nEntries, language)) {
         const localeMessages = await l10nEntries[language]();
         Object.assign(addonMessages, localeMessages);
     }
@@ -848,6 +859,10 @@ class AddonRunner {
         }
         case 'settingValue': {
             return this.publicAPI.addon.settings.get(variable.settingId);
+        }
+        case 'ternary': {
+            const condition = this.evaluateCustomCssVariable(variable.source);
+            return this.evaluateCustomCssVariable(condition ? variable.true : variable.false);
         }
         case 'textColor': {
             const hex = this.evaluateCustomCssVariable(variable.source);

@@ -34,6 +34,7 @@ const addons = [
     'editor-square-inputs',
     'zebra-striping',
     'editor-compact',
+    'custom-menu-bar',
     'editor-theme3',
     'custom-block-text',
     'editor-colored-context-menus',
@@ -70,25 +71,21 @@ const addons = [
     'columns',
     'number-pad',
     'editor-number-arrow-keys',
+    'expanded-backpack',
     'script-snap',
     'fullscreen',
     'hide-stage',
     'tw-straighten-comments',
     'tw-remove-backpack',
     'tw-remove-feedback',
+    'tw-disable-vibration',
     'tw-disable-cloud-variables',
     'tw-disable-compiler',
     'editor-stepping'
 ];
 
 const newAddons = [
-    'paint-skew',
-    'editor-square-inputs',
-    'copy-reporter',
-    'editor-number-arrow-keys',
-    'editor-compact',
-    'move-to-top-layer',
-    'reorder-custom-inputs'
+    'expanded-backpack'
 ];
 
 // eslint-disable-next-line import/no-commonjs

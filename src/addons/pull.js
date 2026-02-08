@@ -109,9 +109,10 @@ const includeImportedLibraries = contents => {
     // Parse things like:
     // import { normalizeHex, getHexRegex } from "../../libraries/normalize-color.js";
     // import RateLimiter from "../../libraries/rate-limiter.js";
+    // import "../../libraries/thirdparty/cs/chart.min.js";
     const matches = matchAll(
         contents,
-        /import +(?:{.*}|.*) +from +["']\.\.\/\.\.\/libraries\/([\w\d_/-]+(?:\.esm)?\.js)["'];/g
+        /import +(?:(?:{.*}|.*) +from +)?["']\.\.\/\.\.\/libraries\/([\w\d_./-]+(?:\.esm)?\.js)["'];/g
     );
     for (const match of matches) {
         const libraryFile = match[1];
@@ -209,10 +210,13 @@ const normalizeManifest = (id, manifest) => {
     }
 
     if (manifest.credits) {
-        for (const {link} of manifest.credits) {
-            if (link && !link.startsWith('https://scratch.mit.edu/')) {
-                console.warn(`Warning: ${id} contains unsafe credit link: ${link}`);
+        for (const user of manifest.credits) {
+            if (user.link && !user.link.startsWith('https://scratch.mit.edu/')) {
+                console.warn(`Warning: ${id} contains unsafe credit link: ${user.link}`);
             }
+
+            delete user.note;
+            delete user.id;
         }
     }
 };
@@ -324,25 +328,26 @@ const SKIP_MESSAGES = [
     '_general/meta/managedBySa',
     '_locale',
     '_locale_name',
-    'debugger/@description',
     'debugger/@settings-name-log_max_list_length',
     'debugger/log-msg-list-append-too-long',
     'debugger/log-msg-list-insert-too-long',
     'debugger/@settings-name-log_invalid_cloud_data',
     'debugger/log-cloud-data-nan',
     'debugger/log-cloud-data-too-long',
-    'debugger/tab-performance',
-    'debugger/performance-framerate-title',
-    'debugger/performance-framerate-graph-tooltip',
-    'debugger/performance-clonecount-title',
-    'debugger/performance-clonecount-graph-tooltip',
     'editor-devtools/extension-description-not-for-addon',
     'mediarecorder/added-by',
     'editor-theme3/@settings-name-sa-color',
     'editor-theme3/@settings-name-forums',
     'editor-theme3/@info-disablesMenuBar',
     'editor-theme3/@info-aboutHighContrast',
-    'block-switching/@settings-name-sa'
+    'editor-theme3/@settings-name-monitors',
+    'block-switching/@settings-name-sa',
+    'custom-menu-bar/@credits-dropdown',
+    'custom-menu-bar/@credits-tutorials-button',
+    'custom-menu-bar/@info-tutorials-button-update',
+    'custom-menu-bar/@settings-name-compact-username',
+    'custom-menu-bar/@settings-name-hide-tutorials-button',
+    'custom-menu-bar/@settings-name-my-stuff'
 ];
 
 const parseMessageDirectory = localeRoot => {
@@ -365,6 +370,12 @@ const parseMessageDirectory = localeRoot => {
             for (const id of Object.keys(parsed).sort()) {
                 upstreamMessageIds.add(id);
                 if (SKIP_MESSAGES.includes(id)) {
+                    continue;
+                }
+
+                // Messages ending with /@update are temporary notices describing what's new.
+                // We don't show them.
+                if (id.endsWith('/@update')) {
                     continue;
                 }
 
