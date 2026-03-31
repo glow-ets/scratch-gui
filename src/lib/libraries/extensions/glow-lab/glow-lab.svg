@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="60%" stop-color="#FFB800"/>
+      <stop offset="100%" stop-color="#FF8C00"/>
+    </radialGradient>
+  </defs>
+  <rect width="600" height="600" rx="72" fill="#1A1A2E"/>
+  <circle cx="300" cy="260" r="120" fill="url(#glow)" opacity="0.9"/>
+  <circle cx="300" cy="260" r="80" fill="#FFF3B0"/>
+  <circle cx="300" cy="260" r="50" fill="#FFFDE7"/>
+  <!-- flask body -->
+  <path d="M260 340 L240 480 C235 510 265 530 300 530 C335 530 365 510 360 480 L340 340 Z" fill="#4FC3F7" opacity="0.85"/>
+  <!-- flask neck -->
+  <rect x="270" y="310" width="60" height="40" rx="4" fill="#4FC3F7" opacity="0.85"/>
+  <!-- bubbles -->
+  <circle cx="285" cy="460" r="12" fill="#B3E5FC" opacity="0.7"/>
+  <circle cx="310" cy="430" r="8" fill="#B3E5FC" opacity="0.6"/>
+  <circle cx="295" cy="400" r="6" fill="#B3E5FC" opacity="0.5"/>
+</svg>
