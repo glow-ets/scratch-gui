@@ -24,6 +24,7 @@
     "test:lint": "eslint . --ext .js,.jsx",
     "test:unit": "jest test[\\\\/]unit[\\\\/]addons",
     "test:smoke": "jest --runInBand test[\\\\/]smoke",
+    "test:smoke:glow": "jest --runInBand test[\\\\/]smoke[\\\\/]glow-smoke",
     "watch": "webpack --colors --watch"
   },
   "config": {

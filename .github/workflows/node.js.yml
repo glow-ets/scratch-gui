@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,5 +18,24 @@ jobs:
         node-version: 22
         cache: npm
     - run: npm ci
-    - run: npm run build
-    - run: npm run test:unit
+
+    - name: Lint
+      run: npm run test:lint
+
+    - name: Unit tests
+      run: npm run test:unit
+
+    - name: Build
+      run: npm run build
+      env:
+        NODE_ENV: production
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: build
+        path: build/
+        retention-days: 5
+
+    - name: Smoke tests (glow)
+      run: npm run test:smoke:glow
