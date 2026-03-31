@@ -1040,6 +1040,15 @@ class MenuBar extends React.Component {
                     />
                 </div>
 
+                <a
+                    className={styles.glowVersionBadge}
+                    href="https://github.com/DavidLeoni/glow-lab/issues/1"
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    {`v0.1+${process.env.GLOW_COMMIT_HASH || '?'}`}
+                </a>
+
                 {aboutButton}
             </Box>
         );

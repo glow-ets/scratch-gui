@@ -30,6 +30,9 @@ const isTrustedExtension = url => (
     // For development.
     url.startsWith('http://localhost:8000/') ||
 
+    // Trust extensions served from the same origin (Glow Lab bundled extensions).
+    url.startsWith(`${location.origin}/`) ||
+
     extensionsTrustedByUser.has(url)
 );
 
