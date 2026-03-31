@@ -9,9 +9,9 @@
             return {
                 id: 'glowLab',
                 name: 'Glow Lab',
-                color1: '#FF8C00',
-                color2: '#FFB800',
-                color3: '#E67E00',
+                color1: '#c90952',
+                color2: '#a90131',
+                color3: '#874c7e',
                 blocks: [
                     {
                         opcode: 'glowSay',

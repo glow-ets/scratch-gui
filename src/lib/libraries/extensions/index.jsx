@@ -439,9 +439,7 @@ export default [
 ];
 
 export const galleryLoading = {
-    name: (
-        {'TurboWarp Extension Gallery'}
-    ),
+    name: 'TurboWarp Extension Gallery',
     href: 'https://extensions.turbowarp.org/',
     extensionId: 'gallery',
     iconURL: galleryIcon,
@@ -458,9 +456,7 @@ export const galleryLoading = {
 };
 
 export const galleryMore = {
-    name: (
-        {'TurboWarp Extension Gallery'}
-    ),
+    name: 'TurboWarp Extension Gallery',
     href: 'https://extensions.turbowarp.org/',
     extensionId: 'gallery',
     iconURL: galleryIcon,
@@ -477,9 +473,7 @@ export const galleryMore = {
 };
 
 export const galleryError = {
-    name: (
-        {'TurboWarp Extension Gallery'}
-    ),
+    name: 'TurboWarp Extension Gallery',
     href: 'https://extensions.turbowarp.org/',
     extensionId: 'gallery',
     iconURL: galleryIcon,
