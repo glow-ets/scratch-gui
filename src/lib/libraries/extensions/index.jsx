@@ -55,7 +55,6 @@ import returnIcon from './custom/return.svg';
 import galleryIcon from './gallery/gallery.svg';
 import glowLabIconURL from './glow-lab/glow-lab.svg';
 import glowLabInsetIconURL from './glow-lab/glow-lab-small.svg';
-import {APP_NAME} from '../../brand';
 
 export default [
     {
@@ -73,7 +72,7 @@ export default [
         tags: ['glow'],
         featured: true,
         incompatibleWithScratch: true,
-        extensionURL: 'static/extensions/glow-lab.js'
+        extensionURL: new URL('static/extensions/glow-lab.js', location.href).href
     },
     {
         name: (
@@ -402,16 +401,7 @@ export default [
         featured: true
     },
     {
-        name: (
-            <FormattedMessage
-                defaultMessage="{APP_NAME} Blocks"
-                description="Name of the strange 'TurboWarp Blocks' extension"
-                id="tw.twExtension.name"
-                values={{
-                    APP_NAME
-                }}
-            />
-        ),
+        name: 'TurboWarp Blocks',
         extensionId: 'tw',
         iconURL: twIcon,
         description: (
@@ -450,14 +440,7 @@ export default [
 
 export const galleryLoading = {
     name: (
-        <FormattedMessage
-            defaultMessage="{APP_NAME} Extension Gallery"
-            description="Name of extensions.turbowarp.org in extension library"
-            id="tw.extensionGallery.name"
-            values={{
-                APP_NAME
-            }}
-        />
+        {'TurboWarp Extension Gallery'}
     ),
     href: 'https://extensions.turbowarp.org/',
     extensionId: 'gallery',
@@ -476,14 +459,7 @@ export const galleryLoading = {
 
 export const galleryMore = {
     name: (
-        <FormattedMessage
-            defaultMessage="{APP_NAME} Extension Gallery"
-            description="Name of extensions.turbowarp.org in extension library"
-            id="tw.extensionGallery.name"
-            values={{
-                APP_NAME
-            }}
-        />
+        {'TurboWarp Extension Gallery'}
     ),
     href: 'https://extensions.turbowarp.org/',
     extensionId: 'gallery',
@@ -502,14 +478,7 @@ export const galleryMore = {
 
 export const galleryError = {
     name: (
-        <FormattedMessage
-            defaultMessage="{APP_NAME} Extension Gallery"
-            description="Name of extensions.turbowarp.org in extension library"
-            id="tw.extensionGallery.name"
-            values={{
-                APP_NAME
-            }}
-        />
+        {'TurboWarp Extension Gallery'}
     ),
     href: 'https://extensions.turbowarp.org/',
     extensionId: 'gallery',
