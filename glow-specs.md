@@ -44,7 +44,7 @@ The platform shall be:
 
 ## CI
 
-- must have a build process that outputs in a 'demo' folder
+- must have a build process that follows same scratch foundation scratch-gui github actions process with output to Github pages
 - must have automated testing run on github actions
 - provided with a comprehensive test suite, with automated runs on Github
 
