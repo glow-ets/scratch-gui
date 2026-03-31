@@ -1040,6 +1040,10 @@ class MenuBar extends React.Component {
                     />
                 </div>
 
+                <div className={styles.glowVersionBadge}>
+                    {`v${process.env.GLOW_VERSION || '?'}+${process.env.GLOW_COMMIT_HASH || '?'}`}
+                </div>
+
                 {aboutButton}
             </Box>
         );
