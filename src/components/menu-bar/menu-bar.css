@@ -147,6 +147,16 @@
     padding: 0 0.75rem;
 }
 
+.glow-version-badge {
+    display: flex;
+    align-items: center;
+    font-size: 0.65rem;
+    font-weight: normal;
+    opacity: 0.7;
+    padding: 0 0.5rem;
+    white-space: nowrap;
+}
+
 .mystuff-icon {
     margin: 0 .25rem;
     height: 1rem;

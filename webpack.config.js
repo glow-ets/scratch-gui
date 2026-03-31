@@ -11,8 +11,18 @@ const autoprefixer = require('autoprefixer');
 const postcssVars = require('postcss-simple-vars');
 const postcssImport = require('postcss-import');
 
+const {execSync} = require('child_process');
+
 const STATIC_PATH = process.env.STATIC_PATH || '/static';
 const {APP_NAME} = require('./src/lib/brand');
+
+let GLOW_COMMIT_HASH = 'unknown';
+try {
+    GLOW_COMMIT_HASH = execSync('git rev-parse --short HEAD').toString().trim();
+} catch (e) {
+    // ignore - not in a git repo
+}
+const GLOW_VERSION = require('./package.json').version;
 
 const root = process.env.ROOT || '';
 if (root.length > 0 && !root.endsWith('/')) {
@@ -180,7 +190,9 @@ module.exports = [
                 'process.env.ENABLE_SERVICE_WORKER': JSON.stringify(process.env.ENABLE_SERVICE_WORKER || ''),
                 'process.env.ROOT': JSON.stringify(root),
                 'process.env.ROUTING_STYLE': JSON.stringify(process.env.ROUTING_STYLE || 'filehash'),
-                'process.env.ENABLE_WINDCHIMES': JSON.stringify(process.env.ENABLE_WINDCHIMES || '')
+                'process.env.ENABLE_WINDCHIMES': JSON.stringify(process.env.ENABLE_WINDCHIMES || ''),
+                'process.env.GLOW_VERSION': JSON.stringify(GLOW_VERSION),
+                'process.env.GLOW_COMMIT_HASH': JSON.stringify(GLOW_COMMIT_HASH)
             }),
             new HtmlWebpackPlugin({
                 chunks: ['editor'],
