@@ -53,9 +53,28 @@ import twIcon from './tw/tw.svg';
 import customExtensionIcon from './custom/custom.svg';
 import returnIcon from './custom/return.svg';
 import galleryIcon from './gallery/gallery.svg';
+import glowLabIconURL from './glow-lab/glow-lab.svg';
+import glowLabInsetIconURL from './glow-lab/glow-lab-small.svg';
 import {APP_NAME} from '../../brand';
 
 export default [
+    {
+        name: 'Glow Lab',
+        extensionId: 'glowLab',
+        iconURL: glowLabIconURL,
+        insetIconURL: glowLabInsetIconURL,
+        description: (
+            <FormattedMessage
+                defaultMessage="Glow Lab blocks for classroom activities."
+                description="Description for the 'Glow Lab' extension"
+                id="glow.extension.glowLab.description"
+            />
+        ),
+        tags: ['glow'],
+        featured: true,
+        incompatibleWithScratch: true,
+        extensionURL: 'static/extensions/glow-lab.js'
+    },
     {
         name: (
             <FormattedMessage
