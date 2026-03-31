@@ -14,6 +14,8 @@ The platform shall be:
 - minimal, ideally with no direct modification to original turbowarp / scratch code, code changes should mostly stay in extensions
     - newly created files in common places should start with 'glow-':
         - "/glow-specs.md" : this file
+- promoted by Glow ETS (https://glow.earth) a cultural association that offers, organizes, and manages educational activities and cultural events with the aim of generating innovative ideas and projects capable of making an impact on society and the Trentino region
+    - as brand color, use this pink: #e61f5a
 
 - custom extensions (TBD) should have few blocks *that must work*
     - inital custom extension: "glow-lab"
