@@ -65,9 +65,11 @@ describe('Glow Lab smoke tests', () => {
     test('Glow Lab extension can be loaded and block category appears', async () => {
         await loadUri(uri);
 
-        // Open extension library and click Glow Lab
+        // Open extension library and click Glow Lab (scoped to modal to avoid hitting menu bar title)
         await clickXpath('//button[@title="Add Extension"]');
-        await clickText('Glow Lab');
+        await clickXpath(
+            '//*[@class="ReactModalPortal"]//*[contains(text(), "Glow Lab")]'
+        );
 
         // Wait for extension to load and scroll animation
         await new Promise(resolve => setTimeout(resolve, 1000));
