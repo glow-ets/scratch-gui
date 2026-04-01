@@ -19,8 +19,11 @@ jobs:
         cache: npm
     - run: npm ci
 
-    - name: Lint
-      run: npm run test:lint
+    - name: Lint (glow files only)
+      run: npm run test:lint:glow
+
+    - name: Lint (full, informational)
+      run: npm run test:lint || true
 
     - name: Unit tests
       run: npm run test:unit

@@ -52,6 +52,25 @@ These need small, targeted modifications to existing GUI code:
 | "Stress-tested" extension marker | Use existing `tags` array in extension index | Low |
 | No-scratch-cat default assets | Replace default project sprites/costumes | Medium |
 
+## New Spec Items (added 0.2 cycle)
+
+These were added to glow-specs.md and need classification:
+
+| Feature | Category | Details |
+|---|---|---|
+| Auto-match browser language | GUI | REQUIRES PATCH - `src/lib/detect-locale.js` reads localStorage/browser lang but Scratch doesn't always match. Need to fix locale detection logic. |
+| Disable browser auto-translators | GUI | REQUIRES PATCH - Add `<meta name="google" content="notranslate">` + `translate="no"` attribute to HTML templates. Small patch to `src/playground/index.ejs`. |
+| "Easy" mode (simplified UI) | GUI | REQUIRES PATCH - Config flag to hide menu items (Addons, Advanced, Send feedback, turbo/60fps, dark mode, etc). Needs menu-bar and settings changes. Medium effort. |
+| Default/easy mode key combo switch | GUI | REQUIRES PATCH - Keyboard shortcut handler to toggle modes. Small patch. |
+| "easy" label in version string | GUI | REQUIRES PATCH - Conditional in menu-bar version display. Trivial. |
+| Absurdly large values / long strings | EXTENSION | Validation blocks can cap values. Also needs VM-level review. |
+| Extra large image loading check | BOTH | Extension can check file size; GUI file-uploader already converts formats. May need size limit in uploader. |
+| Large sound loading warnings | EXTENSION | Extension block can check audio duration/size and warn. |
+| Hide brush/eraser tools (vector abuse) | GUI | REQUIRES PATCH - Hide or disable in scratch-paint integration. |
+| Motion blocks on Stage: better UX | GUI | REQUIRES PATCH - Replace text warning with pictorial modal when clicking motion blocks while Stage is selected. |
+| Sprite overcrowding limits | BOTH | Extension can monitor count; GUI could add soft limit with warning. |
+| Better undo (multi-sprite history) | GUI | REQUIRES PATCH - Significant effort. Needs undo stack beyond single-sprite restore. |
+
 ## Architecture Notes
 
 - **Extension capabilities**: blocks, menus, translation, runtime events, all Web APIs
