@@ -52,14 +52,10 @@ describe('Glow Lab smoke tests', () => {
     test('Glow Lab extension appears in extension library', async () => {
         await loadUri(uri);
 
-        // Open the extension library via the "Add Extension" button
-        await clickXpath(
-            '//button[contains(@class, "sprite-selector_add-button")]' +
-            ' | //div[contains(@class, "blocks_blocks")]' +
-            '//button[contains(@class, "addButton")]'
-        );
+        // Open the extension library via the "Add Extension" button (same xpath as integration tests)
+        await clickXpath('//button[@title="Add Extension"]');
 
-        // Wait a moment for the library modal to appear, then look for Glow Lab
+        // The library modal should show Glow Lab
         await findByText('Glow Lab');
 
         const logs = await getLogs();
@@ -69,19 +65,14 @@ describe('Glow Lab smoke tests', () => {
     test('Glow Lab extension can be loaded and block category appears', async () => {
         await loadUri(uri);
 
-        // Open extension library
-        await clickXpath(
-            '//button[contains(@class, "sprite-selector_add-button")]' +
-            ' | //div[contains(@class, "blocks_blocks")]' +
-            '//button[contains(@class, "addButton")]'
-        );
-
-        // Click on the Glow Lab extension to load it
-        await findByText('Glow Lab');
+        // Open extension library and click Glow Lab
+        await clickXpath('//button[@title="Add Extension"]');
         await clickText('Glow Lab');
 
-        // After loading, the extension category should appear in the blocks pane.
-        // The extension's blocks should be accessible - look for one of the block opcodes.
+        // Wait for extension to load and scroll animation
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // The extension's blocks should be accessible in the blocks tab
         await findByText('glow say', scope.blocksTab);
 
         const logs = await getLogs();
