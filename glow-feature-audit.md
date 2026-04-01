@@ -1,8 +1,7 @@
 
 # Glow Lab Feature Audit: Extensions vs GUI Patches
 
-This audit maps each spec requirement (from glow-specs.md) to whether it can be achieved
-purely through TurboWarp extensions or requires GUI-level patches.
+This audit maps each spec requirement (from glow-specs.md) to whether it can be achieved purely through TurboWarp extensions or requires GUI-level patches.
 
 ## Summary
 
