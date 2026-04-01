@@ -58,5 +58,4 @@ These need small, targeted modifications to existing GUI code:
 - **Extension limitations**: cannot modify GUI chrome (menus, modals, toolbar, themes)
 - **Recommended approach**: keep GUI patches in clearly marked `glow-*` files/sections;
   implement all educational/hardware logic in the `glow-lab` extension
-- **Bus factor mitigation**: minimal GUI divergence from upstream TurboWarp means easier
-  rebasing when upstream updates
+- **Bus factor mitigation**: minimal GUI divergence from upstream TurboWarp means easier rebasing when upstream updates

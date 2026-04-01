@@ -20,6 +20,9 @@ The platform shall be:
 - custom extensions (TBD) should have few blocks *that must work*
     - inital custom extension: "glow-lab"
 - language support: English + Italian
+    - original scratch for some reason never matches browser language,
+      system should set lang to browser lang automatically
+    - turning off if possible stupid browers auto-translators (Chrome be damned) would be be really nice 
 - visible version + build hash
 - system should warn about problems _before_ they happen without being pedantic:
     - battery too low? 
@@ -28,11 +31,19 @@ The platform shall be:
     - need browser permissions? Show what to click before panel pop up
         - permissions were not given for whatever reason? Show how to change page permissions
 - system must have autosaving in browser cache 
-    - must warn if project size is too big for cache - maybe as workaround save low-res media files?)
+    - must warn if project size is too big for cache - maybe as workaround save low-res media files?
     - on page reload should open the cached project
 - system shouldn't needlessly eat cpu (i.e. consider things like 'attend 0' trick), be careful about unnecessary javascript / CSS animations.
 - system shoudn't limit blocks to use: scratch original 'allow all' approach to foster experimentation is fine
     - exception: Turbowarp extension list is vast, we can add 'stress-tested' marker category for the ones we.. stress tested.
+- system should have two modes enabled by a config flag:
+    - default: with everything enabled (default for now)
+    - easy: 
+        - menu bar: no 'Addons', 'Advanced', 'Send feedback' buttons;
+        -'Edit' menu: no Turn on Turbo mode', 'Turn on 60 FPS' mode, 'Advanced Settings', 'Change username' (unless it can have some useful implication for local cache, like using same pc by different users with same OS account)
+        - File menu: no 'Package', 'Switch to Dark mode', 'Accent'
+        - 'easy' should be displayed in the version label
+    - default / easy modes should be switchable by pressing some hard to do key combo
 
 ## Media 
 
@@ -58,12 +69,18 @@ ASSUME ADVERSARIAL CONDITIONS, ALL THE ABSOLUTE WORSE CAN AND *WILL* HAPPEN:
 - excessive clicking / keypressing
 - race conditions
 - flimsy internet
+- absurdly large values in blocks, extra long strings
 - weird interactions among blocks / extensions
 - misplaced blocks with wrong type
 - missing blocks
 - code execution in inconsistent state
 - excessive resources use (CPU / GPU / memory / network)
+    - check loading of extra large images (also, for svg: check n# points), sounds (1. check they won't hang scratch 2. warn they won't be loadable in online scratch website)
+- vector drawings: prevent abuse of brush and eraser tools which create lots of dots which slow the system (Actually I think we should just outright hide them - they're noneducational)
+- motion blocks on Stage: scratch currently replaces them with a warning, this generates infinite stream of questions by students - they just don't read the warning. Improvement: show the motion blocks, but if someone tries to click them while stage is selected, show warning panel with extra clear pictorial comunication + text.
 - slow and misconfigured hardware (old drivers, no webgl, old https certificates old OS, ...) should still work at same speed - if not possible, output should be degraded gracefully (i.e. low res images, low freq sounds, updated limits on i.e. clones..)
+- prevent sprites overcrowding: impose some limits on n. of sprites
+- better undo: in vanilla scratch you can restore only one sprite, there should be better history tracking
 
 ### Hardware extensions
 
