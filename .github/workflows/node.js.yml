@@ -40,5 +40,8 @@ jobs:
         path: build/
         retention-days: 5
 
+    - name: Install matching chromedriver for smoke tests
+      run: npm install chromedriver --no-save
+
     - name: Smoke tests (glow)
       run: npm run test:smoke:glow
