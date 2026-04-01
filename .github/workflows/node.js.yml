@@ -41,7 +41,11 @@ jobs:
         retention-days: 5
 
     - name: Install matching chromedriver for smoke tests
-      run: npm install chromedriver --no-save
+      run: |
+        CHROME_MAJOR=$(google-chrome --version | grep -oP '\d+' | head -1)
+        echo "Detected Chrome major version: $CHROME_MAJOR"
+        rm -rf node_modules/chromedriver
+        npm install "chromedriver@^${CHROME_MAJOR}" --no-save
 
     - name: Smoke tests (glow)
       run: npm run test:smoke:glow
