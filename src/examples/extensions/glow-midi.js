@@ -40,7 +40,37 @@
             inLabel: 'In',
             outLabel: 'Out',
             none: 'none',
-            virtual: 'virtual'
+            virtual: 'virtual',
+            // Block text
+            block_status: 'status',
+            block_noteNum: 'NoteNum',
+            block_velocity: 'Velocity',
+            block_pb: 'PB',
+            block_pc: 'PC',
+            block_ticks: 'Ticks',
+            block_cc: 'CC [ccnum]',
+            block_midiEvent: 'MIDI EVENT',
+            block_keyOn: 'Key ON',
+            block_keyOff: 'Key OFF',
+            block_pBend: 'P.Bend',
+            block_prgChg: 'PrgChg',
+            block_ctrlChg: 'CtrlChg',
+            block_keyOnNum: 'KEY ON [ckeynum]',
+            block_keyOffNum: 'KEY OFF [ckeynum]',
+            block_event: 'EVENT [n_event]',
+            block_noteOnOut: 'NOTE ON [channelnum] [notenum] [velo]',
+            block_noteOnDur: 'NOTE ON [channelnum] [notenum] [velo] [duration]',
+            block_noteOffOut: 'NOTE OFF [channelnum] [notenum] [velo]',
+            block_prgChgOut: 'PrgChg [channelnum] [pnumber]',
+            block_outDev: 'Out Dev No. [outdev]',
+            block_beat: 'BEAT [tempo]',
+            block_rest: 'Rest [rticks] ticks',
+            // Menu items
+            menu_keyOn: 'key-on',
+            menu_keyOff: 'key-off',
+            menu_ccChg: 'cc-chg',
+            menu_pBend: 'p-bend',
+            menu_pgChg: 'pg-chg'
         },
         it: {
             noDevices: 'Nessun dispositivo MIDI \u2014 collegare un dispositivo MIDI',
@@ -53,7 +83,37 @@
             inLabel: 'Ingr',
             outLabel: 'Usc',
             none: 'nessuno',
-            virtual: 'virtuale'
+            virtual: 'virtuale',
+            // Block text
+            block_status: 'stato',
+            block_noteNum: 'NumNota',
+            block_velocity: 'Velocit\u00e0',
+            block_pb: 'PB',
+            block_pc: 'PC',
+            block_ticks: 'Tick',
+            block_cc: 'CC [ccnum]',
+            block_midiEvent: 'EVENTO MIDI',
+            block_keyOn: 'Nota ON',
+            block_keyOff: 'Nota OFF',
+            block_pBend: 'P.Bend',
+            block_prgChg: 'CambioProg',
+            block_ctrlChg: 'CambioCtrl',
+            block_keyOnNum: 'NOTA ON [ckeynum]',
+            block_keyOffNum: 'NOTA OFF [ckeynum]',
+            block_event: 'EVENTO [n_event]',
+            block_noteOnOut: 'NOTA ON [channelnum] [notenum] [velo]',
+            block_noteOnDur: 'NOTA ON [channelnum] [notenum] [velo] [duration]',
+            block_noteOffOut: 'NOTA OFF [channelnum] [notenum] [velo]',
+            block_prgChgOut: 'CambioProg [channelnum] [pnumber]',
+            block_outDev: 'Dispositivo uscita [outdev]',
+            block_beat: 'BATTITO [tempo]',
+            block_rest: 'Pausa [rticks] tick',
+            // Menu items
+            menu_keyOn: 'nota-on',
+            menu_keyOff: 'nota-off',
+            menu_ccChg: 'cambio-cc',
+            menu_pBend: 'p-bend',
+            menu_pgChg: 'cambio-prog'
         }
     };
 
@@ -144,7 +204,6 @@
 
     // Status tracking
     var _midiStatusError = null; // null = OK, 'permissionDenied' or 'notSupported'
-    var _warnedNoDevice = false;
 
     /* ================================================================ */
     /* Tick-based sequencer (original author's MIDI-standard timing)     */
@@ -236,11 +295,6 @@
 
             if (mOutDev >= mOutputs.length) {
                 mOutDev = 0;
-            }
-
-            // Reset no-device warning when real (non-virtual) outputs become available
-            if (_hasRealOutputs()) {
-                _warnedNoDevice = false;
             }
 
             console.log('Glow MIDI: devices changed. ' + _buildStatusString());
@@ -406,7 +460,7 @@
                     // --- Status ---
                     {
                         opcode: 's_MidiStatus',
-                        text: 'status',
+                        text: _msg('block_status'),
                         blockType: Scratch.BlockType.REPORTER
                     },
 
@@ -415,32 +469,32 @@
                     // --- Reporters ---
                     {
                         opcode: 's_Note',
-                        text: 'NoteNum',
+                        text: _msg('block_noteNum'),
                         blockType: Scratch.BlockType.REPORTER
                     },
                     {
                         opcode: 's_Vel',
-                        text: 'Velocity',
+                        text: _msg('block_velocity'),
                         blockType: Scratch.BlockType.REPORTER
                     },
                     {
                         opcode: 's_PBend',
-                        text: 'PB',
+                        text: _msg('block_pb'),
                         blockType: Scratch.BlockType.REPORTER
                     },
                     {
                         opcode: 's_PChange',
-                        text: 'PC',
+                        text: _msg('block_pc'),
                         blockType: Scratch.BlockType.REPORTER
                     },
                     {
                         opcode: 's_Ticks',
-                        text: 'Ticks',
+                        text: _msg('block_ticks'),
                         blockType: Scratch.BlockType.REPORTER
                     },
                     {
                         opcode: 's_Ccin',
-                        text: 'CC [ccnum]',
+                        text: _msg('block_cc'),
                         blockType: Scratch.BlockType.REPORTER,
                         arguments: {
                             ccnum: {
@@ -455,37 +509,37 @@
                     // --- Hat blocks (event triggers) ---
                     {
                         opcode: 's_Getmidievent',
-                        text: 'MIDI EVENT',
+                        text: _msg('block_midiEvent'),
                         blockType: Scratch.BlockType.HAT
                     },
                     {
                         opcode: 's_Getkeyon',
-                        text: 'Key ON',
+                        text: _msg('block_keyOn'),
                         blockType: Scratch.BlockType.HAT
                     },
                     {
                         opcode: 's_Getkeyoff',
-                        text: 'Key OFF',
+                        text: _msg('block_keyOff'),
                         blockType: Scratch.BlockType.HAT
                     },
                     {
                         opcode: 's_PBevent',
-                        text: 'P.Bend',
+                        text: _msg('block_pBend'),
                         blockType: Scratch.BlockType.HAT
                     },
                     {
                         opcode: 's_PCevent',
-                        text: 'PrgChg',
+                        text: _msg('block_prgChg'),
                         blockType: Scratch.BlockType.HAT
                     },
                     {
                         opcode: 's_Getcc',
-                        text: 'CtrlChg',
+                        text: _msg('block_ctrlChg'),
                         blockType: Scratch.BlockType.HAT
                     },
                     {
                         opcode: 's_Getkeyonnum',
-                        text: 'KEY ON [ckeynum]',
+                        text: _msg('block_keyOnNum'),
                         blockType: Scratch.BlockType.HAT,
                         arguments: {
                             ckeynum: {
@@ -496,7 +550,7 @@
                     },
                     {
                         opcode: 's_Getkeyoffnum',
-                        text: 'KEY OFF [ckeynum]',
+                        text: _msg('block_keyOffNum'),
                         blockType: Scratch.BlockType.HAT,
                         arguments: {
                             ckeynum: {
@@ -511,7 +565,7 @@
                     // --- Boolean ---
                     {
                         opcode: 's_Event',
-                        text: 'EVENT [n_event]',
+                        text: _msg('block_event'),
                         blockType: Scratch.BlockType.BOOLEAN,
                         arguments: {
                             n_event: {
@@ -527,7 +581,7 @@
                     // --- Commands (MIDI output) ---
                     {
                         opcode: 's_Noteon_out',
-                        text: 'NOTE ON [channelnum] [notenum] [velo]',
+                        text: _msg('block_noteOnOut'),
                         blockType: Scratch.BlockType.COMMAND,
                         arguments: {
                             channelnum: {
@@ -546,7 +600,7 @@
                     },
                     {
                         opcode: 's_Noteon_out_duration',
-                        text: 'NOTE ON [channelnum] [notenum] [velo] [duration]',
+                        text: _msg('block_noteOnDur'),
                         blockType: Scratch.BlockType.COMMAND,
                         arguments: {
                             channelnum: {
@@ -569,7 +623,7 @@
                     },
                     {
                         opcode: 's_Noteoff_out',
-                        text: 'NOTE OFF [channelnum] [notenum] [velo]',
+                        text: _msg('block_noteOffOut'),
                         blockType: Scratch.BlockType.COMMAND,
                         arguments: {
                             channelnum: {
@@ -588,7 +642,7 @@
                     },
                     {
                         opcode: 's_ProgramChange',
-                        text: 'PrgChg [channelnum] [pnumber]',
+                        text: _msg('block_prgChgOut'),
                         blockType: Scratch.BlockType.COMMAND,
                         arguments: {
                             channelnum: {
@@ -603,7 +657,7 @@
                     },
                     {
                         opcode: 's_OutDevice',
-                        text: 'Out Dev No. [outdev]',
+                        text: _msg('block_outDev'),
                         blockType: Scratch.BlockType.COMMAND,
                         arguments: {
                             outdev: {
@@ -618,7 +672,7 @@
                     // --- Timing ---
                     {
                         opcode: 's_GetBeat',
-                        text: 'BEAT [tempo]',
+                        text: _msg('block_beat'),
                         blockType: Scratch.BlockType.HAT,
                         arguments: {
                             tempo: {
@@ -629,7 +683,7 @@
                     },
                     {
                         opcode: 's_RestTicks',
-                        text: 'Rest [rticks] ticks',
+                        text: _msg('block_rest'),
                         blockType: Scratch.BlockType.COMMAND,
                         arguments: {
                             rticks: {
@@ -643,45 +697,12 @@
                     eventlist: {
                         acceptReporters: true,
                         items: [
-                            {text: 'key-on', value: EventList.KEY_ON},
-                            {text: 'key-off', value: EventList.KEY_OF},
-                            {text: 'cc-chg', value: EventList.CC_CHG},
-                            {text: 'p-bend', value: EventList.P_BEND},
-                            {text: 'pg-chg', value: EventList.PG_CHG}
+                            {text: _msg('menu_keyOn'), value: EventList.KEY_ON},
+                            {text: _msg('menu_keyOff'), value: EventList.KEY_OF},
+                            {text: _msg('menu_ccChg'), value: EventList.CC_CHG},
+                            {text: _msg('menu_pBend'), value: EventList.P_BEND},
+                            {text: _msg('menu_pgChg'), value: EventList.PG_CHG}
                         ]
-                    }
-                },
-                translation_map: {
-                    it: {
-                        'extensionName': 'Glow MIDI',
-                        's_MidiStatus': 'stato',
-                        's_Note': 'NumNota',
-                        's_Vel': 'Velocit\u00e0',
-                        's_PBend': 'PB',
-                        's_PChange': 'PC',
-                        's_Ticks': 'Tick',
-                        's_Ccin': 'CC [ccnum]',
-                        's_Getmidievent': 'EVENTO MIDI',
-                        's_Getkeyon': 'Nota ON',
-                        's_Getkeyoff': 'Nota OFF',
-                        's_PBevent': 'P.Bend',
-                        's_PCevent': 'CambioProg',
-                        's_Getcc': 'CambioCtrl',
-                        's_Getkeyonnum': 'NOTA ON [ckeynum]',
-                        's_Getkeyoffnum': 'NOTA OFF [ckeynum]',
-                        's_Event': 'EVENTO [n_event]',
-                        's_Noteon_out': 'NOTA ON [channelnum] [notenum] [velo]',
-                        's_Noteon_out_duration': 'NOTA ON [channelnum] [notenum] [velo] [duration]',
-                        's_Noteoff_out': 'NOTA OFF [channelnum] [notenum] [velo]',
-                        's_ProgramChange': 'CambioProg [channelnum] [pnumber]',
-                        's_OutDevice': 'Dispositivo uscita [outdev]',
-                        's_GetBeat': 'BATTITO [tempo]',
-                        's_RestTicks': 'Pausa [rticks] tick',
-                        'eventlist_key-on': 'nota-on',
-                        'eventlist_key-of': 'nota-off',
-                        'eventlist_cc-chg': 'cambio-cc',
-                        'eventlist_p-bend': 'p-bend',
-                        'eventlist_pg-chg': 'cambio-prog'
                     }
                 }
             };
@@ -696,31 +717,28 @@
         /* ---- No-device warning helper ---- */
 
         _warnNoDevice (util) {
-            if (!_warnedNoDevice) {
-                _warnedNoDevice = true;
-                var msg;
-                if (!mOutputs || mOutputs.length === 0) {
-                    msg = _msg('noDeviceWarning');
-                } else {
-                    msg = _msg('onlyVirtualWarning');
+            var msg;
+            if (!mOutputs || mOutputs.length === 0) {
+                msg = _msg('noDeviceWarning');
+            } else {
+                msg = _msg('onlyVirtualWarning');
+            }
+            console.warn('Glow MIDI: ' + msg);
+            // Try multiple approaches for say bubble (compatibility varies)
+            if (util && util.target) {
+                var target = util.target;
+                // Approach 1: emit SAY event (standard scratch-vm)
+                if (this.runtime && this.runtime.emit) {
+                    this.runtime.emit('SAY', target, 'say', msg);
                 }
-                console.warn('Glow MIDI: ' + msg);
-                // Try multiple approaches for say bubble (compatibility varies)
-                if (util && util.target) {
-                    var target = util.target;
-                    // Approach 1: emit SAY event (standard scratch-vm)
-                    if (this.runtime && this.runtime.emit) {
-                        this.runtime.emit('SAY', target, 'say', msg);
-                    }
-                    // Approach 2: direct updateBubble (what Runtime does internally)
-                    if (typeof target.updateBubble === 'function') {
-                        target.updateBubble({
-                            drawableId: target.drawableID,
-                            onSpriteRight: true,
-                            text: msg,
-                            type: 'say'
-                        });
-                    }
+                // Approach 2: direct updateBubble (what Runtime does internally)
+                if (typeof target.updateBubble === 'function') {
+                    target.updateBubble({
+                        drawableId: target.drawableID,
+                        onSpriteRight: true,
+                        text: msg,
+                        type: 'say'
+                    });
                 }
             }
         }
