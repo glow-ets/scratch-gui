@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 372" width="600" height="372">
+  <!-- Background -->
+  <rect x="0" y="0" width="600" height="372" rx="24" ry="24" fill="#e61f5a"/>
+  <!-- MIDI connector (DIN-5 style) -->
+  <circle cx="300" cy="170" r="100" fill="none" stroke="#fff" stroke-width="12"/>
+  <!-- 5 pins -->
+  <circle cx="300" cy="110" r="12" fill="#fff"/>
+  <circle cx="248" cy="140" r="12" fill="#fff"/>
+  <circle cx="352" cy="140" r="12" fill="#fff"/>
+  <circle cx="260" cy="200" r="12" fill="#fff"/>
+  <circle cx="340" cy="200" r="12" fill="#fff"/>
+  <!-- Label -->
+  <text x="300" y="330" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="bold" font-size="48" fill="#fff">Glow MIDI</text>
+</svg>

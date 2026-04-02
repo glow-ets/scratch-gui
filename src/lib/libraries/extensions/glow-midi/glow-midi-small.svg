@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <!-- MIDI DIN-5 connector icon -->
+  <circle cx="40" cy="40" r="28" fill="none" stroke="#e61f5a" stroke-width="4"/>
+  <!-- 5 pins -->
+  <circle cx="40" cy="22" r="4" fill="#e61f5a"/>
+  <circle cx="25" cy="32" r="4" fill="#e61f5a"/>
+  <circle cx="55" cy="32" r="4" fill="#e61f5a"/>
+  <circle cx="28" cy="52" r="4" fill="#e61f5a"/>
+  <circle cx="52" cy="52" r="4" fill="#e61f5a"/>
+</svg>
