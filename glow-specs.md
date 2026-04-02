@@ -103,12 +103,25 @@ For extensions dealing with hardware, assume:
 - missing browser / OS permissions
 - connection with wrong device (in particular for bluetooth)
 
-## Roadmap
+## Development
+
+Development will be aided by Claude Code.
+
+To Claude agent:
+
+- your claude sandbox will be most likely be restricted in particular about dependencies, so before building stuff make sure you do have the permissions, otherwise just let github do the builds and wait for them
+- if you can't fetch needed stuff from Github repos (code, issues, etc) , just pause and tell you can't continue and why, don't attempt workaround web fetches.
+- be mindful about long-term maintenance, in particular:
+    - keep dependencies at a minimum (in a way, this is also enforced by the sandbox), if you really need to add them explain why
+    - before implementing something, look for similar code in codebase, discuss similitaries and choices with the developer
+- when referencing issues in commits, use the USER/REPO#N format to prevent collision with upstream repos
+
+### Roadmap
 
 See milestone-issues:  https://github.com/DavidLeoni/glow-lab/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22milestone%20issue%22
 
 
-## Finally 
+### Finally 
 
 Whenever assessing the project, be candid and direct: would it actually work in a 24 unruly kids classroom, each with its own laptop? If not, mark it as 'to review'.
 
