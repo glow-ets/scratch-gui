@@ -1034,22 +1034,24 @@ class MenuBar extends React.Component {
                             className={styles.glowLogoImg}
                         />
                     </a>
-                    <a
-                        href="https://github.com/DavidLeoni/glow-lab/issues/2"
-                        target="_blank"
-                        rel="noreferrer"
-                        className={styles.glowVersionLink}
-                    >
-                        {'v0.2'}
-                    </a>
-                    <a
-                        href={`https://github.com/DavidLeoni/glow-lab/commit/${process.env.GLOW_COMMIT_HASH || ''}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={styles.glowVersionLink}
-                    >
-                        {`+${process.env.GLOW_COMMIT_HASH || '?'}`}
-                    </a>
+                    <div className={styles.glowVersionText}>
+                        <a
+                            href="https://github.com/DavidLeoni/glow-lab/issues/2"
+                            target="_blank"
+                            rel="noreferrer"
+                            className={styles.glowVersionLink}
+                        >
+                            {'0.2'}
+                        </a>
+                        <a
+                            href={`https://github.com/DavidLeoni/glow-lab/commit/${process.env.GLOW_COMMIT_HASH || ''}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={styles.glowVersionLink}
+                        >
+                            {process.env.GLOW_COMMIT_HASH || '?'}
+                        </a>
+                    </div>
                 </div>
 
                 {aboutButton}
