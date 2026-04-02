@@ -30,30 +30,85 @@
 
     var STATUS_MESSAGES = {
         en: {
-            noDevices: 'No MIDI devices',
+            noDevices: 'No MIDI devices \u2014 connect a MIDI device',
+            onlyVirtual: 'Only virtual ports \u2014 connect a MIDI device',
             permissionDenied: 'MIDI: permission denied \u2014 allow MIDI in browser settings',
             notSupported: 'MIDI: not supported by this browser',
+            securityError: 'MIDI: requires HTTPS \u2014 use Chrome or a secure connection',
             noDeviceWarning: 'No MIDI device connected!',
+            onlyVirtualWarning: 'Only virtual MIDI ports, no real device connected!',
             inLabel: 'In',
             outLabel: 'Out',
-            none: 'none'
+            none: 'none',
+            virtual: 'virtual'
         },
         it: {
-            noDevices: 'Nessun dispositivo MIDI',
+            noDevices: 'Nessun dispositivo MIDI \u2014 collegare un dispositivo MIDI',
+            onlyVirtual: 'Solo porte virtuali \u2014 collegare un dispositivo MIDI',
             permissionDenied: 'MIDI: permesso negato \u2014 consenti MIDI nelle impostazioni del browser',
             notSupported: 'MIDI: non supportato da questo browser',
+            securityError: 'MIDI: richiede HTTPS \u2014 usa Chrome o una connessione sicura',
             noDeviceWarning: 'Nessun dispositivo MIDI collegato!',
+            onlyVirtualWarning: 'Solo porte MIDI virtuali, nessun dispositivo reale!',
             inLabel: 'Ingr',
             outLabel: 'Usc',
-            none: 'nessuno'
+            none: 'nessuno',
+            virtual: 'virtuale'
         }
     };
 
+    // Detect locale: prefer TurboWarp's runtime locale (set by the language picker),
+    // fall back to document/navigator language.
+    var _runtimeRef = null; // set in constructor
+
     function _msg (key) {
-        // Try to detect locale from the document or navigator
-        var lang = (document.documentElement.lang || navigator.language || 'en').substring(0, 2);
+        var lang = 'en';
+        // TurboWarp stores locale on the VM: vm.getLocale() / runtime.getLocale?.()
+        // We can read it from runtime if available
+        if (_runtimeRef) {
+            try {
+                var rLang = _runtimeRef.getLocale ? _runtimeRef.getLocale() : null;
+                if (rLang) lang = rLang.substring(0, 2);
+            } catch (e) { /* ignore */ }
+        }
+        if (lang === 'en') {
+            // Fallback to document / navigator
+            lang = (document.documentElement.lang || navigator.language || 'en').substring(0, 2);
+        }
         var msgs = STATUS_MESSAGES[lang] || STATUS_MESSAGES.en;
         return msgs[key] || STATUS_MESSAGES.en[key] || key;
+    }
+
+    // Detect Linux ALSA virtual loopback ports (e.g. "Midi Through Port-0")
+    function _isVirtualPort (port) {
+        var name = (port.name || '').toLowerCase();
+        return name.indexOf('midi through') !== -1 || name.indexOf('virtual') !== -1;
+    }
+
+    function _hasRealOutputs () {
+        if (!mOutputs || mOutputs.length === 0) return false;
+        for (var i = 0; i < mOutputs.length; i++) {
+            if (!_isVirtualPort(mOutputs[i])) return true;
+        }
+        return false;
+    }
+
+    function _allPortsVirtual () {
+        if (!mInputs && !mOutputs) return false;
+        var total = (mInputs ? mInputs.length : 0) + (mOutputs ? mOutputs.length : 0);
+        if (total === 0) return false;
+        var i;
+        if (mInputs) {
+            for (i = 0; i < mInputs.length; i++) {
+                if (!_isVirtualPort(mInputs[i])) return false;
+            }
+        }
+        if (mOutputs) {
+            for (i = 0; i < mOutputs.length; i++) {
+                if (!_isVirtualPort(mOutputs[i])) return false;
+            }
+        }
+        return true;
     }
 
     /* ================================================================ */
@@ -183,8 +238,8 @@
                 mOutDev = 0;
             }
 
-            // Reset no-device warning when outputs become available
-            if (mOutputs.length > 0) {
+            // Reset no-device warning when real (non-virtual) outputs become available
+            if (_hasRealOutputs()) {
                 _warnedNoDevice = false;
             }
 
@@ -193,9 +248,18 @@
     }
 
     function failure (error) {
-        if (error && error.name === 'NotAllowedError') {
+        var eName = error ? error.name : '';
+        if (eName === 'NotAllowedError') {
             _midiStatusError = 'permissionDenied';
             console.error('Glow MIDI: permission denied.', error);
+        } else if (eName === 'SecurityError') {
+            // Firefox rejects with SecurityError on non-secure (HTTP) origins
+            _midiStatusError = 'securityError';
+            console.error('Glow MIDI: security error (HTTPS required).', error);
+        } else if (eName === 'AbortError') {
+            // User dismissed the permission prompt
+            _midiStatusError = 'permissionDenied';
+            console.error('Glow MIDI: user dismissed permission prompt.', error);
         } else {
             _midiStatusError = 'notSupported';
             console.error('Glow MIDI: Web MIDI not available.', error);
@@ -211,17 +275,24 @@
         if (ins === 0 && outs === 0) {
             return _msg('noDevices');
         }
+        if (_allPortsVirtual()) {
+            return _msg('onlyVirtual');
+        }
         var inNames = [];
         var outNames = [];
         var i;
         if (mInputs) {
             for (i = 0; i < mInputs.length; i++) {
-                inNames.push(mInputs[i].name);
+                var inName = mInputs[i].name;
+                if (_isVirtualPort(mInputs[i])) inName += ' (' + _msg('virtual') + ')';
+                inNames.push(inName);
             }
         }
         if (mOutputs) {
             for (i = 0; i < mOutputs.length; i++) {
-                outNames.push(mOutputs[i].name);
+                var outName = mOutputs[i].name;
+                if (_isVirtualPort(mOutputs[i])) outName += ' (' + _msg('virtual') + ')';
+                outNames.push(outName);
             }
         }
         var inStr = inNames.length > 0 ? inNames.join(', ') : _msg('none');
@@ -314,6 +385,7 @@
     class GlowMidi {
         constructor (runtime) {
             this.runtime = runtime;
+            _runtimeRef = runtime; // for locale detection in _msg()
 
             if (typeof navigator.requestMIDIAccess === 'function') {
                 navigator.requestMIDIAccess({sysex: false}).then(success, failure);
@@ -321,19 +393,6 @@
                 _midiStatusError = 'notSupported';
                 console.error('Glow MIDI: navigator.requestMIDIAccess not available.');
             }
-
-            // Auto-show the MIDI status monitor on stage
-            setTimeout(function () {
-                try {
-                    runtime.monitorBlocks.changeBlock({
-                        id: 'glowMidi_s_MidiStatus',
-                        element: 'checkbox',
-                        value: true
-                    });
-                } catch (e) {
-                    // Silently ignore if monitor system isn't ready
-                }
-            }, 500);
         }
 
         getInfo () {
@@ -639,14 +698,16 @@
         _warnNoDevice (util) {
             if (!_warnedNoDevice) {
                 _warnedNoDevice = true;
+                var msg;
+                if (!mOutputs || mOutputs.length === 0) {
+                    msg = _msg('noDeviceWarning');
+                } else {
+                    msg = _msg('onlyVirtualWarning');
+                }
                 if (util && util.target && this.runtime) {
-                    this.runtime.emit('SAY', util.target, 'say', _msg('noDeviceWarning'));
+                    this.runtime.emit('SAY', util.target, 'say', msg);
                 }
             }
-        }
-
-        _hasOutputs () {
-            return mOutputs !== null && mOutputs.length > 0;
         }
 
         /* ---- Reporters ---- */
@@ -783,13 +844,13 @@
         /* ---- Commands (MIDI output) ---- */
 
         s_Noteon_out (args, util) {
-            if (!this._hasOutputs()) { this._warnNoDevice(util); return; }
+            if (!_hasRealOutputs()) { this._warnNoDevice(util); return; }
             var chnum = (args.channelnum & 0x0F) - 1;
             m_midiout(0x90 + chnum, args.notenum & 0x7F, args.velo & 0x7F);
         }
 
         s_Noteon_out_duration (args, util) {
-            if (!this._hasOutputs()) { this._warnNoDevice(util); return; }
+            if (!_hasRealOutputs()) { this._warnNoDevice(util); return; }
             var chnum = (args.channelnum & 0x0F) - 1;
             var irticks = args.duration;
             if (irticks < 10) irticks = 10;
@@ -801,13 +862,13 @@
         }
 
         s_Noteoff_out (args, util) {
-            if (!this._hasOutputs()) { this._warnNoDevice(util); return; }
+            if (!_hasRealOutputs()) { this._warnNoDevice(util); return; }
             var chnum = (args.channelnum & 0x0F) - 1;
             m_midiout(0x80 + chnum, args.notenum & 0x7F, args.velo & 0x7F);
         }
 
         s_ProgramChange (args, util) {
-            if (!this._hasOutputs()) { this._warnNoDevice(util); return; }
+            if (!_hasRealOutputs()) { this._warnNoDevice(util); return; }
             var chnum = (args.channelnum & 0x0F) - 1;
             var pgnum = args.pnumber & 0x7F;
             m_midiout_2byte(0xC0 + chnum, pgnum);
