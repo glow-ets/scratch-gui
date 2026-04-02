@@ -406,7 +406,7 @@
                     // --- Status ---
                     {
                         opcode: 's_MidiStatus',
-                        text: 'MIDI status',
+                        text: 'status',
                         blockType: Scratch.BlockType.REPORTER
                     },
 
@@ -654,7 +654,7 @@
                 translation_map: {
                     it: {
                         'extensionName': 'Glow MIDI',
-                        's_MidiStatus': 'stato MIDI',
+                        's_MidiStatus': 'stato',
                         's_Note': 'NumNota',
                         's_Vel': 'Velocit\u00e0',
                         's_PBend': 'PB',
@@ -704,8 +704,23 @@
                 } else {
                     msg = _msg('onlyVirtualWarning');
                 }
-                if (util && util.target && this.runtime) {
-                    this.runtime.emit('SAY', util.target, 'say', msg);
+                console.warn('Glow MIDI: ' + msg);
+                // Try multiple approaches for say bubble (compatibility varies)
+                if (util && util.target) {
+                    var target = util.target;
+                    // Approach 1: emit SAY event (standard scratch-vm)
+                    if (this.runtime && this.runtime.emit) {
+                        this.runtime.emit('SAY', target, 'say', msg);
+                    }
+                    // Approach 2: direct updateBubble (what Runtime does internally)
+                    if (typeof target.updateBubble === 'function') {
+                        target.updateBubble({
+                            drawableId: target.drawableID,
+                            onSpriteRight: true,
+                            text: msg,
+                            type: 'say'
+                        });
+                    }
                 }
             }
         }

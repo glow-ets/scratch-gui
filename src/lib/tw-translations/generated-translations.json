@@ -1582,6 +1582,8 @@
         "tw.viewOnScratch": "Projekt megtekintése a Scratchen."
     },
     "it": {
+        "glow.extension.glowLab.description": "Blocchi Glow Lab per attivit\u00e0 in classe.",
+        "glow.extension.glowMidi.description": "Invia e ricevi messaggi MIDI con dispositivi Web MIDI.",
         "tw.accent.blue": "Azzurro",
         "tw.accent.purple": "Viola",
         "tw.accent.rainbow": "Arcobaleno",
