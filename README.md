@@ -1,4 +1,16 @@
-scratch-gui modified for use in [TurboWarp](https://turbowarp.org/)
+# Glow Lab 
+
+[Glow ETS](glow.earth) custom Scratch instance, based on [TurboWarp](https://turbowarp.org/) scratch-gui.
+
+Online development snapshot :  
+
+https://davidleoni.github.io/glow-lab/editor.html
+
+v0.2 features:
+
+- custom extension test, build and test pipeline
+
+----------------------------------------------------------------------------------------------------
 
 ## Setup
 

@@ -96,6 +96,7 @@ import editIcon from './icon--edit.svg';
 import addonsIcon from './addons.svg';
 import errorIcon from './tw-error.svg';
 import advancedIcon from './tw-advanced.svg';
+import glowLabSmallIcon from '../../lib/libraries/extensions/glow-lab/glow-lab-small.svg';
 
 import ninetiesLogo from './nineties_logo.svg';
 import catLogo from './cat_logo.svg';
@@ -1011,27 +1012,7 @@ class MenuBar extends React.Component {
                             />
                         ) : []))}
                     </div>
-                    {/* tw: add a feedback button */}
-                    <div className={styles.menuBarItem}>
-                        <a
-                            className={styles.feedbackLink}
-                            href="https://scratch.mit.edu/users/GarboMuffin/#comments"
-                            rel="noopener noreferrer"
-                            target="_blank"
-                        >
-                            {/* todo: icon */}
-                            <Button className={styles.feedbackButton}>
-                                <FormattedMessage
-                                    defaultMessage="{APP_NAME} Feedback"
-                                    description="Button to give feedback in the menu bar"
-                                    id="tw.feedbackButton"
-                                    values={{
-                                        APP_NAME
-                                    }}
-                                />
-                            </Button>
-                        </a>
-                    </div>
+                    {/* feedback button removed per glow-specs */}
                 </div>
 
                 <div className={styles.accountInfoGroup}>
@@ -1040,14 +1021,38 @@ class MenuBar extends React.Component {
                     />
                 </div>
 
-                <a
-                    className={styles.glowVersionBadge}
-                    href="https://github.com/DavidLeoni/glow-lab/issues/1"
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    {`v0.1+${process.env.GLOW_COMMIT_HASH || '?'}`}
-                </a>
+                <div className={styles.glowVersionBadge}>
+                    <a
+                        href="https://glow.earth"
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.glowLogoLink}
+                    >
+                        <img
+                            src={glowLabSmallIcon}
+                            alt="Glow Lab"
+                            className={styles.glowLogoImg}
+                        />
+                    </a>
+                    <div className={styles.glowVersionText}>
+                        <a
+                            href="https://github.com/DavidLeoni/glow-lab/issues/2"
+                            target="_blank"
+                            rel="noreferrer"
+                            className={styles.glowVersionLink}
+                        >
+                            {'0.2'}
+                        </a>
+                        <a
+                            href={`https://github.com/DavidLeoni/glow-lab/commit/${process.env.GLOW_COMMIT_HASH || ''}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={styles.glowVersionLink}
+                        >
+                            {process.env.GLOW_COMMIT_HASH || '?'}
+                        </a>
+                    </div>
+                </div>
 
                 {aboutButton}
             </Box>

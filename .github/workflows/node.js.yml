@@ -2,21 +2,66 @@ name: CI
 
 on:
   push:
+    branches: [develop, main]
   pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: write
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
-      with:
-        persist-credentials: false
     - name: Install Node.js
       uses: actions/setup-node@v4
       with:
         node-version: 22
         cache: npm
     - run: npm ci
-    - run: npm run build
-    - run: npm run test:unit
+
+    - name: Lint (glow files only)
+      run: npm run test:lint:glow
+
+    - name: Lint (full, informational)
+      run: npm run test:lint || true
+
+    - name: Unit tests
+      run: npm run test:unit
+
+    - name: Determine branch name
+      id: branch
+      run: echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+    - name: Build
+      run: npm run build
+      env:
+        NODE_ENV: production
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: build
+        path: build/
+        retention-days: 5
+
+    - name: Install matching chromedriver for smoke tests
+      run: |
+        CHROME_MAJOR=$(google-chrome --version | grep -oP '\d+' | head -1)
+        echo "Detected Chrome major version: $CHROME_MAJOR"
+        rm -rf node_modules/chromedriver
+        npm install "chromedriver@^${CHROME_MAJOR}" --no-save
+
+    - name: Smoke tests (glow)
+      run: npm run test:smoke:glow
+
+    - name: Deploy to GitHub Pages
+      if: github.event_name == 'push'
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./build
+        publish_branch: gh-pages
+        destination_dir: ${{ steps.branch.outputs.name }}

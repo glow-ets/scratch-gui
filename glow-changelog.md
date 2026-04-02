@@ -1,5 +1,32 @@
 # Glow Lab Changelog
 
+## 0.2.0 - Dev workflow setup
+
+### Feature audit
+
+- Added `glow-feature-audit.md`: maps each spec requirement to extension-only vs GUI-patch
+- ~85% of planned features can be implemented purely through extensions
+- Only branding CSS, AVIF support, cache-size warnings, and stress-tested markers need GUI patches
+
+### Smoke tests
+
+- Added `test/smoke/glow-smoke.test.js` with three headless browser tests:
+  - Build output exists and GUI loads without console errors
+  - Glow Lab extension appears in the extension library
+  - Glow Lab extension can be loaded and its block category appears
+- Added `npm run test:smoke:glow` script
+
+### CI improvements
+
+- Updated `.github/workflows/node.js.yml`:
+  - Added lint step before unit tests
+  - Added production build with artifact upload
+  - Added glow smoke tests after build
+- Added `.github/workflows/deploy-gh-pages.yml`:
+  - Deploys to GitHub Pages on push to `develop` branch
+  - Uses modern `actions/deploy-pages@v4` (no gh-pages branch needed)
+  - Concurrency control to avoid overlapping deploys
+
 ## 0.1.0 - Repo setup
 
 Based on TurboWarp/scratch-gui, forked at commit `457e640` (Update translations, the last upstream TurboWarp commit before Glow Lab modifications).
