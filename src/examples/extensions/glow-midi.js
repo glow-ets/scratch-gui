@@ -14,15 +14,47 @@
 //   - Rebranded to "Glow MIDI" for the Glow Lab platform
 //   - Adapted to TurboWarp unsandboxed extension format
 //   - Removed Pokemiku blocks (s_PokeText, s_Strlen) and all related sysex/text-map code
-//   - Replaced alert() popups with console logging + peripheral status indicator
+//   - Replaced alert() popups with MIDI status reporter + no-device say bubble
 //   - Added MIDIAccess.onstatechange for hot-plug device monitoring
-//   - Added Italian translations
+//   - Added Italian translations via translation_map
 //   - Replaced scratch-vm Timer with Date.now()-based timer (functionally identical)
 //
 // See glow-midi-README.md for full reconstruction details.
 
 (function (Scratch) {
     'use strict';
+
+    /* ================================================================ */
+    /* Localized status messages                                         */
+    /* ================================================================ */
+
+    var STATUS_MESSAGES = {
+        en: {
+            noDevices: 'No MIDI devices',
+            permissionDenied: 'MIDI: permission denied \u2014 allow MIDI in browser settings',
+            notSupported: 'MIDI: not supported by this browser',
+            noDeviceWarning: 'No MIDI device connected!',
+            inLabel: 'In',
+            outLabel: 'Out',
+            none: 'none'
+        },
+        it: {
+            noDevices: 'Nessun dispositivo MIDI',
+            permissionDenied: 'MIDI: permesso negato \u2014 consenti MIDI nelle impostazioni del browser',
+            notSupported: 'MIDI: non supportato da questo browser',
+            noDeviceWarning: 'Nessun dispositivo MIDI collegato!',
+            inLabel: 'Ingr',
+            outLabel: 'Usc',
+            none: 'nessuno'
+        }
+    };
+
+    function _msg (key) {
+        // Try to detect locale from the document or navigator
+        var lang = (document.documentElement.lang || navigator.language || 'en').substring(0, 2);
+        var msgs = STATUS_MESSAGES[lang] || STATUS_MESSAGES.en;
+        return msgs[key] || STATUS_MESSAGES.en[key] || key;
+    }
 
     /* ================================================================ */
     /* MIDI state — module-level variables (same structure as original)  */
@@ -54,6 +86,10 @@
     var mNoteVel = 0;
     var mPBend = 64;
     var mPCn = 0;
+
+    // Status tracking
+    var _midiStatusError = null; // null = OK, 'permissionDenied' or 'notSupported'
+    var _warnedNoDevice = false;
 
     /* ================================================================ */
     /* Tick-based sequencer (original author's MIDI-standard timing)     */
@@ -92,36 +128,9 @@
     /* MIDI access — success / failure / input parsing / output          */
     /* ================================================================ */
 
-    // Reference to the runtime for peripheral status events.
-    // Set by the extension constructor.
-    var _runtime = null;
-
-    function _emitConnected () {
-        if (_runtime) {
-            _runtime.emit('PERIPHERAL_CONNECTED');
-        }
-    }
-
-    function _emitDisconnected () {
-        if (_runtime) {
-            _runtime.emit('PERIPHERAL_DISCONNECTED');
-        }
-    }
-
-    function _updateConnectionStatus () {
-        // Check if any output device is available
-        if (mOutputs && mOutputs.length > 0) {
-            _emitConnected();
-        } else {
-            _emitDisconnected();
-        }
-    }
-
     function success (midiAccess) {
         mMIDI = midiAccess;
-        var msg = 'Glow MIDI: connected.\n';
-        var inum = 0;
-        var onum = 0;
+        _midiStatusError = null;
 
         for (var i = 0; i < 0x80; i++) {
             mCtlbuf[i] = 0;
@@ -133,28 +142,15 @@
             mInputs = mMIDI.inputs();
             mOutputs = mMIDI.outputs();
         } else {
-            msg += 'Input: ';
             var inputIterator = mMIDI.inputs.values();
             mInputs = [];
             for (var o = inputIterator.next(); !o.done; o = inputIterator.next()) {
                 mInputs.push(o.value);
-                msg += (inum + 1).toString(10) + ':' + o.value.name + ' ';
-                inum++;
             }
-            if (inum === 0) {
-                msg += 'none. ';
-            }
-
-            msg += '| Output: ';
             var outputIterator = mMIDI.outputs.values();
             mOutputs = [];
             for (var p = outputIterator.next(); !p.done; p = outputIterator.next()) {
                 mOutputs.push(p.value);
-                msg += (onum + 1).toString(10) + ':' + p.value.name + ' ';
-                onum++;
-            }
-            if (onum === 0) {
-                msg += 'none.';
             }
         }
 
@@ -162,12 +158,10 @@
             mInputs[j].onmidimessage = m_midiin;
         }
 
-        console.log(msg);
-        _updateConnectionStatus();
+        console.log('Glow MIDI: ' + _buildStatusString());
 
         // Monitor device hot-plug / unplug
         mMIDI.onstatechange = function () {
-            // Re-enumerate devices on any state change
             var newInputs = [];
             var inIt = mMIDI.inputs.values();
             for (var inp = inIt.next(); !inp.done; inp = inIt.next()) {
@@ -181,25 +175,58 @@
             mInputs = newInputs;
             mOutputs = newOutputs;
 
-            // Re-bind input listeners
             for (var k = 0; k < mInputs.length; k++) {
                 mInputs[k].onmidimessage = m_midiin;
             }
 
-            // Clamp output device index
             if (mOutDev >= mOutputs.length) {
                 mOutDev = 0;
             }
 
-            console.log('Glow MIDI: devices changed. Inputs: ' +
-                mInputs.length + ', Outputs: ' + mOutputs.length);
-            _updateConnectionStatus();
+            // Reset no-device warning when outputs become available
+            if (mOutputs.length > 0) {
+                _warnedNoDevice = false;
+            }
+
+            console.log('Glow MIDI: devices changed. ' + _buildStatusString());
         };
     }
 
     function failure (error) {
-        console.error('Glow MIDI: Web MIDI not available.', error);
-        _emitDisconnected();
+        if (error && error.name === 'NotAllowedError') {
+            _midiStatusError = 'permissionDenied';
+            console.error('Glow MIDI: permission denied.', error);
+        } else {
+            _midiStatusError = 'notSupported';
+            console.error('Glow MIDI: Web MIDI not available.', error);
+        }
+    }
+
+    function _buildStatusString () {
+        if (_midiStatusError) {
+            return _msg(_midiStatusError);
+        }
+        var ins = mInputs ? mInputs.length : 0;
+        var outs = mOutputs ? mOutputs.length : 0;
+        if (ins === 0 && outs === 0) {
+            return _msg('noDevices');
+        }
+        var inNames = [];
+        var outNames = [];
+        var i;
+        if (mInputs) {
+            for (i = 0; i < mInputs.length; i++) {
+                inNames.push(mInputs[i].name);
+            }
+        }
+        if (mOutputs) {
+            for (i = 0; i < mOutputs.length; i++) {
+                outNames.push(mOutputs[i].name);
+            }
+        }
+        var inStr = inNames.length > 0 ? inNames.join(', ') : _msg('none');
+        var outStr = outNames.length > 0 ? outNames.join(', ') : _msg('none');
+        return _msg('inLabel') + ': ' + inStr + ' | ' + _msg('outLabel') + ': ' + outStr;
     }
 
     /* ---- MIDI input parsing ---- */
@@ -287,9 +314,26 @@
     class GlowMidi {
         constructor (runtime) {
             this.runtime = runtime;
-            _runtime = runtime;
 
-            navigator.requestMIDIAccess({sysex: false}).then(success, failure);
+            if (typeof navigator.requestMIDIAccess === 'function') {
+                navigator.requestMIDIAccess({sysex: false}).then(success, failure);
+            } else {
+                _midiStatusError = 'notSupported';
+                console.error('Glow MIDI: navigator.requestMIDIAccess not available.');
+            }
+
+            // Auto-show the MIDI status monitor on stage
+            setTimeout(function () {
+                try {
+                    runtime.monitorBlocks.changeBlock({
+                        id: 'glowMidi_s_MidiStatus',
+                        element: 'checkbox',
+                        value: true
+                    });
+                } catch (e) {
+                    // Silently ignore if monitor system isn't ready
+                }
+            }, 500);
         }
 
         getInfo () {
@@ -300,6 +344,15 @@
                 color2: '#c4174d',
                 color3: '#9e1240',
                 blocks: [
+                    // --- Status ---
+                    {
+                        opcode: 's_MidiStatus',
+                        text: 'MIDI status',
+                        blockType: Scratch.BlockType.REPORTER
+                    },
+
+                    '---',
+
                     // --- Reporters ---
                     {
                         opcode: 's_Note',
@@ -538,8 +591,62 @@
                             {text: 'pg-chg', value: EventList.PG_CHG}
                         ]
                     }
+                },
+                translation_map: {
+                    it: {
+                        'extensionName': 'Glow MIDI',
+                        's_MidiStatus': 'stato MIDI',
+                        's_Note': 'NumNota',
+                        's_Vel': 'Velocit\u00e0',
+                        's_PBend': 'PB',
+                        's_PChange': 'PC',
+                        's_Ticks': 'Tick',
+                        's_Ccin': 'CC [ccnum]',
+                        's_Getmidievent': 'EVENTO MIDI',
+                        's_Getkeyon': 'Nota ON',
+                        's_Getkeyoff': 'Nota OFF',
+                        's_PBevent': 'P.Bend',
+                        's_PCevent': 'CambioProg',
+                        's_Getcc': 'CambioCtrl',
+                        's_Getkeyonnum': 'NOTA ON [ckeynum]',
+                        's_Getkeyoffnum': 'NOTA OFF [ckeynum]',
+                        's_Event': 'EVENTO [n_event]',
+                        's_Noteon_out': 'NOTA ON [channelnum] [notenum] [velo]',
+                        's_Noteon_out_duration': 'NOTA ON [channelnum] [notenum] [velo] [duration]',
+                        's_Noteoff_out': 'NOTA OFF [channelnum] [notenum] [velo]',
+                        's_ProgramChange': 'CambioProg [channelnum] [pnumber]',
+                        's_OutDevice': 'Dispositivo uscita [outdev]',
+                        's_GetBeat': 'BATTITO [tempo]',
+                        's_RestTicks': 'Pausa [rticks] tick',
+                        'eventlist_key-on': 'nota-on',
+                        'eventlist_key-of': 'nota-off',
+                        'eventlist_cc-chg': 'cambio-cc',
+                        'eventlist_p-bend': 'p-bend',
+                        'eventlist_pg-chg': 'cambio-prog'
+                    }
                 }
             };
+        }
+
+        /* ---- Status ---- */
+
+        s_MidiStatus () {
+            return _buildStatusString();
+        }
+
+        /* ---- No-device warning helper ---- */
+
+        _warnNoDevice (util) {
+            if (!_warnedNoDevice) {
+                _warnedNoDevice = true;
+                if (util && util.target && this.runtime) {
+                    this.runtime.emit('SAY', util.target, 'say', _msg('noDeviceWarning'));
+                }
+            }
+        }
+
+        _hasOutputs () {
+            return mOutputs !== null && mOutputs.length > 0;
         }
 
         /* ---- Reporters ---- */
@@ -675,12 +782,14 @@
 
         /* ---- Commands (MIDI output) ---- */
 
-        s_Noteon_out (args) {
+        s_Noteon_out (args, util) {
+            if (!this._hasOutputs()) { this._warnNoDevice(util); return; }
             var chnum = (args.channelnum & 0x0F) - 1;
             m_midiout(0x90 + chnum, args.notenum & 0x7F, args.velo & 0x7F);
         }
 
-        s_Noteon_out_duration (args) {
+        s_Noteon_out_duration (args, util) {
+            if (!this._hasOutputs()) { this._warnNoDevice(util); return; }
             var chnum = (args.channelnum & 0x0F) - 1;
             var irticks = args.duration;
             if (irticks < 10) irticks = 10;
@@ -691,12 +800,14 @@
             m_midiout(0x90 + chnum, args.notenum & 0x7F, args.velo & 0x7F);
         }
 
-        s_Noteoff_out (args) {
+        s_Noteoff_out (args, util) {
+            if (!this._hasOutputs()) { this._warnNoDevice(util); return; }
             var chnum = (args.channelnum & 0x0F) - 1;
             m_midiout(0x80 + chnum, args.notenum & 0x7F, args.velo & 0x7F);
         }
 
-        s_ProgramChange (args) {
+        s_ProgramChange (args, util) {
+            if (!this._hasOutputs()) { this._warnNoDevice(util); return; }
             var chnum = (args.channelnum & 0x0F) - 1;
             var pgnum = args.pnumber & 0x7F;
             m_midiout_2byte(0xC0 + chnum, pgnum);
