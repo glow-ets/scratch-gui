@@ -26,7 +26,7 @@
    inkscape:deskcolor="#d1d1d1"
    showgrid="false"
    inkscape:zoom="0.7843521"
-   inkscape:cx="-300.88528"
+   inkscape:cx="25.498752"
    inkscape:cy="335.30859"
    inkscape:window-width="2256"
    inkscape:window-height="1464"
@@ -68,13 +68,17 @@
 <g
    aria-label="LAB"
    id="text1019"
-   style="font-size:135.45px;line-height:29.8%;font-family:Kalimati;-inkscape-font-specification:Kalimati;letter-spacing:12.9881px;word-spacing:0px;fill:#ffb1f7;stroke:#000000;stroke-width:8.46562px;stroke-opacity:0.126946;stop-color:#000000"><path
+   style="font-size:135.45px;line-height:29.8%;font-family:Kalimati;-inkscape-font-specification:Kalimati;letter-spacing:12.9881px;word-spacing:0px;fill:#ffdafb;stroke:#d414d9;stroke-width:8.46562px;stroke-opacity:0.126946;stop-color:#000000;fill-opacity:1"
+   transform="translate(-12,-28)"><path
      d="m 307.87379,444.92743 h 13.35981 v 87.50017 h 48.0821 v 11.24341 h -61.44191 z"
-     id="path6750" /><path
+     id="path6750"
+     style="fill:#ffdafb;fill-opacity:1;stroke:#d414d9;stroke-opacity:0.126946" /><path
      d="m 421.2589,458.08883 -18.12173,49.14031 h 36.3096 z m -7.53969,-13.1614 h 15.14553 l 37.63235,98.74358 h -13.88892 l -8.99473,-25.33074 h -44.51066 l -8.99473,25.33074 h -14.08733 z"
-     id="path6752" /><path
+     id="path6752"
+     style="fill:#ffdafb;fill-opacity:1;stroke:#d414d9;stroke-opacity:0.126946" /><path
      d="m 495.8212,496.51483 v 36.17732 h 21.42861 q 10.78045,0 15.93919,-4.43122 5.22487,-4.49737 5.22487,-13.69051 0,-9.25927 -5.22487,-13.62436 -5.15874,-4.43123 -15.93919,-4.43123 z m 0,-40.60854 v 29.76196 h 19.77517 q 9.78838,0 14.55029,-3.63757 4.82805,-3.70371 4.82805,-11.24341 0,-7.47356 -4.82805,-11.17727 -4.76191,-3.70371 -14.55029,-3.70371 z m -13.35981,-10.97886 h 34.12705 q 15.2778,0 23.54501,6.34922 8.26722,6.34922 8.26722,18.05559 0,9.06086 -4.23282,14.41802 -4.23281,5.35715 -12.43388,6.6799 9.85451,2.11641 15.2778,8.86246 5.48943,6.6799 5.48943,16.73283 0,13.22754 -8.99472,20.43655 -8.99473,7.20901 -25.59529,7.20901 h -35.4498 z"
-     id="path6754" /></g><g
+     id="path6754"
+     style="fill:#ffdafb;fill-opacity:1;stroke:#d414d9;stroke-opacity:0.126946" /></g><g
    id="g316"
    transform="matrix(6.4618611,0,0,6.4618611,-30.350342,-36.290038)"><path
      fill="#fdfbfc"

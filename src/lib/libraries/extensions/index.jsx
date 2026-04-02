@@ -55,6 +55,8 @@ import returnIcon from './custom/return.svg';
 import galleryIcon from './gallery/gallery.svg';
 import glowLabIconURL from './glow-lab/glow-lab.svg';
 import glowLabInsetIconURL from './glow-lab/glow-lab-small.svg';
+import glowMidiIconURL from './glow-midi/glow-midi.svg';
+import glowMidiInsetIconURL from './glow-midi/glow-midi-small.svg';
 
 export default [
     {
@@ -73,6 +75,23 @@ export default [
         featured: true,
         incompatibleWithScratch: true,
         extensionURL: new URL('static/extensions/glow-lab.js', location.href).href
+    },
+    {
+        name: 'Glow MIDI',
+        extensionId: 'glowMidi',
+        iconURL: glowMidiIconURL,
+        insetIconURL: glowMidiInsetIconURL,
+        description: (
+            <FormattedMessage
+                defaultMessage="Send and receive MIDI messages with Web MIDI devices."
+                description="Description for the 'Glow MIDI' extension"
+                id="glow.extension.glowMidi.description"
+            />
+        ),
+        tags: ['glow'],
+        featured: true,
+        incompatibleWithScratch: true,
+        extensionURL: new URL('static/extensions/glow-midi.js', location.href).href
     },
     {
         name: (
