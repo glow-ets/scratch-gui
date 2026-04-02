@@ -117,20 +117,13 @@
         }
     };
 
-    // Detect locale: prefer TurboWarp's runtime locale (set by the language picker),
-    // fall back to document/navigator language.
-    var _runtimeRef = null; // set in constructor
-
     function _msg (key) {
         var lang = 'en';
-        // TurboWarp stores locale on the VM: vm.getLocale() / runtime.getLocale?.()
-        // We can read it from runtime if available
-        if (_runtimeRef) {
-            try {
-                var rLang = _runtimeRef.getLocale ? _runtimeRef.getLocale() : null;
-                if (rLang) lang = rLang.substring(0, 2);
-            } catch (e) { /* ignore */ }
-        }
+        // TurboWarp stores the selected language in localStorage
+        try {
+            var stored = localStorage.getItem('tw:language');
+            if (stored) lang = stored.substring(0, 2);
+        } catch (e) { /* ignore */ }
         if (lang === 'en') {
             // Fallback to document / navigator
             lang = (document.documentElement.lang || navigator.language || 'en').substring(0, 2);
@@ -439,7 +432,6 @@
     class GlowMidi {
         constructor (runtime) {
             this.runtime = runtime;
-            _runtimeRef = runtime; // for locale detection in _msg()
 
             if (typeof navigator.requestMIDIAccess === 'function') {
                 navigator.requestMIDIAccess({sysex: false}).then(success, failure);
@@ -724,21 +716,16 @@
                 msg = _msg('onlyVirtualWarning');
             }
             console.warn('Glow MIDI: ' + msg);
-            // Try multiple approaches for say bubble (compatibility varies)
-            if (util && util.target) {
+            if (util && util.target && !util.target.isStage) {
                 var target = util.target;
-                // Approach 1: emit SAY event (standard scratch-vm)
+                // Approach 1: direct setSay on target (bypasses event system,
+                // works even in TurboWarp compiled mode)
+                if (typeof target.setSay === 'function') {
+                    target.setSay('say', msg);
+                }
+                // Approach 2: emit SAY event (standard scratch-vm fallback)
                 if (this.runtime && this.runtime.emit) {
                     this.runtime.emit('SAY', target, 'say', msg);
-                }
-                // Approach 2: direct updateBubble (what Runtime does internally)
-                if (typeof target.updateBubble === 'function') {
-                    target.updateBubble({
-                        drawableId: target.drawableID,
-                        onSpriteRight: true,
-                        text: msg,
-                        type: 'say'
-                    });
                 }
             }
         }
