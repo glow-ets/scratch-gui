@@ -716,17 +716,9 @@
                 msg = _msg('onlyVirtualWarning');
             }
             console.warn('Glow MIDI: ' + msg);
-            if (util && util.target && !util.target.isStage) {
-                var target = util.target;
-                // Approach 1: direct setSay on target (bypasses event system,
-                // works even in TurboWarp compiled mode)
-                if (typeof target.setSay === 'function') {
-                    target.setSay('say', msg);
-                }
-                // Approach 2: emit SAY event (standard scratch-vm fallback)
-                if (this.runtime && this.runtime.emit) {
-                    this.runtime.emit('SAY', target, 'say', msg);
-                }
+            // Same pattern as glow-lab.js glowSay — emit SAY event on util.runtime
+            if (util.runtime && util.runtime.emit) {
+                util.runtime.emit('SAY', util.target, 'say', String(msg));
             }
         }
 
