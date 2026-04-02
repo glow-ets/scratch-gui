@@ -9,7 +9,7 @@
    viewBox="0 0 100 100"
    enable-background="new 0 0 100 100"
    xml:space="preserve"
-   sodipodi:docname="glow-rosa-small.svg"
+   sodipodi:docname="glow-lab-small.svg"
    inkscape:version="1.2.2 (b0a8486, 2022-12-01)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -26,14 +26,14 @@
    inkscape:deskcolor="#d1d1d1"
    showgrid="false"
    inkscape:zoom="4.0781622"
-   inkscape:cx="124.56591"
-   inkscape:cy="115.4932"
+   inkscape:cx="85.577763"
+   inkscape:cy="115.73841"
    inkscape:window-width="2256"
    inkscape:window-height="1464"
    inkscape:window-x="0"
    inkscape:window-y="0"
    inkscape:window-maximized="1"
-   inkscape:current-layer="Layer_1" />
+   inkscape:current-layer="text1019" />
 <path
    fill="#ca355d"
    opacity="1"
@@ -111,4 +111,13 @@
    d="m 38.474466,42.375355 c -0.0033,0.0018 0.0033,-0.0018 0,0 z"
    id="path22"
    style="stroke-width:0.0781248" />
-</svg>
+<g
+   aria-label="LAB"
+   id="text1019"
+   style="font-size:22.5745px;line-height:29.8%;font-family:Kalimati;-inkscape-font-specification:Kalimati;letter-spacing:2.16464px;word-spacing:0px;fill:#ffb1f7;stroke:#000000;stroke-width:1.41091px;stroke-opacity:0.126946;stop-color:#000000"><path
+     d="m 50.258769,72.654201 h 2.226586 V 87.23724 h 8.013507 v 1.873859 H 50.258769 Z"
+     id="path6545" /><path
+     d="m 69.155875,74.84772 -3.020221,8.189869 h 6.051464 z m -1.256589,-2.193519 h 2.5242 l 6.271919,16.456898 h -2.314768 l -1.499088,-4.221695 h -7.41828 l -1.499088,4.221695 h -2.347836 z"
+     id="path6547" /><path
+     d="m 81.582653,81.251911 v 6.029419 h 3.571356 q 1.796701,0 2.656472,-0.738521 0.870794,-0.749544 0.870794,-2.2817 0,-1.543178 -0.870794,-2.270677 -0.859771,-0.738521 -2.656472,-0.738521 z m 0,-6.767941 v 4.960217 h 3.295789 q 1.63136,0 2.424995,-0.606248 0.804657,-0.617272 0.804657,-1.87386 0,-1.245566 -0.804657,-1.862837 -0.793635,-0.617272 -2.424995,-0.617272 z m -2.226586,-1.829769 h 5.687715 q 2.546245,0 3.924083,1.05818 1.377838,1.05818 1.377838,3.009198 0,1.510111 -0.705453,2.40295 -0.705453,0.892839 -2.072268,1.113293 1.642383,0.352727 2.546244,1.477043 0.914885,1.113293 0.914885,2.788744 0,2.204541 -1.499088,3.406016 -1.499088,1.201474 -4.265787,1.201474 h -5.908169 z"
+     id="path6549" /></g></svg>
