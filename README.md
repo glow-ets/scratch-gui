@@ -3,8 +3,10 @@
 [Glow ETS](glow.earth) custom Scratch instance, based on [TurboWarp](https://turbowarp.org/) scratch-gui (see below).
 
 Release candidate demo: https://glow-ets.github.io/scratch-gui/main/editor.html
+    - [easy mode](https://glow-ets.github.io/scratch-gui/main/editor.html?easymode) for classroom usage
 
 Development demo: https://glow-ets.github.io/scratch-gui/develop/editor.html
+    - [easy mode](https://glow-ets.github.io/scratch-gui/develop/editor.html?easymode) for classroom usage
 
 - v0.3: MIDI integration - IN PROGRESS 
 - v0.2: custom extension test, build and test pipeline

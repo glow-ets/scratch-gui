@@ -79,7 +79,7 @@ import {
     openErrorsMenu,
     closeErrorsMenu
 } from '../../reducers/menus';
-import {setFileHandle} from '../../reducers/tw.js';
+import {setFileHandle, setEasyMode} from '../../reducers/tw.js';
 
 import collectMetadata from '../../lib/collect-metadata';
 
@@ -340,11 +340,14 @@ class MenuBar extends React.Component {
     handleKeyPress (event) {
         const modifier = bowser.mac ? event.metaKey : event.ctrlKey;
         if (modifier) {
-            if (event.key.toLowerCase() === 's') {
+            if (event.shiftKey && event.key.toLowerCase() === 'e') {
+                this.props.onSetEasyMode(!this.props.isEasyMode);
+                event.preventDefault();
+            } else if (event.key.toLowerCase() === 's') {
                 this.props.handleSaveProject();
-                event.preventDefault();    
+                event.preventDefault();
             } else if (event.key.toLowerCase() === 'o') {
-                event.preventDefault();    
+                event.preventDefault();
                 this.props.onStartSelectingFileUpload();
             }
         }
@@ -548,6 +551,7 @@ class MenuBar extends React.Component {
                         {(this.props.canChangeTheme || this.props.canChangeLanguage) && (<SettingsMenu
                             canChangeLanguage={this.props.canChangeLanguage}
                             canChangeTheme={this.props.canChangeTheme}
+                            isEasyMode={this.props.isEasyMode}
                             isRtl={this.props.isRtl}
                             onClickDesktopSettings={
                                 this.props.onClickDesktopSettings &&
@@ -692,7 +696,7 @@ class MenuBar extends React.Component {
                                             )}
                                         </SB3Downloader>
                                     </MenuSection>
-                                    {this.props.onClickPackager && (
+                                    {!this.props.isEasyMode && this.props.onClickPackager && (
                                         <MenuSection>
                                             <MenuItem
                                                 onClick={this.handleClickPackager}
@@ -758,49 +762,55 @@ class MenuBar extends React.Component {
                                     )}</DeletionRestorer>
                                 )}
                                 <MenuSection>
-                                    <TurboMode>{(toggleTurboMode, {turboMode}) => (
-                                        <MenuItem onClick={toggleTurboMode}>
-                                            {turboMode ? (
+                                    {!this.props.isEasyMode && (
+                                        <TurboMode>{(toggleTurboMode, {turboMode}) => (
+                                            <MenuItem onClick={toggleTurboMode}>
+                                                {turboMode ? (
+                                                    <FormattedMessage
+                                                        defaultMessage="Turn off Turbo Mode"
+                                                        description="Menu bar item for turning off turbo mode"
+                                                        id="gui.menuBar.turboModeOff"
+                                                    />
+                                                ) : (
+                                                    <FormattedMessage
+                                                        defaultMessage="Turn on Turbo Mode"
+                                                        description="Menu bar item for turning on turbo mode"
+                                                        id="gui.menuBar.turboModeOn"
+                                                    />
+                                                )}
+                                            </MenuItem>
+                                        )}</TurboMode>
+                                    )}
+                                    {!this.props.isEasyMode && (
+                                        <FramerateChanger>{(changeFramerate, {framerate}) => (
+                                            <MenuItem onClick={changeFramerate}>
+                                                {framerate === 60 ? (
+                                                    <FormattedMessage
+                                                        defaultMessage="Turn off 60 FPS Mode"
+                                                        description="Menu bar item for turning off 60 FPS mode"
+                                                        id="tw.menuBar.60off"
+                                                    />
+                                                ) : (
+                                                    <FormattedMessage
+                                                        defaultMessage="Turn on 60 FPS Mode"
+                                                        description="Menu bar item for turning on 60 FPS mode"
+                                                        id="tw.menuBar.60on"
+                                                    />
+                                                )}
+                                            </MenuItem>
+                                        )}</FramerateChanger>
+                                    )}
+                                    {!this.props.isEasyMode && (
+                                        <ChangeUsername>{changeUsername => (
+                                            <MenuItem onClick={changeUsername}>
                                                 <FormattedMessage
-                                                    defaultMessage="Turn off Turbo Mode"
-                                                    description="Menu bar item for turning off turbo mode"
-                                                    id="gui.menuBar.turboModeOff"
+                                                    defaultMessage="Change Username"
+                                                    description="Menu bar item for changing the username"
+                                                    id="tw.menuBar.changeUsername"
                                                 />
-                                            ) : (
-                                                <FormattedMessage
-                                                    defaultMessage="Turn on Turbo Mode"
-                                                    description="Menu bar item for turning on turbo mode"
-                                                    id="gui.menuBar.turboModeOn"
-                                                />
-                                            )}
-                                        </MenuItem>
-                                    )}</TurboMode>
-                                    <FramerateChanger>{(changeFramerate, {framerate}) => (
-                                        <MenuItem onClick={changeFramerate}>
-                                            {framerate === 60 ? (
-                                                <FormattedMessage
-                                                    defaultMessage="Turn off 60 FPS Mode"
-                                                    description="Menu bar item for turning off 60 FPS mode"
-                                                    id="tw.menuBar.60off"
-                                                />
-                                            ) : (
-                                                <FormattedMessage
-                                                    defaultMessage="Turn on 60 FPS Mode"
-                                                    description="Menu bar item for turning on 60 FPS mode"
-                                                    id="tw.menuBar.60on"
-                                                />
-                                            )}
-                                        </MenuItem>
-                                    )}</FramerateChanger>
-                                    <ChangeUsername>{changeUsername => (
-                                        <MenuItem onClick={changeUsername}>
-                                            <FormattedMessage
-                                                defaultMessage="Change Username"
-                                                description="Menu bar item for changing the username"
-                                                id="tw.menuBar.changeUsername"
-                                            />
-                                        </MenuItem>
-                                    )}</ChangeUsername>
+                                            </MenuItem>
+                                        )}</ChangeUsername>
+                                    )}
                                     <CloudVariablesToggler>{(toggleCloudVariables, {enabled, canUseCloudVariables}) => (
                                         <MenuItem
                                             className={classNames({[styles.disabled]: !canUseCloudVariables})}
@@ -831,6 +841,7 @@ class MenuBar extends React.Component {
                                         </MenuItem>
                                     )}</CloudVariablesToggler>
                                 </MenuSection>
+                                {!this.props.isEasyMode && (
                                 <MenuSection>
                                     <MenuItem onClick={this.props.onClickSettingsModal}>
                                         <FormattedMessage
@@ -840,6 +851,7 @@ class MenuBar extends React.Component {
                                         />
                                     </MenuItem>
                                 </MenuSection>
+                                )}
                             </MenuBarMenu>
                         </MenuLabel>
                         {this.props.isTotallyNormal && (
@@ -886,7 +898,7 @@ class MenuBar extends React.Component {
                             </MenuLabel>
                         )}
 
-                        {this.props.onClickAddonSettings && (
+                        {!this.props.isEasyMode && this.props.onClickAddonSettings && (
                             <div
                                 className={classNames(styles.menuBarItem, styles.hoverable)}
                                 onClick={this.props.onClickAddonSettings}
@@ -906,7 +918,7 @@ class MenuBar extends React.Component {
                                 </span>
                             </div>
                         )}
-                        {this.props.onClickSettingsModal && (
+                        {!this.props.isEasyMode && this.props.onClickSettingsModal && (
                             <div
                                 className={classNames(styles.menuBarItem, styles.hoverable)}
                                 onClick={this.props.onClickSettingsModal}
@@ -1042,6 +1054,9 @@ class MenuBar extends React.Component {
                             className={styles.glowVersionLink}
                         >
                             {'0.2'}
+                            {this.props.isEasyMode && (
+                                <span className={styles.glowEasyBadge}>{' easy'}</span>
+                            )}
                         </a>
                         <a
                             href={`https://github.com/glow-ets/scratch-gui/commit/${process.env.GLOW_COMMIT_HASH || ''}`}
@@ -1101,6 +1116,7 @@ MenuBar.propTypes = {
     fileMenuOpen: PropTypes.bool,
     handleSaveProject: PropTypes.func,
     intl: intlShape,
+    isEasyMode: PropTypes.bool,
     isPlayerOnly: PropTypes.bool,
     isRtl: PropTypes.bool,
     isShared: PropTypes.bool,
@@ -1156,6 +1172,7 @@ MenuBar.propTypes = {
     onSetTimeTravelMode: PropTypes.func,
     onShare: PropTypes.func,
     onStartSelectingFileUpload: PropTypes.func,
+    onSetEasyMode: PropTypes.func,
     onToggleLoginOpen: PropTypes.func,
     projectId: PropTypes.string,
     projectTitle: PropTypes.string,
@@ -1188,6 +1205,7 @@ const mapStateToProps = (state, ownProps) => {
         editMenuOpen: editMenuOpen(state),
         errors: state.scratchGui.tw.compileErrors,
         errorsMenuOpen: errorsMenuOpen(state),
+        isEasyMode: state.scratchGui.tw.isEasyMode,
         isPlayerOnly: state.scratchGui.mode.isPlayerOnly,
         isRtl: state.locales.isRtl,
         isUpdating: getIsUpdating(loadingState),
@@ -1243,7 +1261,8 @@ const mapDispatchToProps = dispatch => ({
     onClickSave: () => dispatch(manualUpdateProject()),
     onClickSaveAsCopy: () => dispatch(saveProjectAsCopy()),
     onSeeCommunity: () => dispatch(setPlayer(true)),
-    onSetTimeTravelMode: mode => dispatch(setTimeTravel(mode))
+    onSetTimeTravelMode: mode => dispatch(setTimeTravel(mode)),
+    onSetEasyMode: isEasyMode => dispatch(setEasyMode(isEasyMode))
 });
 
 export default compose(

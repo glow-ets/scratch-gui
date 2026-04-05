@@ -17,6 +17,7 @@ const SET_HAS_CLOUD_VARIABLES = 'tw/SET_HAS_CLOUD_VARIABLES';
 const SET_CLOUD_HOST = 'tw/SET_CLOUD_HOST';
 const SET_PLATFORM_MISMATCH_DETAILS = 'tw/SET_PLATFORM_MISMATCH_DETAILS';
 const SET_PROJECT_ERROR = 'tw/SET_PROJECT_ERROR';
+const SET_EASY_MODE = 'tw/SET_EASY_MODE';
 
 export const initialState = {
     framerate: 30,
@@ -52,7 +53,8 @@ export const initialState = {
         platform: null,
         callback: null
     },
-    projectError: null
+    projectError: null,
+    isEasyMode: false
 };
 
 const reducer = function (state, action) {
@@ -139,6 +141,10 @@ const reducer = function (state, action) {
     case SET_PROJECT_ERROR:
         return Object.assign({}, state, {
             projectError: action.projectError
+        });
+    case SET_EASY_MODE:
+        return Object.assign({}, state, {
+            isEasyMode: action.isEasyMode
         });
     default:
         return state;
@@ -278,6 +284,13 @@ const setProjectError = function (projectError) {
     };
 };
 
+const setEasyMode = function (isEasyMode) {
+    return {
+        type: SET_EASY_MODE,
+        isEasyMode: isEasyMode
+    };
+};
+
 export {
     reducer as default,
     initialState as twInitialState,
@@ -299,5 +312,6 @@ export {
     setHasCloudVariables,
     setCloudHost,
     setPlatformMismatchDetails,
-    setProjectError
+    setProjectError,
+    setEasyMode
 };
