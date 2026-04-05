@@ -181,6 +181,10 @@
 .glow-version-link:hover {
     text-decoration: underline;
 }
+.glow-easy-badge {
+    color: #e61f5a;
+    font-weight: bold;
+}
 
 .mystuff-icon {
     margin: 0 .25rem;
