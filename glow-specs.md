@@ -7,13 +7,12 @@ PROJECT *MUST* WORK IN A CLASSROOM SETTING: This is not yet-another-tech-edu pro
 
 The platform shall be:
 
-- based upon TurboWarp online version (that is, https://github.com/TurboWarp/scratch-gui + possibly its linked subrepos)
+- based upon TurboWarp online version (that is, https://github.com/TurboWarp/scratch-gui + possibly its linked subrepos
 - license: an open source one compatible with Turbo warp + extensions
 - initially serverless, static hosting
-- packaged in a repo at https://github.com/DavidLeoni/glow-lab
+- packaged in a repo at https://github.com/glow-ets/scratch-gui
+    - all turbowarp dependencies were forked into https://github.com/glow-ets Github organization for preservation and easy inspection. Still, currently our scratch-gui links only to original turbowarp dependencies, not the forks (this may change in gthe future)
 - minimal, ideally with no direct modification to original turbowarp / scratch code, code changes should mostly stay in extensions
-    - newly created files in common places should start with 'glow-':
-        - "/glow-specs.md" : this file
 - promoted by Glow ETS (https://glow.earth) a cultural association that offers, organizes, and manages educational activities and cultural events with the aim of generating innovative ideas and projects capable of making an impact on society and the Trentino region
     - as brand color, use this pink: #e61f5a
 
@@ -47,6 +46,9 @@ The platform shall be:
         - File menu: no 'Package', 'Switch to Dark mode', 'Accent'
         - 'easy' should be displayed in the version label
     - default / easy modes should be switchable by pressing some hard to do key combo
+- newly created files in common places should start with 'glow-':
+    - "/glow-specs.md" : this file
+- new values in shared spaces like CSS or configs should be prefixed with 'glow-', 'glow_' or just 'glow' depending on the file type
 
 ## Media 
 
@@ -118,11 +120,11 @@ To Claude agent:
 
 ### Roadmap
 
-See milestone-issues:  https://github.com/DavidLeoni/glow-lab/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22milestone%20issue%22
+See milestone-issues:  https://github.com/glow-ets/scratch-gui/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22milestone%20issue%22
 
 
 ### Finally 
 
-Whenever assessing the project, be candid and direct: would it actually work in a 24 unruly kids classroom, each with its own laptop? If not, mark it as 'to review'.
+Whenever assessing a feature, be candid and direct: would it actually work in a 24 unruly kids classroom, each with its own laptop? Was it *really* properly designed and tested? If not, mark it as 'to review'.
 
 If specs are too demanding for your token allowance, feel free to split the work in a task plan, review existing github issues and propose sub-issues to add.
