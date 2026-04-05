@@ -7,7 +7,8 @@ import log from './log';
 import {defineMessages, intlShape, injectIntl} from 'react-intl';
 
 import {
-    setUsername
+    setUsername,
+    setEasyMode
 } from '../reducers/tw';
 import {
     defaultProjectId,
@@ -37,6 +38,7 @@ const messages = defineMessages({
 });
 
 const USERNAME_KEY = 'tw:username';
+const EASY_MODE_KEY = 'glow:easymode';
 
 /**
  * The State Manager is responsible for managing persistent state and the URL.
@@ -338,6 +340,18 @@ const TWStateManager = function (WrappedComponent) {
                 });
             }
 
+            if (urlParams.has('easymode')) {
+                this.props.onSetEasyMode(true);
+                this.props.vm.setCompilerOptions({
+                    enabled: false
+                });
+            } else if (getLocalStorage(EASY_MODE_KEY) === 'true') {
+                this.props.onSetEasyMode(true);
+                this.props.vm.setCompilerOptions({
+                    enabled: false
+                });
+            }
+
             if (urlParams.has('clones')) {
                 const clones = +urlParams.get('clones');
                 if (Number.isNaN(clones) || clones < 0) {
@@ -379,6 +393,25 @@ const TWStateManager = function (WrappedComponent) {
             if (this.props.username !== prevProps.username && this.props.username !== this.doNotPersistUsername) {
                 // TODO: this always restores the current username once at startup, which is unnecessary
                 setLocalStorage(USERNAME_KEY, this.props.username);
+            }
+
+            if (this.props.isEasyMode !== prevProps.isEasyMode) {
+                setLocalStorage(EASY_MODE_KEY, this.props.isEasyMode ? 'true' : 'false');
+                const urlParams = new URLSearchParams(location.search);
+                if (this.props.isEasyMode) {
+                    this.props.vm.setCompilerOptions({
+                        enabled: false
+                    });
+                    urlParams.set('easymode', '');
+                } else {
+                    if (!urlParams.has('nocompile')) {
+                        this.props.vm.setCompilerOptions({
+                            enabled: true
+                        });
+                    }
+                    urlParams.delete('easymode');
+                }
+                setSearchParams(urlParams);
             }
 
             if (
@@ -513,6 +546,7 @@ const TWStateManager = function (WrappedComponent) {
                 /* eslint-disable no-unused-vars */
                 intl,
                 customStageSize,
+                isEasyMode,
                 isFullScreen,
                 isPlayerOnly,
                 isEmbedded,
@@ -523,6 +557,7 @@ const TWStateManager = function (WrappedComponent) {
                 framerate,
                 interpolation,
                 turbo,
+                onSetEasyMode,
                 onSetIsFullScreen,
                 onSetIsPlayerOnly,
                 onSetProjectId,
@@ -547,6 +582,7 @@ const TWStateManager = function (WrappedComponent) {
             width: PropTypes.number,
             height: PropTypes.number
         }),
+        isEasyMode: PropTypes.bool,
         isFullScreen: PropTypes.bool,
         isPlayerOnly: PropTypes.bool,
         isEmbedded: PropTypes.bool,
@@ -565,6 +601,7 @@ const TWStateManager = function (WrappedComponent) {
         framerate: PropTypes.number,
         interpolation: PropTypes.bool,
         turbo: PropTypes.bool,
+        onSetEasyMode: PropTypes.func,
         onSetIsFullScreen: PropTypes.func,
         onSetIsPlayerOnly: PropTypes.func,
         onSetProjectId: PropTypes.func,
@@ -579,6 +616,7 @@ const TWStateManager = function (WrappedComponent) {
     };
     const mapStateToProps = state => ({
         customStageSize: state.scratchGui.customStageSize,
+        isEasyMode: state.scratchGui.tw.isEasyMode,
         isFullScreen: state.scratchGui.mode.isFullScreen,
         isPlayerOnly: state.scratchGui.mode.isPlayerOnly,
         isEmbedded: state.scratchGui.mode.isEmbedded,
@@ -594,6 +632,7 @@ const TWStateManager = function (WrappedComponent) {
         vm: state.scratchGui.vm
     });
     const mapDispatchToProps = dispatch => ({
+        onSetEasyMode: isEasyMode => dispatch(setEasyMode(isEasyMode)),
         onSetIsFullScreen: isFullScreen => dispatch(setFullScreen(isFullScreen)),
         onSetIsPlayerOnly: isPlayerOnly => dispatch(setPlayer(isPlayerOnly)),
         onSetProjectId: projectId => dispatch(setProjectId(projectId)),

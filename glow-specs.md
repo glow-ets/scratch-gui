@@ -37,25 +37,16 @@ The platform shall be:
 - system shouldn't needlessly eat cpu (i.e. consider things like 'attend 0' trick), be careful about unnecessary javascript / CSS animations.
 - system shoudn't limit blocks to use: scratch original 'allow all' approach to foster experimentation is fine
     - exception: Turbowarp extension list is vast, we can add 'stress-tested' marker category for the ones we.. stress tested.
-- system should have two modes enabled by a config flag:
+- system should have two modes - see  glow-ets/scratch-gui#9
     - default: with everything enabled (default for now)
-        - menu bar: no 'Send feedback' button
-    - easy: 
-        - menu bar: no 'Addons', 'Advanced', 'Send feedback' buttons;
-        -'Edit' menu: no Turn on Turbo mode', 'Turn on 60 FPS' mode, 'Advanced Settings', 'Change username' (unless it can have some useful implication for local cache, like using same pc by different users with same OS account)
-        - File menu: no 'Package', 'Switch to Dark mode', 'Accent'
-        - 'easy' should be displayed in the version label
-    - default / easy modes should be switchable by pressing some hard to do key combo
-- newly created files in common places should start with 'glow-':
-    - "/glow-specs.md" : this file
-- new values in shared spaces like CSS or configs should be prefixed with 'glow-', 'glow_' or just 'glow' depending on the file type
+    - easy: strip menu entries, use old scratch vm
 
 ## Media 
 
 - old assets: keep scratch compat with old assets
 - new assets: optionally, add something cool for 11-15 years old kids (definitely not the cringy Scratch look), various themes - ideally, something that works well _both_ for girls and boys.
     - no scratch cat logo, avoid infringe scratch copyright
-- system must support webp, jfif, avif image formats (seems TurboWarp alrady does)
+- system must support webp, jfif, avif image formats (seems TurboWarp already does)
 
 
 ## CI
@@ -107,12 +98,17 @@ For extensions dealing with hardware, assume:
 
 ## Development
 
-Development will be aided by Claude Code.
+- newly created files in common places should start with 'glow-':
+    - "/glow-specs.md" : this file
+- new values in shared spaces like CSS or configs should be prefixed with 'glow-', 'glow_' or just 'glow' depending on the file type
 
-To Claude agent:
+- Development will be aided by Claude Code. 
+
+### To Claude agent:
 
 - your claude sandbox will be most likely be restricted in particular about dependencies, so before building stuff make sure you do have the permissions, otherwise just let github do the builds and wait for them
-- if you can't fetch needed stuff from Github repos (code, issues, etc) , just pause and tell you can't continue and why, don't attempt workaround web fetches.
+- if you can't fetch needed stuff from Github repos (code, issues, etc):
+    - first check if the repo wasn't already forked under github glow-ets org (i.e. scratch-vm) to which you should have full access to - if it fails, just pause and tell you can't continue and why, do not attempt workaround web fetches.
 - be mindful about long-term maintenance, in particular:
     - keep dependencies at a minimum (in a way, this is also enforced by the sandbox), if you really need to add them explain why
     - before implementing something, look for similar code in codebase, discuss similitaries and choices with the developer
