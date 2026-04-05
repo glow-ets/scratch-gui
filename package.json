@@ -24,6 +24,7 @@
     "test:lint": "eslint . --ext .js,.jsx",
     "test:lint:glow": "echo 'Glow-specific lint: glow files currently in eslintignored dirs (src/examples, test). Will activate when glow code moves under src/ proper.'",
     "test:unit": "jest test[\\\\/]unit[\\\\/]addons",
+    "test:unit:glow": "jest test[\\\\/]unit[\\\\/]util[\\\\/]glow",
     "test:smoke": "jest --runInBand test[\\\\/]smoke",
     "test:smoke:glow": "jest --runInBand test[\\\\/]smoke[\\\\/]glow-smoke",
     "watch": "webpack --colors --watch"

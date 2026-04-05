@@ -15,6 +15,7 @@ import {
 import AudioEffects from '../lib/audio/audio-effects.js';
 import SoundEditorComponent from '../components/sound-editor/sound-editor.jsx';
 import AudioBufferPlayer from '../lib/audio/audio-buffer-player.js';
+import glowSoundMonitor from '../lib/audio/glow-sound-monitor.js'; // glow-ets/scratch-gui#8
 import log from '../lib/log.js';
 
 const UNDO_STACK_SIZE = 99;
@@ -62,11 +63,15 @@ class SoundEditor extends React.Component {
     }
     componentDidMount () {
         this.audioBufferPlayer = new AudioBufferPlayer(this.props.samples, this.props.sampleRate);
+        // glow-ets/scratch-gui#8: snapshot buffer as known-good on editor open
+        glowSoundMonitor.snapshotBuffer(this.props.soundId, this.audioBufferPlayer.buffer);
 
         document.addEventListener('keydown', this.handleKeyPress);
     }
     componentWillReceiveProps (newProps) {
         if (newProps.soundId !== this.props.soundId) { // A different sound has been selected
+            // glow-ets/scratch-gui#8: check outgoing buffer before switching away
+            glowSoundMonitor.checkBuffer(this.props.soundId, this.audioBufferPlayer.buffer);
             this.redoStack = [];
             this.undoStack = [];
             this.resetState(newProps.samples, newProps.sampleRate);
@@ -77,6 +82,8 @@ class SoundEditor extends React.Component {
         }
     }
     componentWillUnmount () {
+        // glow-ets/scratch-gui#8: check for corruption when leaving sound editor tab
+        glowSoundMonitor.checkBuffer(this.props.soundId, this.audioBufferPlayer.buffer);
         this.audioBufferPlayer.stop();
 
         document.removeEventListener('keydown', this.handleKeyPress);
@@ -136,12 +143,16 @@ class SoundEditor extends React.Component {
     resetState (samples, sampleRate) {
         this.audioBufferPlayer.stop();
         this.audioBufferPlayer = new AudioBufferPlayer(samples, sampleRate);
+        // glow-ets/scratch-gui#8: snapshot new buffer as known-good
+        glowSoundMonitor.snapshotBuffer(this.props.soundId, this.audioBufferPlayer.buffer);
         this.setState({
             chunkLevels: computeChunkedRMS(samples),
             playhead: null
         });
     }
     submitNewSamples (samples, sampleRate, skipUndo) {
+        // glow-ets/scratch-gui#8: mark edit as legitimate so monitor won't flag it
+        glowSoundMonitor.markLegitimateEdit(this.props.soundId);
         return downsampleIfNeeded({samples, sampleRate}, this.resampleBufferToRate)
             .then(({samples: newSamples, sampleRate: newSampleRate}) =>
                 WavEncoder.encode({
@@ -160,11 +171,15 @@ class SoundEditor extends React.Component {
                         this.props.soundIndex,
                         this.audioBufferPlayer.buffer,
                         new Uint8Array(wavBuffer));
+                    // glow-ets/scratch-gui#8: commit edit and re-snapshot
+                    glowSoundMonitor.commitLegitimateEdit(
+                        this.props.soundId, this.audioBufferPlayer.buffer);
                     return true; // Edit was successful
                 })
             )
             .catch(e => {
                 // Encoding failed, or the sound was too large to save so edit is rejected
+                glowSoundMonitor.commitLegitimateEdit(this.props.soundId, null);
                 log.error(`Encountered error while trying to encode sound update: ${e.message}`);
                 return false; // Edit was not applied
             });
