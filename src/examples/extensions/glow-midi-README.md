@@ -1,6 +1,6 @@
 # Glow MIDI
 
-A Web MIDI extension for the [Glow Lab](https://github.com/DavidLeoni/glow-lab) platform,
+A Web MIDI extension for the [Glow Lab](https://github.com/glow-ets/scratch-gui) platform,
 enabling Scratch/TurboWarp projects to send and receive MIDI messages via the
 browser's Web MIDI API.
 

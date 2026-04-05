@@ -1036,7 +1036,7 @@ class MenuBar extends React.Component {
                     </a>
                     <div className={styles.glowVersionText}>
                         <a
-                            href="https://github.com/DavidLeoni/glow-lab/issues/2"
+                            href="https://github.com/glow-ets/scratch-gui/issues/2"
                             target="_blank"
                             rel="noreferrer"
                             className={styles.glowVersionLink}
@@ -1044,7 +1044,7 @@ class MenuBar extends React.Component {
                             {'0.2'}
                         </a>
                         <a
-                            href={`https://github.com/DavidLeoni/glow-lab/commit/${process.env.GLOW_COMMIT_HASH || ''}`}
+                            href={`https://github.com/glow-ets/scratch-gui/commit/${process.env.GLOW_COMMIT_HASH || ''}`}
                             target="_blank"
                             rel="noreferrer"
                             className={styles.glowVersionLink}

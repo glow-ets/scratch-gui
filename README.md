@@ -1,14 +1,13 @@
 # Glow Lab 
 
-[Glow ETS](glow.earth) custom Scratch instance, based on [TurboWarp](https://turbowarp.org/) scratch-gui.
+[Glow ETS](glow.earth) custom Scratch instance, based on [TurboWarp](https://turbowarp.org/) scratch-gui (see below).
 
-Online development snapshot :  
+Release candidate demo: https://glow-ets.github.io/scratch-gui/main/editor.html
 
-https://davidleoni.github.io/glow-lab/editor.html
+Development demo: https://glow-ets.github.io/scratch-gui/develop/editor.html
 
-v0.2 features:
-
-- custom extension test, build and test pipeline
+- v0.3: MIDI integration - IN PROGRESS 
+- v0.2: custom extension test, build and test pipeline
 
 ----------------------------------------------------------------------------------------------------
 
