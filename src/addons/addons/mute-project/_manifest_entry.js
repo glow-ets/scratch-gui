@@ -21,11 +21,10 @@ const manifest = {
     }
   ],
   "dynamicDisable": true,
-  "enabledByDefault": true,
+  "enabledByDefault": false,
   "tags": [
     "recommended"
   ],
-  "glowDefault": false,
   "glowAdvanced": true
 };
 export default manifest;

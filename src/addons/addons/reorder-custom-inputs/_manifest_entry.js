@@ -33,8 +33,6 @@ const manifest = {
     "recommended"
   ],
   "enabledByDefault": true,
-  "dynamicDisable": true,
-  "glowDefault": true,
-  "glowAdvanced": true
+  "dynamicDisable": true
 };
 export default manifest;

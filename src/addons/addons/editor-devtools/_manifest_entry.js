@@ -32,8 +32,6 @@ const manifest = {
   "tags": [
     "recommended"
   ],
-  "enabledByDefault": true,
-  "glowDefault": false,
-  "glowAdvanced": false
+  "enabledByDefault": false
 };
 export default manifest;

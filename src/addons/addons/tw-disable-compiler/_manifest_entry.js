@@ -12,8 +12,6 @@ const manifest = {
   "tags": [
     "danger"
   ],
-  "enabledByDefault": true,
-  "glowDefault": true,
-  "glowAdvanced": true
+  "enabledByDefault": true
 };
 export default manifest;

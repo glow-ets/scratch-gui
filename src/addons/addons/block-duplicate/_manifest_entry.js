@@ -22,8 +22,7 @@ const manifest = {
   ],
   "dynamicDisable": true,
   "tags": [],
-  "enabledByDefault": true,
-  "glowDefault": false,
+  "enabledByDefault": false,
   "glowAdvanced": true
 };
 export default manifest;

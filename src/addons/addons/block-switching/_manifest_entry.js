@@ -134,8 +134,7 @@ const manifest = {
       "default": true
     }
   ],
-  "enabledByDefault": true,
-  "glowDefault": false,
+  "enabledByDefault": false,
   "glowAdvanced": true
 };
 export default manifest;

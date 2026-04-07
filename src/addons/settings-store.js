@@ -217,16 +217,16 @@ class SettingsStore extends EventTargetShim {
         if (Object.prototype.hasOwnProperty.call(storage, 'enabled')) {
             return storage.enabled;
         }
-        // Use glow mode-specific defaults when defined
-        if (typeof manifest.glowDefault !== 'undefined' || typeof manifest.glowAdvanced !== 'undefined') {
-            return this.isAdvancedMode ? !!manifest.glowAdvanced : !!manifest.glowDefault;
+        // In advanced mode, glowAdvanced overrides enabledByDefault when defined
+        if (this.isAdvancedMode && typeof manifest.glowAdvanced !== 'undefined') {
+            return !!manifest.glowAdvanced;
         }
         return !!manifest.enabledByDefault;
     }
 
     /**
-     * Update the Glow Lab mode and fire setting-changed events for addons
-     * whose default enabled state changes with the mode.
+     * Update the Glow Lab mode and fire addon-changed events (consumed by api.js)
+     * for addons whose default enabled state changes with the mode.
      * @param {boolean} isAdvancedMode True for advanced mode, false for default mode.
      */
     setGlowMode (isAdvancedMode) {
@@ -236,22 +236,22 @@ class SettingsStore extends EventTargetShim {
 
         for (const addonId of Object.keys(addons)) {
             const manifest = addons[addonId];
-            if (typeof manifest.glowDefault === 'undefined' && typeof manifest.glowAdvanced === 'undefined') continue;
+            // Only addons with glowAdvanced can differ between modes
+            if (typeof manifest.glowAdvanced === 'undefined') continue;
             const storage = this.store[addonId] || {};
-            // Only update addons without an explicit user override
+            // User explicit override always wins
             if (Object.prototype.hasOwnProperty.call(storage, 'enabled')) continue;
 
-            const oldEnabled = prevMode ? !!manifest.glowAdvanced : !!manifest.glowDefault;
-            const newEnabled = isAdvancedMode ? !!manifest.glowAdvanced : !!manifest.glowDefault;
+            const oldEnabled = prevMode ? !!manifest.glowAdvanced : !!manifest.enabledByDefault;
+            const newEnabled = isAdvancedMode ? !!manifest.glowAdvanced : !!manifest.enabledByDefault;
             if (oldEnabled === newEnabled) continue;
 
-            const supportsDynamic = newEnabled ? true : !!manifest.dynamicDisable;
-            this.dispatchEvent(new CustomEvent('setting-changed', {
+            // Fire addon-changed so api.js can dynamically enable/disable the addon
+            this.dispatchEvent(new CustomEvent('addon-changed', {
                 detail: {
                     addonId,
-                    settingId: 'enabled',
-                    reloadRequired: !supportsDynamic,
-                    value: newEnabled
+                    dynamicEnable: newEnabled,
+                    dynamicDisable: !newEnabled && !!manifest.dynamicDisable
                 }
             }));
         }
