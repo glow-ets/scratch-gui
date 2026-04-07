@@ -8,4 +8,13 @@ if (urlParameters.has('addons')) {
     settingStore.readLocalStorage();
 }
 
+// Set initial glow mode from URL parameter or localStorage before addons load
+try {
+    const isAdvancedMode = urlParameters.has('advanced') ||
+        localStorage.getItem('glow:advanced_mode') === 'true';
+    settingStore.setGlowMode(isAdvancedMode);
+} catch (e) {
+    // ignore
+}
+
 export default settingStore;

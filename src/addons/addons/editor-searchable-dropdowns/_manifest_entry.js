@@ -22,7 +22,9 @@ const manifest = {
   "tags": [
     "recommended"
   ],
-  "enabledByDefault": true
+  "enabledByDefault": true,
+  "glowDefault": true,
+  "glowAdvanced": true
 };
 import {isMobile} from "../../environment";
 if (isMobile) manifest.enabledByDefault = false;

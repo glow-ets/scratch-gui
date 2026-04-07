@@ -15,7 +15,9 @@ const manifest = {
       "url": "style.css"
     }
   ],
-  "enabledByDefault": true
+  "enabledByDefault": true,
+  "glowDefault": true,
+  "glowAdvanced": true
 };
 import {mediaRecorderSupported} from "../../environment";
 if (!mediaRecorderSupported) manifest.unsupported = true;

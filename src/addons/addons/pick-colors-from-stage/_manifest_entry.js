@@ -21,6 +21,8 @@ const manifest = {
       "url": "style.css"
     }
   ],
-  "dynamicDisable": true
+  "dynamicDisable": true,
+  "glowDefault": true,
+  "glowAdvanced": true
 };
 export default manifest;

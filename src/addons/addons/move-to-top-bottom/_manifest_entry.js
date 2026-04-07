@@ -16,6 +16,8 @@ const manifest = {
       "url": "userscript.js"
     }
   ],
-  "dynamicDisable": true
+  "dynamicDisable": true,
+  "glowDefault": false,
+  "glowAdvanced": true
 };
 export default manifest;

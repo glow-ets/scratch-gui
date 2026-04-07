@@ -112,6 +112,7 @@ class SettingsStore extends EventTargetShim {
         super();
         this.store = this.createEmptyStore();
         this.remote = false;
+        this.isAdvancedMode = false;
     }
 
     /**
@@ -216,7 +217,44 @@ class SettingsStore extends EventTargetShim {
         if (Object.prototype.hasOwnProperty.call(storage, 'enabled')) {
             return storage.enabled;
         }
+        // Use glow mode-specific defaults when defined
+        if (typeof manifest.glowDefault !== 'undefined' || typeof manifest.glowAdvanced !== 'undefined') {
+            return this.isAdvancedMode ? !!manifest.glowAdvanced : !!manifest.glowDefault;
+        }
         return !!manifest.enabledByDefault;
+    }
+
+    /**
+     * Update the Glow Lab mode and fire setting-changed events for addons
+     * whose default enabled state changes with the mode.
+     * @param {boolean} isAdvancedMode True for advanced mode, false for default mode.
+     */
+    setGlowMode (isAdvancedMode) {
+        const prevMode = this.isAdvancedMode;
+        this.isAdvancedMode = isAdvancedMode;
+        if (prevMode === isAdvancedMode) return;
+
+        for (const addonId of Object.keys(addons)) {
+            const manifest = addons[addonId];
+            if (typeof manifest.glowDefault === 'undefined' && typeof manifest.glowAdvanced === 'undefined') continue;
+            const storage = this.store[addonId] || {};
+            // Only update addons without an explicit user override
+            if (Object.prototype.hasOwnProperty.call(storage, 'enabled')) continue;
+
+            const oldEnabled = prevMode ? !!manifest.glowAdvanced : !!manifest.glowDefault;
+            const newEnabled = isAdvancedMode ? !!manifest.glowAdvanced : !!manifest.glowDefault;
+            if (oldEnabled === newEnabled) continue;
+
+            const supportsDynamic = newEnabled ? true : !!manifest.dynamicDisable;
+            this.dispatchEvent(new CustomEvent('setting-changed', {
+                detail: {
+                    addonId,
+                    settingId: 'enabled',
+                    reloadRequired: !supportsDynamic,
+                    value: newEnabled
+                }
+            }));
+        }
     }
 
     getAddonSetting (addonId, settingId) {
@@ -249,8 +287,9 @@ class SettingsStore extends EventTargetShim {
         const manifest = this.getAddonManifest(addonId);
         const oldValue = this.getAddonEnabled(addonId);
         if (enabled === null) {
-            enabled = !!manifest.enabledByDefault;
             delete storage.enabled;
+            // After clearing override, getAddonEnabled returns the mode-aware default
+            enabled = this.getAddonEnabled(addonId);
         } else if (typeof enabled === 'boolean') {
             storage.enabled = enabled;
         } else {

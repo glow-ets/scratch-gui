@@ -10,6 +10,7 @@ import {
     setUsername,
     setAdvancedMode
 } from '../reducers/tw';
+import settingsStore from '../addons/settings-store-singleton';
 import {
     defaultProjectId,
     setProjectId
@@ -390,6 +391,7 @@ const TWStateManager = function (WrappedComponent) {
             }
 
             if (this.props.isAdvancedMode !== prevProps.isAdvancedMode) {
+                settingsStore.setGlowMode(this.props.isAdvancedMode);
                 setLocalStorage(ADVANCED_MODE_KEY, this.props.isAdvancedMode ? 'true' : 'false');
                 const urlParams = new URLSearchParams(location.search);
                 if (this.props.isAdvancedMode) {

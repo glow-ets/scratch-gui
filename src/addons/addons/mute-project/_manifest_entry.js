@@ -24,6 +24,8 @@ const manifest = {
   "enabledByDefault": true,
   "tags": [
     "recommended"
-  ]
+  ],
+  "glowDefault": false,
+  "glowAdvanced": true
 };
 export default manifest;

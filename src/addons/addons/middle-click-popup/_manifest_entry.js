@@ -68,6 +68,8 @@ const manifest = {
       "text": "This addon was previously part of the \"developer tools\" addon but has moved here.",
       "id": "developer-tools"
     }
-  ]
+  ],
+  "glowDefault": false,
+  "glowAdvanced": true
 };
 export default manifest;
