@@ -26,7 +26,7 @@ export const initialState = {
     username: '',
     highQualityPen: false,
     compilerOptions: {
-        enabled: false,
+        enabled: true,
         warpTimer: false
     },
     runtimeOptions: {
