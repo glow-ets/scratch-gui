@@ -8,7 +8,7 @@ import {defineMessages, intlShape, injectIntl} from 'react-intl';
 
 import {
     setUsername,
-    setEasyMode
+    setAdvancedMode
 } from '../reducers/tw';
 import {
     defaultProjectId,
@@ -38,7 +38,7 @@ const messages = defineMessages({
 });
 
 const USERNAME_KEY = 'tw:username';
-const EASY_MODE_KEY = 'glow:easymode';
+const ADVANCED_MODE_KEY = 'glow:advanced_mode';
 
 /**
  * The State Manager is responsible for managing persistent state and the URL.
@@ -340,16 +340,10 @@ const TWStateManager = function (WrappedComponent) {
                 });
             }
 
-            if (urlParams.has('easymode')) {
-                this.props.onSetEasyMode(true);
-                this.props.vm.setCompilerOptions({
-                    enabled: false
-                });
-            } else if (getLocalStorage(EASY_MODE_KEY) === 'true') {
-                this.props.onSetEasyMode(true);
-                this.props.vm.setCompilerOptions({
-                    enabled: false
-                });
+            if (urlParams.has('advanced')) {
+                this.props.onSetAdvancedMode(true);
+            } else if (getLocalStorage(ADVANCED_MODE_KEY) === 'true') {
+                this.props.onSetAdvancedMode(true);
             }
 
             if (urlParams.has('clones')) {
@@ -395,21 +389,13 @@ const TWStateManager = function (WrappedComponent) {
                 setLocalStorage(USERNAME_KEY, this.props.username);
             }
 
-            if (this.props.isEasyMode !== prevProps.isEasyMode) {
-                setLocalStorage(EASY_MODE_KEY, this.props.isEasyMode ? 'true' : 'false');
+            if (this.props.isAdvancedMode !== prevProps.isAdvancedMode) {
+                setLocalStorage(ADVANCED_MODE_KEY, this.props.isAdvancedMode ? 'true' : 'false');
                 const urlParams = new URLSearchParams(location.search);
-                if (this.props.isEasyMode) {
-                    this.props.vm.setCompilerOptions({
-                        enabled: false
-                    });
-                    urlParams.set('easymode', '');
+                if (this.props.isAdvancedMode) {
+                    urlParams.set('advanced', '');
                 } else {
-                    if (!urlParams.has('nocompile')) {
-                        this.props.vm.setCompilerOptions({
-                            enabled: true
-                        });
-                    }
-                    urlParams.delete('easymode');
+                    urlParams.delete('advanced');
                 }
                 setSearchParams(urlParams);
             }
@@ -546,7 +532,7 @@ const TWStateManager = function (WrappedComponent) {
                 /* eslint-disable no-unused-vars */
                 intl,
                 customStageSize,
-                isEasyMode,
+                isAdvancedMode,
                 isFullScreen,
                 isPlayerOnly,
                 isEmbedded,
@@ -557,7 +543,7 @@ const TWStateManager = function (WrappedComponent) {
                 framerate,
                 interpolation,
                 turbo,
-                onSetEasyMode,
+                onSetAdvancedMode,
                 onSetIsFullScreen,
                 onSetIsPlayerOnly,
                 onSetProjectId,
@@ -582,7 +568,8 @@ const TWStateManager = function (WrappedComponent) {
             width: PropTypes.number,
             height: PropTypes.number
         }),
-        isEasyMode: PropTypes.bool,
+
+        isAdvancedMode: PropTypes.bool,
         isFullScreen: PropTypes.bool,
         isPlayerOnly: PropTypes.bool,
         isEmbedded: PropTypes.bool,
@@ -601,7 +588,7 @@ const TWStateManager = function (WrappedComponent) {
         framerate: PropTypes.number,
         interpolation: PropTypes.bool,
         turbo: PropTypes.bool,
-        onSetEasyMode: PropTypes.func,
+        onSetAdvancedMode: PropTypes.func,
         onSetIsFullScreen: PropTypes.func,
         onSetIsPlayerOnly: PropTypes.func,
         onSetProjectId: PropTypes.func,
@@ -616,7 +603,7 @@ const TWStateManager = function (WrappedComponent) {
     };
     const mapStateToProps = state => ({
         customStageSize: state.scratchGui.customStageSize,
-        isEasyMode: state.scratchGui.tw.isEasyMode,
+        isAdvancedMode: state.scratchGui.tw.isAdvancedMode,
         isFullScreen: state.scratchGui.mode.isFullScreen,
         isPlayerOnly: state.scratchGui.mode.isPlayerOnly,
         isEmbedded: state.scratchGui.mode.isEmbedded,
@@ -632,7 +619,7 @@ const TWStateManager = function (WrappedComponent) {
         vm: state.scratchGui.vm
     });
     const mapDispatchToProps = dispatch => ({
-        onSetEasyMode: isEasyMode => dispatch(setEasyMode(isEasyMode)),
+        onSetAdvancedMode: isAdvancedMode => dispatch(setAdvancedMode(isAdvancedMode)),
         onSetIsFullScreen: isFullScreen => dispatch(setFullScreen(isFullScreen)),
         onSetIsPlayerOnly: isPlayerOnly => dispatch(setPlayer(isPlayerOnly)),
         onSetProjectId: projectId => dispatch(setProjectId(projectId)),
