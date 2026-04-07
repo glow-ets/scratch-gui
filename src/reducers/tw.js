@@ -17,7 +17,7 @@ const SET_HAS_CLOUD_VARIABLES = 'tw/SET_HAS_CLOUD_VARIABLES';
 const SET_CLOUD_HOST = 'tw/SET_CLOUD_HOST';
 const SET_PLATFORM_MISMATCH_DETAILS = 'tw/SET_PLATFORM_MISMATCH_DETAILS';
 const SET_PROJECT_ERROR = 'tw/SET_PROJECT_ERROR';
-const SET_EASY_MODE = 'tw/SET_EASY_MODE';
+const SET_ADVANCED_MODE = 'tw/SET_ADVANCED_MODE';
 
 export const initialState = {
     framerate: 30,
@@ -26,7 +26,7 @@ export const initialState = {
     username: '',
     highQualityPen: false,
     compilerOptions: {
-        enabled: true,
+        enabled: false,
         warpTimer: false
     },
     runtimeOptions: {
@@ -54,7 +54,7 @@ export const initialState = {
         callback: null
     },
     projectError: null,
-    isEasyMode: false
+    isAdvancedMode: false
 };
 
 const reducer = function (state, action) {
@@ -142,9 +142,9 @@ const reducer = function (state, action) {
         return Object.assign({}, state, {
             projectError: action.projectError
         });
-    case SET_EASY_MODE:
+    case SET_ADVANCED_MODE:
         return Object.assign({}, state, {
-            isEasyMode: action.isEasyMode
+            isAdvancedMode: action.isAdvancedMode
         });
     default:
         return state;
@@ -284,10 +284,10 @@ const setProjectError = function (projectError) {
     };
 };
 
-const setEasyMode = function (isEasyMode) {
+const setAdvancedMode = function (isAdvancedMode) {
     return {
-        type: SET_EASY_MODE,
-        isEasyMode: isEasyMode
+        type: SET_ADVANCED_MODE,
+        isAdvancedMode: isAdvancedMode
     };
 };
 
@@ -313,5 +313,5 @@ export {
     setCloudHost,
     setPlatformMismatchDetails,
     setProjectError,
-    setEasyMode
+    setAdvancedMode
 };
