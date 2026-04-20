@@ -74,7 +74,7 @@ export default [
         tags: ['glow'],
         featured: true,
         incompatibleWithScratch: true,
-        extensionURL: new URL('static/extensions/glow-lab.js', location.href).href
+        extensionURL: new URL('static/extensions/glow-lab/glow-lab.js', location.href).href
     },
     {
         name: 'Glow MIDI',
@@ -91,7 +91,7 @@ export default [
         tags: ['glow'],
         featured: true,
         incompatibleWithScratch: true,
-        extensionURL: new URL('static/extensions/glow-midi.js', location.href).href
+        extensionURL: new URL('static/extensions/glow-midi/glow-midi.js', location.href).href
     },
     {
         name: (

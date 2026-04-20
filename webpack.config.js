@@ -253,7 +253,17 @@ module.exports = [
                         context: 'src/examples'
                     }
                 ]
+            }),
+            new CopyWebpackPlugin({   // glow extensions
+                patterns: [
+                    {
+                        from: 'extensions/**',
+                        to: 'static',
+                        context: 'src'
+                    }
+                ]
             })
+            
         ])
     })
 ].concat(

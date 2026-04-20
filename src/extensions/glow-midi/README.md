@@ -41,9 +41,6 @@ the result to the TurboWarp unsandboxed extension format used by Glow Lab.
 
 - **Rebranded** from "WebMidi Extension" / "Web MIDI for Scratch3" to "Glow MIDI"
 - **Adapted** to TurboWarp unsandboxed extension format (`Scratch.extensions.register()`)
-- **Removed** Pokemiku-specific blocks (`s_PokeText`, `s_Strlen`) and all related
-  Japanese phoneme text-map / sysex code (per project requirements — the Pokemiku
-  vocal synthesizer hardware is niche and unrelated to general MIDI use)
 - **Removed** `alert()` popups on MIDI connection — replaced with `console.log()`
   messages and the Scratch peripheral status indicator (green/orange icon in the
   block palette)
@@ -54,6 +51,9 @@ the result to the TurboWarp unsandboxed extension format used by Glow Lab.
   scratch-vm internals)
 - **Changed** `sysex: true` to `sysex: false` in `requestMIDIAccess()` (sysex was
   only needed for Pokemiku; disabling it avoids an extra browser permission prompt)
+- **Removed** Pokemiku-specific blocks (`s_PokeText`, `s_Strlen`) and all related
+  Japanese phoneme text-map / sysex code (per project requirements — the Pokemiku
+  vocal synthesizer hardware is niche and unrelated to general MIDI use)
 
 ## Blocks (22 total)
 
