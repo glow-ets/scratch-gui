@@ -52,6 +52,15 @@ const selectLocale = function (locale) {
     };
 };
 
+// glow-ets/scratch-gui#19: switch locale without persisting to localStorage.
+// Used by the Reset-all flow after the stored key was already removed.
+const selectLocaleWithoutPersist = function (locale) {
+    return {
+        type: SELECT_LOCALE,
+        locale: locale
+    };
+};
+
 const setLocales = function (localesMessages) {
     return {
         type: UPDATE_LOCALES,
@@ -79,5 +88,6 @@ export {
     initialState as localesInitialState,
     initLocale,
     selectLocale,
+    selectLocaleWithoutPersist,
     setLocales
 };

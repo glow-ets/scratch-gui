@@ -110,5 +110,8 @@ const persistTheme = theme => {
 export {
     onSystemPreferenceChange,
     detectTheme,
-    persistTheme
+    persistTheme,
+    // glow-ets/scratch-gui#19: exposed so the Reset-all flow can rebuild the
+    // system-preferences theme after removing the stored override.
+    systemPreferencesTheme
 };

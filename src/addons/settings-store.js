@@ -288,6 +288,20 @@ class SettingsStore extends EventTargetShim {
         return Object.keys(this.getAddonStorage(addonId)).length > 0;
     }
 
+    // glow-ets/scratch-gui#19: true if any setting currently diverges from its
+    // manifest default. Independent from hasAddonUserOverride — a stored value
+    // equal to the default yields false here but true there.
+    hasAddonNonDefaultSetting (addonId) {
+        const manifest = this.getAddonManifest(addonId);
+        if (!manifest || !manifest.settings) return false;
+        for (const setting of manifest.settings) {
+            if (this.getAddonSetting(addonId, setting.id) !== setting.default) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     setAddonEnabled (addonId, enabled) {
         const storage = this.getAddonStorage(addonId);
         const manifest = this.getAddonManifest(addonId);

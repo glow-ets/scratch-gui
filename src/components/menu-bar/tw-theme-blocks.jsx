@@ -93,6 +93,7 @@ ThemeMenuItem.propTypes = {
 };
 
 const BlocksThemeMenu = ({
+    isAdvancedMode,
     isOpen,
     isRtl,
     onChangeTheme,
@@ -123,8 +124,10 @@ const BlocksThemeMenu = ({
             {[
                 BLOCKS_THREE,
                 BLOCKS_HIGH_CONTRAST,
-                BLOCKS_DARK,
-                ...(onOpenCustomSettings ? [BLOCKS_CUSTOM] : [])
+                // glow-ets/scratch-gui#19: hide beta/addon entries in default
+                // mode so kids don't land in a dead-end.
+                ...(isAdvancedMode ? [BLOCKS_DARK] : []),
+                ...(onOpenCustomSettings && isAdvancedMode ? [BLOCKS_CUSTOM] : [])
             ].map(i => (
                 <ThemeMenuItem
                     key={i}
@@ -144,6 +147,7 @@ const BlocksThemeMenu = ({
 );
 
 BlocksThemeMenu.propTypes = {
+    isAdvancedMode: PropTypes.bool,
     isOpen: PropTypes.bool,
     isRtl: PropTypes.bool,
     onChangeTheme: PropTypes.func,
@@ -153,6 +157,7 @@ BlocksThemeMenu.propTypes = {
 };
 
 const mapStateToProps = state => ({
+    isAdvancedMode: state.scratchGui.tw.isAdvancedMode,
     isOpen: blocksThemeMenuOpen(state),
     isRtl: state.locales.isRtl,
     theme: state.scratchGui.theme.theme

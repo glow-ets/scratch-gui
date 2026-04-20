@@ -524,6 +524,28 @@ const SettingsModalComponent = props => {
                         {...props}
                     />
                 )}
+                {/* glow-ets/scratch-gui#19: reset regular + advanced
+                    settings, leaving addon storage alone. */}
+                <div className={styles.resetAllRow}>
+                    <button
+                        className={styles.button}
+                        onClick={props.onResetAll}
+                    >
+                        <FormattedMessage
+                            defaultMessage="Reset all settings"
+                            description="Button that resets regular + advanced settings to defaults"
+                            id="tw.settingsModal.resetAll"
+                        />
+                    </button>
+                    <p className={styles.resetAllHelp}>
+                        <FormattedMessage
+                            // eslint-disable-next-line max-len
+                            defaultMessage="Clears regular and advanced settings. Addons are left alone."
+                            description="Help text beside the reset all settings button"
+                            id="tw.settingsModal.resetAllHelp"
+                        />
+                    </p>
+                </div>
             </Box>
         </Modal>
     );
@@ -550,7 +572,8 @@ SettingsModalComponent.propTypes = {
     onWarpTimerChange: PropTypes.func,
     disableCompiler: PropTypes.bool,
     onDisableCompilerChange: PropTypes.func,
-    nonDefault: PropTypes.object
+    nonDefault: PropTypes.object,
+    onResetAll: PropTypes.func
 };
 
 export default injectIntl(SettingsModalComponent);

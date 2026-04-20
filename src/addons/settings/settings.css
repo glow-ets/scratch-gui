@@ -545,12 +545,30 @@ a:active, a:focus {
 }
 
 /*
- * glow-ets/scratch-gui#19: mark user-overridden rows inside the Addons page.
- * The inset left bookmark is visible to a teacher but deliberately muted so
- * it doesn't draw a kid's click.
+ * glow-ets/scratch-gui#19: two independent markers. The blue-grey bar reads
+ * as "bookmarked" — user touched it — and the pink bar is the stronger
+ * "value currently differs from default". When both apply, pink wins via
+ * source order. Deliberately muted so neither invites a kid's click.
  */
+[data-glow-stored="1"] {
+    box-shadow: inset 3px 0 0 rgba(120, 160, 210, 0.55);
+}
 [data-glow-nondefault="1"] {
     box-shadow: inset 3px 0 0 rgba(230, 31, 90, 0.55);
+}
+
+/* glow-ets/scratch-gui#19: filter toggles next to the search input. */
+.filter-toggles {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.9em;
+}
+.filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
 }
 .reset-all-button {
 

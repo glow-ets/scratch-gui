@@ -388,10 +388,15 @@ const Setting = ({
             {settingName}
         </label>
     );
+    // glow-ets/scratch-gui#19: distinguish "user stored this setting" from
+    // "value differs from default". Both markers may apply simultaneously.
+    const storage = SettingsStore.getAddonStorage(addonId);
+    const isStored = Object.prototype.hasOwnProperty.call(storage, settingId);
     const isNonDefault = value !== setting.default;
     return (
         <div
             className={styles.setting}
+            data-glow-stored={isStored ? '1' : undefined}
             data-glow-nondefault={isNonDefault ? '1' : undefined}
         >
             {setting.type === 'boolean' && (
@@ -559,7 +564,8 @@ const Addon = ({
 }) => (
     <div
         className={classNames(styles.addon, {[styles.addonDirty]: settings.dirty})}
-        data-glow-nondefault={SettingsStore.hasAddonUserOverride(id) ? '1' : undefined}
+        data-glow-stored={SettingsStore.hasAddonUserOverride(id) ? '1' : undefined}
+        data-glow-nondefault={SettingsStore.hasAddonNonDefaultSetting(id) ? '1' : undefined}
     >
         <div className={styles.addonHeader}>
             <label className={styles.addonTitle}>
@@ -859,11 +865,40 @@ class AddonList extends React.Component {
         this.search = new Search(this.props.addons.map(addonToSearchItem));
         this.groups = [];
     }
+    // glow-ets/scratch-gui#19: composable predicate used by both search and
+    // grouped render paths.
+    filterPredicate (addon) {
+        if (this.props.filterUserSet &&
+            !SettingsStore.hasAddonUserOverride(addon.id)) return false;
+        if (this.props.filterNonDefault &&
+            !SettingsStore.hasAddonNonDefaultSetting(addon.id)) return false;
+        return true;
+    }
     render () {
+        const isFiltering = this.props.filterUserSet || this.props.filterNonDefault;
         if (this.props.search) {
             const addons = this.search.search(this.props.search)
-                .slice(0, 20)
-                .map(({index}) => this.props.addons[index]);
+                .map(({index}) => this.props.addons[index])
+                .filter(addon => this.filterPredicate(addon))
+                .slice(0, 20);
+            if (addons.length === 0) {
+                return (
+                    <div className={styles.noResults}>
+                        {settingsTranslations.noResults}
+                    </div>
+                );
+            }
+            return (
+                <div>
+                    <InternalAddonList
+                        addons={addons}
+                        extended={this.props.extended}
+                    />
+                </div>
+            );
+        }
+        if (isFiltering) {
+            const addons = this.props.addons.filter(addon => this.filterPredicate(addon));
             if (addons.length === 0) {
                 return (
                     <div className={styles.noResults}>
@@ -902,7 +937,9 @@ AddonList.propTypes = {
         manifest: PropTypes.shape({}).isRequired
     })).isRequired,
     search: PropTypes.string.isRequired,
-    extended: PropTypes.bool.isRequired
+    extended: PropTypes.bool.isRequired,
+    filterUserSet: PropTypes.bool,
+    filterNonDefault: PropTypes.bool
 };
 
 class AddonSettingsComponent extends React.Component {
@@ -917,6 +954,8 @@ class AddonSettingsComponent extends React.Component {
         this.handleSearch = this.handleSearch.bind(this);
         this.handleClickSearchButton = this.handleClickSearchButton.bind(this);
         this.handleClickVersion = this.handleClickVersion.bind(this);
+        this.handleToggleFilterUserSet = this.handleToggleFilterUserSet.bind(this);
+        this.handleToggleFilterNonDefault = this.handleToggleFilterNonDefault.bind(this);
         this.searchRef = this.searchRef.bind(this);
         this.searchBar = null;
         this.state = {
@@ -924,6 +963,9 @@ class AddonSettingsComponent extends React.Component {
             dirty: false,
             search: getInitialSearch(),
             extended: false,
+            // glow-ets/scratch-gui#19: two independent filters next to search.
+            filterUserSet: false,
+            filterNonDefault: false,
             ...this.readFullAddonState()
         };
         if (Channels.changeChannel) {
@@ -1052,6 +1094,12 @@ class AddonSettingsComponent extends React.Component {
         });
         this.searchBar.focus();
     }
+    handleToggleFilterUserSet (e) {
+        this.setState({filterUserSet: e.target.checked});
+    }
+    handleToggleFilterNonDefault (e) {
+        this.setState({filterNonDefault: e.target.checked});
+    }
     handleClickVersion () {
         this.setState({
             extended: !this.state.extended
@@ -1117,6 +1165,25 @@ class AddonSettingsComponent extends React.Component {
                             </span>
                         </a>
                     </div>
+                    {/* glow-ets/scratch-gui#19: quick filters for classroom triage. */}
+                    <div className={styles.filterToggles}>
+                        <label className={styles.filterToggle}>
+                            <input
+                                type="checkbox"
+                                checked={this.state.filterUserSet}
+                                onChange={this.handleToggleFilterUserSet}
+                            />
+                            {settingsTranslations.filterUserSet}
+                        </label>
+                        <label className={styles.filterToggle}>
+                            <input
+                                type="checkbox"
+                                checked={this.state.filterNonDefault}
+                                onChange={this.handleToggleFilterNonDefault}
+                            />
+                            {settingsTranslations.filterNonDefault}
+                        </label>
+                    </div>
                     {this.state.dirty && (
                         <Dirty
                             onReloadNow={Channels.reloadChannel ? this.handleReloadNow : null}
@@ -1151,6 +1218,8 @@ class AddonSettingsComponent extends React.Component {
                                 addons={addonState}
                                 search={this.state.search}
                                 extended={this.state.extended}
+                                filterUserSet={this.state.filterUserSet}
+                                filterNonDefault={this.state.filterNonDefault}
                             />
                             <footer className={styles.footer}>
                                 {unsupported.length ? (

@@ -3,7 +3,13 @@ import React from 'react';
 import {defineMessages, injectIntl, intlShape} from 'react-intl';
 import bindAll from 'lodash.bindall';
 import {connect} from 'react-redux';
+import locales from '@turbowarp/scratch-l10n';
 import {closeSettingsModal} from '../reducers/modals';
+import {resetAdvanced} from '../reducers/tw';
+import {selectLocaleWithoutPersist} from '../reducers/locales';
+import {setTheme} from '../reducers/theme';
+import {detectLocale} from '../lib/detect-locale.js';
+import {systemPreferencesTheme} from '../lib/themes/themePersistance.js';
 import SettingsModalComponent from '../components/tw-settings-modal/settings-modal.jsx';
 import {defaultStageSize} from '../reducers/custom-stage-size';
 
@@ -12,6 +18,12 @@ const messages = defineMessages({
         defaultMessage: 'New framerate:',
         description: 'Prompt shown to choose a new framerate',
         id: 'tw.menuBar.newFramerate'
+    },
+    resetAllConfirm: {
+        // eslint-disable-next-line max-len
+        defaultMessage: 'Reset all regular and advanced settings to defaults? Addons will be left alone.',
+        description: 'Confirmation prompt shown before Reset all settings runs',
+        id: 'tw.settingsModal.resetAllConfirm'
     }
 });
 
@@ -30,7 +42,8 @@ class UsernameModal extends React.Component {
             'handleStageWidthChange',
             'handleStageHeightChange',
             'handleDisableCompilerChange',
-            'handleStoreProjectOptions'
+            'handleStoreProjectOptions',
+            'handleResetAll'
         ]);
     }
     handleFramerateChange (e) {
@@ -85,6 +98,27 @@ class UsernameModal extends React.Component {
     handleStoreProjectOptions () {
         this.props.vm.storeProjectOptions();
     }
+    // glow-ets/scratch-gui#19: clears regular (theme + language) and advanced
+    // settings to a pristine state. Addon storage is intentionally untouched.
+    handleResetAll () {
+        // eslint-disable-next-line no-alert
+        if (!window.confirm(this.props.intl.formatMessage(messages.resetAllConfirm))) {
+            return;
+        }
+        try { localStorage.removeItem('tw:theme'); } catch (_e) { /* ignore */ }
+        try { localStorage.removeItem('tw:language'); } catch (_e) { /* ignore */ }
+        this.props.onResetTheme();
+        this.props.onResetLocale();
+        this.props.onResetAdvanced();
+        this.props.vm.setFramerate(30);
+        this.props.vm.setInterpolation(false);
+        if (this.props.vm.renderer && this.props.vm.renderer.setUseHighQualityRender) {
+            this.props.vm.renderer.setUseHighQualityRender(false);
+        }
+        this.props.vm.setCompilerOptions({enabled: true, warpTimer: false});
+        this.props.vm.setRuntimeOptions({maxClones: 300, miscLimits: true, fencing: true});
+        this.props.vm.setStageSize(defaultStageSize.width, defaultStageSize.height);
+    }
     render () {
         const {
             /* eslint-disable no-unused-vars */
@@ -114,6 +148,7 @@ class UsernameModal extends React.Component {
                     this.props.customStageSize.height !== defaultStageSize.height
                 }
                 onStoreProjectOptions={this.handleStoreProjectOptions}
+                onResetAll={this.handleResetAll}
                 {...props}
             />
         );
@@ -146,7 +181,10 @@ UsernameModal.propTypes = {
         width: PropTypes.number,
         height: PropTypes.number
     }),
-    disableCompiler: PropTypes.bool
+    disableCompiler: PropTypes.bool,
+    onResetTheme: PropTypes.func,
+    onResetLocale: PropTypes.func,
+    onResetAdvanced: PropTypes.func
 };
 
 const mapStateToProps = state => {
@@ -190,7 +228,12 @@ const mapStateToProps = state => {
 };
 
 const mapDispatchToProps = dispatch => ({
-    onClose: () => dispatch(closeSettingsModal())
+    onClose: () => dispatch(closeSettingsModal()),
+    // glow-ets/scratch-gui#19: Reset-all wiring. The container clears the
+    // localStorage keys before dispatching, so these actions do NOT re-persist.
+    onResetTheme: () => dispatch(setTheme(systemPreferencesTheme())),
+    onResetLocale: () => dispatch(selectLocaleWithoutPersist(detectLocale(Object.keys(locales)))),
+    onResetAdvanced: () => dispatch(resetAdvanced())
 });
 
 export default injectIntl(connect(

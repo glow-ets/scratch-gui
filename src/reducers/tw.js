@@ -18,6 +18,10 @@ const SET_CLOUD_HOST = 'tw/SET_CLOUD_HOST';
 const SET_PLATFORM_MISMATCH_DETAILS = 'tw/SET_PLATFORM_MISMATCH_DETAILS';
 const SET_PROJECT_ERROR = 'tw/SET_PROJECT_ERROR';
 const SET_ADVANCED_MODE = 'tw/SET_ADVANCED_MODE';
+// glow-ets/scratch-gui#19: reset the eight persisted "advanced" fields back
+// to initialState, leaving session-only fields (username, cloud, fileHandle,
+// author/description, window state, etc.) untouched.
+const RESET_ADVANCED = 'tw/RESET_ADVANCED';
 
 export const initialState = {
     framerate: 30,
@@ -145,6 +149,14 @@ const reducer = function (state, action) {
     case SET_ADVANCED_MODE:
         return Object.assign({}, state, {
             isAdvancedMode: action.isAdvancedMode
+        });
+    case RESET_ADVANCED:
+        return Object.assign({}, state, {
+            framerate: initialState.framerate,
+            interpolation: initialState.interpolation,
+            highQualityPen: initialState.highQualityPen,
+            compilerOptions: Object.assign({}, initialState.compilerOptions),
+            runtimeOptions: Object.assign({}, initialState.runtimeOptions)
         });
     default:
         return state;
@@ -291,6 +303,12 @@ const setAdvancedMode = function (isAdvancedMode) {
     };
 };
 
+const resetAdvanced = function () {
+    return {
+        type: RESET_ADVANCED
+    };
+};
+
 export {
     reducer as default,
     initialState as twInitialState,
@@ -313,5 +331,6 @@ export {
     setCloudHost,
     setPlatformMismatchDetails,
     setProjectError,
-    setAdvancedMode
+    setAdvancedMode,
+    resetAdvanced
 };
