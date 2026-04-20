@@ -388,9 +388,11 @@ const Setting = ({
             {settingName}
         </label>
     );
+    const isNonDefault = value !== setting.default;
     return (
         <div
             className={styles.setting}
+            data-glow-nondefault={isNonDefault ? '1' : undefined}
         >
             {setting.type === 'boolean' && (
                 <React.Fragment>
@@ -555,7 +557,10 @@ const Addon = ({
     manifest,
     extended
 }) => (
-    <div className={classNames(styles.addon, {[styles.addonDirty]: settings.dirty})}>
+    <div
+        className={classNames(styles.addon, {[styles.addonDirty]: settings.dirty})}
+        data-glow-nondefault={SettingsStore.hasAddonUserOverride(id) ? '1' : undefined}
+    >
         <div className={styles.addonHeader}>
             <label className={styles.addonTitle}>
                 <div className={styles.addonSwitch}>
@@ -1121,12 +1126,8 @@ class AddonSettingsComponent extends React.Component {
                 <div className={styles.addons}>
                     {!this.state.loading && (
                         <div className={styles.section}>
-                            <AddonList
-                                addons={addonState}
-                                search={this.state.search}
-                                extended={this.state.extended}
-                            />
-                            <div className={styles.footerButtons}>
+                            {/* glow-ets/scratch-gui#19: reset/export/import moved to the top. */}
+                            <div className={classNames(styles.footerButtons, styles.headerButtons)}>
                                 <button
                                     className={classNames(styles.button, styles.resetAllButton)}
                                     onClick={this.handleResetAll}
@@ -1146,6 +1147,11 @@ class AddonSettingsComponent extends React.Component {
                                     {settingsTranslations.import}
                                 </button>
                             </div>
+                            <AddonList
+                                addons={addonState}
+                                search={this.state.search}
+                                extended={this.state.extended}
+                            />
                             <footer className={styles.footer}>
                                 {unsupported.length ? (
                                     <UnsupportedAddons

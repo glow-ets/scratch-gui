@@ -282,6 +282,12 @@ class SettingsStore extends EventTargetShim {
         return result;
     }
 
+    // glow-ets/scratch-gui#19: true if the user has stored any override for
+    // this addon (enabled flag or any per-setting value).
+    hasAddonUserOverride (addonId) {
+        return Object.keys(this.getAddonStorage(addonId)).length > 0;
+    }
+
     setAddonEnabled (addonId, enabled) {
         const storage = this.getAddonStorage(addonId);
         const manifest = this.getAddonManifest(addonId);

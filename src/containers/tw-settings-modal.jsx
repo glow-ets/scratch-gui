@@ -149,19 +149,45 @@ UsernameModal.propTypes = {
     disableCompiler: PropTypes.bool
 };
 
-const mapStateToProps = state => ({
-    vm: state.scratchGui.vm,
-    isEmbedded: state.scratchGui.mode.isEmbedded,
-    framerate: state.scratchGui.tw.framerate,
-    highQualityPen: state.scratchGui.tw.highQualityPen,
-    interpolation: state.scratchGui.tw.interpolation,
-    infiniteClones: state.scratchGui.tw.runtimeOptions.maxClones === Infinity,
-    removeFencing: !state.scratchGui.tw.runtimeOptions.fencing,
-    removeLimits: !state.scratchGui.tw.runtimeOptions.miscLimits,
-    warpTimer: state.scratchGui.tw.compilerOptions.warpTimer,
-    customStageSize: state.scratchGui.customStageSize,
-    disableCompiler: !state.scratchGui.tw.compilerOptions.enabled
-});
+const mapStateToProps = state => {
+    const framerate = state.scratchGui.tw.framerate;
+    const highQualityPen = state.scratchGui.tw.highQualityPen;
+    const interpolation = state.scratchGui.tw.interpolation;
+    const infiniteClones = state.scratchGui.tw.runtimeOptions.maxClones === Infinity;
+    const removeFencing = !state.scratchGui.tw.runtimeOptions.fencing;
+    const removeLimits = !state.scratchGui.tw.runtimeOptions.miscLimits;
+    const warpTimer = state.scratchGui.tw.compilerOptions.warpTimer;
+    const customStageSize = state.scratchGui.customStageSize;
+    const disableCompiler = !state.scratchGui.tw.compilerOptions.enabled;
+    return {
+        vm: state.scratchGui.vm,
+        isEmbedded: state.scratchGui.mode.isEmbedded,
+        framerate,
+        highQualityPen,
+        interpolation,
+        infiniteClones,
+        removeFencing,
+        removeLimits,
+        warpTimer,
+        customStageSize,
+        disableCompiler,
+        // glow-ets/scratch-gui#19: surface which rows diverge from defaults so
+        // the modal can mildly flag them. Defaults mirror tw.js initialState.
+        nonDefault: {
+            framerate: framerate !== 30,
+            highQualityPen,
+            interpolation,
+            infiniteClones,
+            removeFencing,
+            removeLimits,
+            warpTimer,
+            disableCompiler,
+            customStageSize:
+                customStageSize.width !== defaultStageSize.width ||
+                customStageSize.height !== defaultStageSize.height
+        }
+    };
+};
 
 const mapDispatchToProps = dispatch => ({
     onClose: () => dispatch(closeSettingsModal())

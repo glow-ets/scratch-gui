@@ -48,3 +48,22 @@
 html[data-glow-theme="dark"] [class*="menu-bar_menu-bar_"] {
     background-color: #b01847 !important;
 }
+
+/*
+ * glow-ets/scratch-gui#19 — mild highlight of menu-bar icons when a user
+ * preference exists. The shadow is soft enough for kids to ignore but stands
+ * out to a teacher scanning the toolbar. Icons carry a stable
+ * data-glow-menu-category attribute (set in menu-bar.jsx / settings-menu.jsx)
+ * because webpack may inline small SVGs as data URIs, defeating name-based
+ * selectors.
+ *
+ * Advanced mode: each category lights its own icon. Default mode: the gear
+ * is the only visible entry-point, so it lights whenever *any* category is
+ * non-default.
+ */
+html[data-glow-advanced-mode="1"][data-glow-pref-regular="1"] [data-glow-menu-category="regular"],
+html[data-glow-advanced-mode="1"][data-glow-pref-advanced="1"] [data-glow-menu-category="advanced"],
+html[data-glow-advanced-mode="1"][data-glow-pref-addons="1"] [data-glow-menu-category="addons"],
+html:not([data-glow-advanced-mode="1"])[data-glow-pref-any="1"] [data-glow-menu-category="regular"] {
+    filter: drop-shadow(0 0 2px #ffe17a) drop-shadow(0 0 3px #ffe17a);
+}

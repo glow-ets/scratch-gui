@@ -907,6 +907,7 @@ class MenuBar extends React.Component {
                                     draggable={false}
                                     width={20}
                                     height={20}
+                                    data-glow-menu-category="addons"
                                 />
                                 <span className={styles.collapsibleLabel}>
                                     <FormattedMessage
@@ -927,6 +928,7 @@ class MenuBar extends React.Component {
                                     draggable={false}
                                     width={20}
                                     height={20}
+                                    data-glow-menu-category="advanced"
                                 />
                                 <span className={styles.collapsibleLabel}>
                                     <FormattedMessage
