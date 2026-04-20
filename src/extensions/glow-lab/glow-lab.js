@@ -8,7 +8,7 @@
         getInfo () {
             return {
                 id: 'glowLab',
-                name: 'Glow Lab',
+                name: 'Glow Lab Extension',
                 color1: '#c90952',
                 color2: '#a90131',
                 color3: '#874c7e',

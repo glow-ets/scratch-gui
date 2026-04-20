@@ -51,12 +51,26 @@ export default async function ({ addon, console, msg }) {
   let currentDropdownOptions = [];
   let resultOfLastGetOptions = [];
 
+
   const oldDropDownDivShow = Blockly.DropDownDiv.show;
   Blockly.DropDownDiv.show = function (...args) {
     blocklyDropdownMenu = document.querySelector(".blocklyDropdownMenu");
     if (!blocklyDropdownMenu) {
       return oldDropDownDivShow.call(this, ...args);
     }
+
+
+
+    // glow-start https://github.com/glow-ets/scratch-gui/issues/16
+    // roughly, if it has a mouse => it has a keyboard ('hover' handles stylus-on-tablet case)
+    const isSafeForSearchBar = typeof window !== 'undefined' && 
+      window.matchMedia('(pointer: fine) and (hover: hover)').matches;  
+
+    if (!isSafeForSearchBar) {
+      console.log("[editor-searchable-dropdowns][GLOW] No mouse detected -> assuming there is no real keyboard..")
+      return oldDropDownDivShow.call(this, ...args);
+    }
+    // glow-end
 
     blocklyDropdownMenu.focus = () => {}; // no-op focus() so it can't steal it from the search bar
 

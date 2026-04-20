@@ -24,6 +24,9 @@ const manifest = {
   ],
   "enabledByDefault": true
 };
-import {isMobile} from "../../environment";
-if (isMobile) manifest.enabledByDefault = false;
+//glow-start  not reliable enough  https://github.com/glow-ets/scratch-gui/issues/16
+//import {isMobile} from "../../environment";
+//if (isMobile) manifest.enabledByDefault = false;
+//glow-end
+
 export default manifest;

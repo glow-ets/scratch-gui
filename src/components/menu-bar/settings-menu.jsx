@@ -20,7 +20,7 @@ import settingsIcon from './icon--settings.svg';
 const SettingsMenu = ({
     canChangeLanguage,
     canChangeTheme,
-    isEasyMode,
+    isAdvancedMode,
     isRtl,
     onClickDesktopSettings,
     onOpenCustomSettings,
@@ -61,11 +61,11 @@ const SettingsMenu = ({
                 {canChangeLanguage && <LanguageMenu onRequestCloseSettings={onRequestClose} />}
                 {canChangeTheme && (
                     <React.Fragment>
-                        {!isEasyMode && <TWGuiThemeMenu />}
+                        {isAdvancedMode && <TWGuiThemeMenu />}
                         <TWBlocksThemeMenu
                             onOpenCustomSettings={onOpenCustomSettings}
                         />
-                        {!isEasyMode && <TWAccentThemeMenu />}
+                        {isAdvancedMode && <TWAccentThemeMenu />}
                     </React.Fragment>
                 )}
                 {onClickDesktopSettings && <TWDesktopSettings onClick={onClickDesktopSettings} />}
@@ -77,7 +77,7 @@ const SettingsMenu = ({
 SettingsMenu.propTypes = {
     canChangeLanguage: PropTypes.bool,
     canChangeTheme: PropTypes.bool,
-    isEasyMode: PropTypes.bool,
+    isAdvancedMode: PropTypes.bool,
     isRtl: PropTypes.bool,
     onClickDesktopSettings: PropTypes.func,
     onOpenCustomSettings: PropTypes.func,

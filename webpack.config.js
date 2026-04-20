@@ -22,7 +22,7 @@ try {
 } catch (e) {
     // ignore - not in a git repo
 }
-const GLOW_VERSION = require('./package.json').version;
+const GLOW_VERSION = require('./package.json').glow_version;
 
 const root = process.env.ROOT || '';
 if (root.length > 0 && !root.endsWith('/')) {
@@ -253,7 +253,17 @@ module.exports = [
                         context: 'src/examples'
                     }
                 ]
+            }),
+            new CopyWebpackPlugin({   // glow extensions
+                patterns: [
+                    {
+                        from: 'extensions/**',
+                        to: 'static',
+                        context: 'src'
+                    }
+                ]
             })
+            
         ])
     })
 ].concat(

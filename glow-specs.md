@@ -12,7 +12,11 @@ The platform shall be:
 - initially serverless, static hosting
 - packaged in a repo at https://github.com/glow-ets/scratch-gui
     - all turbowarp dependencies were forked into https://github.com/glow-ets Github organization for preservation and easy inspection. Still, currently our scratch-gui links only to original turbowarp dependencies, not the forks (this may change in gthe future)
-- minimal, ideally with no direct modification to original turbowarp / scratch code, code changes should mostly stay in extensions
+- minimal, ideally with no direct modification to original turbowarp / scratch code, when determing where to place code look, (first ones are preferred)   
+    - 1. extensions
+    - 2. addons
+    - 3. scratch-gui
+    - 4. scratch-vm
 - promoted by Glow ETS (https://glow.earth) a cultural association that offers, organizes, and manages educational activities and cultural events with the aim of generating innovative ideas and projects capable of making an impact on society and the Trentino region
     - as brand color, use this pink: #e61f5a
 
@@ -43,10 +47,9 @@ The platform shall be:
 
 ## Media 
 
-- old assets: keep scratch compat with old assets
-- new assets: optionally, add something cool for 11-15 years old kids (definitely not the cringy Scratch look), various themes - ideally, something that works well _both_ for girls and boys.
-    - no scratch cat logo, avoid infringe scratch copyright
-- system must support webp, jfif, avif image formats (seems TurboWarp already does)
+- System must support webp, jfif, avif image formats (seems TurboWarp already does)
+- Additional asset packs should be loadable from url  (glow-ets/scratch-gui#17)
+- System should have additional assets from Glow brand like sprites, backgrounds, sounds (glow-ets/scratch-gui#18)
 
 
 ## CI
@@ -101,7 +104,7 @@ For extensions dealing with hardware, assume:
 - newly created files in common places should start with 'glow-':
     - "/glow-specs.md" : this file
 - new values in shared spaces like CSS or configs should be prefixed with 'glow-', 'glow_' or just 'glow' depending on the file type
-
+- `scratch-gui` repo is large (downloading `develop` branch fetches ~362 Mb), better cloning with  `--single-branch --depth 1` which gets ~63 Mb
 - Development will be aided by Claude Code. 
 
 ### To Claude agent:

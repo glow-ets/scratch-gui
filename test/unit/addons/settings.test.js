@@ -29,7 +29,7 @@ test('enabled, event', () => {
     const store = new SettingStore();
     const fn = jest.fn();
     store.addEventListener('setting-changed', fn);
-    expect(store.getAddonEnabled('editor-devtools')).toBe(true);
+    expect(store.getAddonEnabled('editor-devtools')).toBe(false);     // glow: not default anymore
     expect('enabled' in store.store['editor-devtools']).toBe(false);
     store.setAddonEnabled('editor-devtools', false);
     expect(store.getAddonEnabled('editor-devtools')).toBe(false);
@@ -39,19 +39,19 @@ test('enabled, event', () => {
     expect('enabled' in store.store['cat-blocks']).toBe(true);
     store.setAddonEnabled('cat-blocks', null);
     expect('enabled' in store.store['cat-blocks']).toBe(false);
-    expect(fn).toHaveBeenCalledTimes(4);
+    expect(fn).toHaveBeenCalledTimes(3);                              // glow 4 -> 3
     expect(fn.mock.calls[0][0].detail.addonId).toBe('editor-devtools');
     expect(fn.mock.calls[0][0].detail.settingId).toBe('enabled');
-    expect(fn.mock.calls[0][0].detail.value).toBe(false);
-    expect(fn.mock.calls[1][0].detail.addonId).toBe('editor-devtools');
+    expect(fn.mock.calls[0][0].detail.value).toBe(true);             // glow was false
+    expect(fn.mock.calls[1][0].detail.addonId).toBe('cat-blocks');   // glow was 'editor-devtools'
     expect(fn.mock.calls[1][0].detail.settingId).toBe('enabled');
     expect(fn.mock.calls[1][0].detail.value).toBe(true);
     expect(fn.mock.calls[2][0].detail.addonId).toBe('cat-blocks');
     expect(fn.mock.calls[2][0].detail.settingId).toBe('enabled');
-    expect(fn.mock.calls[2][0].detail.value).toBe(true);
-    expect(fn.mock.calls[3][0].detail.addonId).toBe('cat-blocks');
-    expect(fn.mock.calls[3][0].detail.settingId).toBe('enabled');
-    expect(fn.mock.calls[3][0].detail.value).toBe(false);
+    expect(fn.mock.calls[2][0].detail.value).toBe(false);            // glow was true
+    //expect(fn.mock.calls[3][0].detail.addonId).toBe('cat-blocks'); // glow undefined
+    //expect(fn.mock.calls[3][0].detail.settingId).toBe('enabled');  // glow undefined
+    //expect(fn.mock.calls[3][0].detail.value).toBe(false);          // glow undefined
 });
 
 test('settings, event, default values', () => {
@@ -247,16 +247,16 @@ test('export core', () => {
 test('export settings', () => {
     const store = new SettingStore();
     let exported = store.export({theme: lightTheme});
-    expect(exported.addons['remove-sprite-confirm'].enabled).toBe(false);
+    expect(exported.addons['remove-sprite-confirm'].enabled).toBe(true);      // glow enabled by default
     expect(exported.addons['remove-sprite-confirm'].settings).toEqual({});
-    expect(exported.addons['onion-skinning'].enabled).toBe(true);
+    expect(exported.addons['onion-skinning'].enabled).toBe(false);            // glow not default anymore
     expect(exported.addons['onion-skinning'].settings.default).toEqual(false);
     store.setAddonEnabled('remove-sprite-confirm', true);
     store.setAddonSetting('onion-skinning', 'default', true);
     exported = store.export({theme: lightTheme});
     expect(exported.addons['remove-sprite-confirm'].enabled).toBe(true);
     expect(exported.addons['remove-sprite-confirm'].settings).toEqual({});
-    expect(exported.addons['onion-skinning'].enabled).toBe(true);
+    expect(exported.addons['onion-skinning'].enabled).toBe(false);            // glow not default anymore
     expect(exported.addons['onion-skinning'].settings.default).toEqual(true);
 });
 
@@ -279,13 +279,13 @@ test('import, event', () => {
     newStore.import(store.export({theme: lightTheme}));
     expect(newStore.getAddonEnabled('onion-skinning')).toBe(false);
     expect(newStore.getAddonSetting('onion-skinning', 'next')).toBe(5);
-    expect(fn).toHaveBeenCalledTimes(2);
+    expect(fn).toHaveBeenCalledTimes(1);                                 // glow was 2
     expect(fn.mock.calls[0][0].detail.addonId).toBe('onion-skinning');
-    expect(fn.mock.calls[0][0].detail.settingId).toBe('enabled');
-    expect(fn.mock.calls[0][0].detail.value).toBe(false);
-    expect(fn.mock.calls[1][0].detail.addonId).toBe('onion-skinning');
-    expect(fn.mock.calls[1][0].detail.settingId).toBe('next');
-    expect(fn.mock.calls[1][0].detail.value).toBe(5);
+    expect(fn.mock.calls[0][0].detail.settingId).toBe('next');           // glow was 'enabled'
+    expect(fn.mock.calls[0][0].detail.value).toBe(5);                    // glow false -> 5
+    //expect(fn.mock.calls[1][0].detail.addonId).toBe('onion-skinning'); // glow undefined
+    //expect(fn.mock.calls[1][0].detail.settingId).toBe('next');         // glow undefined
+    //expect(fn.mock.calls[1][0].detail.value).toBe(5);                  // glow undefined
 });
 
 test('export is identical after import', () => {
@@ -422,15 +422,15 @@ test('setStore dynamic enable/disable', () => {
 
 test('setStore weird values', () => {
     const settingsStore = new SettingStore();
-    expect(settingsStore.getAddonEnabled('pause')).toBe(true);
-    settingsStore.setAddonEnabled('pause', false);
-    settingsStore.setAddonEnabled('clones', true);
+    expect(settingsStore.getAddonEnabled('pause')).toBe(false);  // glow was true  
+    settingsStore.setAddonEnabled('pause', true);                // glow was false               
+    settingsStore.setAddonEnabled('clones', false);              // glas was true
     settingsStore.setStore({
         invalid0: {},
         invalid1: null,
         pause: null
     });
-    expect(settingsStore.getAddonEnabled('pause')).toBe(false);
+    expect(settingsStore.getAddonEnabled('pause')).toBe(true);  // glow was false
 });
 
 test('resetting an addon through setStore', () => {
@@ -462,8 +462,8 @@ test('setStoreWithVersionCheck', () => {
 
 test('parseUrlParameter', () => {
     const store = new SettingStore();
-    expect(store.getAddonEnabled('pause')).toBe(true);
-    expect(store.getAddonEnabled('mute-project')).toBe(true);
+    expect(store.getAddonEnabled('pause')).toBe(false);                      // glow was true
+    expect(store.getAddonEnabled('mute-project')).toBe(false);               // glow was true
     expect(store.getAddonEnabled('remove-curved-stage-border')).toBe(false);
     expect(store.remote).toBe(false);
     store.parseUrlParameter('pause,remove-curved-stage-border,,invalid addon??43t987(*&$');
@@ -481,7 +481,7 @@ test('Settings migration 1 -> 2', () => {
     store.readLocalStorage();
     expect(store.getAddonEnabled('block-count')).toBe(false);
     expect(store.getAddonEnabled('tw-remove-backpack')).toBe(false);
-    expect(store.getAddonEnabled('tw-remove-feedback')).toBe(false);
+    expect(store.getAddonEnabled('tw-remove-feedback')).toBe(true);   // glow was false
 
     // eslint-disable-next-line max-len
     global.localStorage.getItem = () => `{"_":1,"tw-project-info":{"enabled":true},"tw-interface-customization":{"enabled":true,"removeFeedback":true,"removeBackpack":true}}`;
@@ -511,8 +511,8 @@ test('Settings migration 3 -> 4', () => {
         _: 3
     });
     store.readLocalStorage();
-    expect(store.getAddonEnabled('editor-devtools')).toBe(true);
-    expect(store.getAddonEnabled('find-bar')).toBe(true);
+    expect(store.getAddonEnabled('editor-devtools')).toBe(false);    // glow was true 
+    expect(store.getAddonEnabled('find-bar')).toBe(false);            // glow was true  
     expect(store.getAddonEnabled('middle-click-popup')).toBe(true);
 
     global.localStorage.getItem = () => JSON.stringify({

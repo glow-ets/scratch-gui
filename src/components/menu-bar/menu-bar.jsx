@@ -79,7 +79,7 @@ import {
     openErrorsMenu,
     closeErrorsMenu
 } from '../../reducers/menus';
-import {setFileHandle, setEasyMode} from '../../reducers/tw.js';
+import {setFileHandle, setAdvancedMode} from '../../reducers/tw.js';
 
 import collectMetadata from '../../lib/collect-metadata';
 
@@ -96,7 +96,6 @@ import editIcon from './icon--edit.svg';
 import addonsIcon from './addons.svg';
 import errorIcon from './tw-error.svg';
 import advancedIcon from './tw-advanced.svg';
-import glowLabSmallIcon from '../../lib/libraries/extensions/glow-lab/glow-lab-small.svg';
 
 import ninetiesLogo from './nineties_logo.svg';
 import catLogo from './cat_logo.svg';
@@ -340,8 +339,8 @@ class MenuBar extends React.Component {
     handleKeyPress (event) {
         const modifier = bowser.mac ? event.metaKey : event.ctrlKey;
         if (modifier) {
-            if (event.shiftKey && event.key.toLowerCase() === 'e') {
-                this.props.onSetEasyMode(!this.props.isEasyMode);
+            if (event.shiftKey && event.altKey && event.key.toLowerCase() === 'a') {
+                this.props.onSetAdvancedMode(!this.props.isAdvancedMode);
                 event.preventDefault();
             } else if (event.key.toLowerCase() === 's') {
                 this.props.handleSaveProject();
@@ -551,7 +550,7 @@ class MenuBar extends React.Component {
                         {(this.props.canChangeTheme || this.props.canChangeLanguage) && (<SettingsMenu
                             canChangeLanguage={this.props.canChangeLanguage}
                             canChangeTheme={this.props.canChangeTheme}
-                            isEasyMode={this.props.isEasyMode}
+                            isAdvancedMode={this.props.isAdvancedMode}
                             isRtl={this.props.isRtl}
                             onClickDesktopSettings={
                                 this.props.onClickDesktopSettings &&
@@ -696,7 +695,7 @@ class MenuBar extends React.Component {
                                             )}
                                         </SB3Downloader>
                                     </MenuSection>
-                                    {!this.props.isEasyMode && this.props.onClickPackager && (
+                                    {this.props.isAdvancedMode && this.props.onClickPackager && (
                                         <MenuSection>
                                             <MenuItem
                                                 onClick={this.handleClickPackager}
@@ -762,7 +761,7 @@ class MenuBar extends React.Component {
                                     )}</DeletionRestorer>
                                 )}
                                 <MenuSection>
-                                    {!this.props.isEasyMode && (
+                                    {this.props.isAdvancedMode && (
                                         <TurboMode>{(toggleTurboMode, {turboMode}) => (
                                             <MenuItem onClick={toggleTurboMode}>
                                                 {turboMode ? (
@@ -781,7 +780,7 @@ class MenuBar extends React.Component {
                                             </MenuItem>
                                         )}</TurboMode>
                                     )}
-                                    {!this.props.isEasyMode && (
+                                    {this.props.isAdvancedMode && (
                                         <FramerateChanger>{(changeFramerate, {framerate}) => (
                                             <MenuItem onClick={changeFramerate}>
                                                 {framerate === 60 ? (
@@ -800,7 +799,7 @@ class MenuBar extends React.Component {
                                             </MenuItem>
                                         )}</FramerateChanger>
                                     )}
-                                    {!this.props.isEasyMode && (
+                                    {this.props.isAdvancedMode && (
                                         <ChangeUsername>{changeUsername => (
                                             <MenuItem onClick={changeUsername}>
                                                 <FormattedMessage
@@ -841,7 +840,7 @@ class MenuBar extends React.Component {
                                         </MenuItem>
                                     )}</CloudVariablesToggler>
                                 </MenuSection>
-                                {!this.props.isEasyMode && (
+                                {this.props.isAdvancedMode && (
                                 <MenuSection>
                                     <MenuItem onClick={this.props.onClickSettingsModal}>
                                         <FormattedMessage
@@ -898,7 +897,7 @@ class MenuBar extends React.Component {
                             </MenuLabel>
                         )}
 
-                        {!this.props.isEasyMode && this.props.onClickAddonSettings && (
+                        {this.props.isAdvancedMode && this.props.onClickAddonSettings && (
                             <div
                                 className={classNames(styles.menuBarItem, styles.hoverable)}
                                 onClick={this.props.onClickAddonSettings}
@@ -918,7 +917,7 @@ class MenuBar extends React.Component {
                                 </span>
                             </div>
                         )}
-                        {!this.props.isEasyMode && this.props.onClickSettingsModal && (
+                        {this.props.isAdvancedMode && this.props.onClickSettingsModal && (
                             <div
                                 className={classNames(styles.menuBarItem, styles.hoverable)}
                                 onClick={this.props.onClickSettingsModal}
@@ -1024,49 +1023,33 @@ class MenuBar extends React.Component {
                             />
                         ) : []))}
                     </div>
-                    {/* feedback button removed per glow-specs */}
+                    {/* tw: add a feedback button */}
+                    <div className={styles.menuBarItem}>
+                        <a
+                            className={styles.feedbackLink}
+                            href="https://scratch.mit.edu/users/GarboMuffin/#comments"
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        >
+                            {/* todo: icon */}
+                            <Button className={styles.feedbackButton}>
+                                <FormattedMessage
+                                    defaultMessage="{APP_NAME} Feedback"
+                                    description="Button to give feedback in the menu bar"
+                                    id="tw.feedbackButton"
+                                    values={{
+                                        APP_NAME
+                                    }}
+                                />
+                            </Button>
+                        </a>
+                    </div>
                 </div>
 
                 <div className={styles.accountInfoGroup}>
                     <TWSaveStatus
                         showSaveFilePicker={this.props.showSaveFilePicker}
                     />
-                </div>
-
-                <div className={styles.glowVersionBadge}>
-                    <a
-                        href="https://glow.earth"
-                        target="_blank"
-                        rel="noreferrer"
-                        className={styles.glowLogoLink}
-                    >
-                        <img
-                            src={glowLabSmallIcon}
-                            alt="Glow Lab"
-                            className={styles.glowLogoImg}
-                        />
-                    </a>
-                    <div className={styles.glowVersionText}>
-                        <a
-                            href="https://github.com/glow-ets/scratch-gui/issues/2"
-                            target="_blank"
-                            rel="noreferrer"
-                            className={styles.glowVersionLink}
-                        >
-                            {'0.2'}
-                            {this.props.isEasyMode && (
-                                <span className={styles.glowEasyBadge}>{' easy'}</span>
-                            )}
-                        </a>
-                        <a
-                            href={`https://github.com/glow-ets/scratch-gui/commit/${process.env.GLOW_COMMIT_HASH || ''}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={styles.glowVersionLink}
-                        >
-                            {process.env.GLOW_COMMIT_HASH || '?'}
-                        </a>
-                    </div>
                 </div>
 
                 {aboutButton}
@@ -1116,7 +1099,7 @@ MenuBar.propTypes = {
     fileMenuOpen: PropTypes.bool,
     handleSaveProject: PropTypes.func,
     intl: intlShape,
-    isEasyMode: PropTypes.bool,
+    isAdvancedMode: PropTypes.bool,
     isPlayerOnly: PropTypes.bool,
     isRtl: PropTypes.bool,
     isShared: PropTypes.bool,
@@ -1172,7 +1155,7 @@ MenuBar.propTypes = {
     onSetTimeTravelMode: PropTypes.func,
     onShare: PropTypes.func,
     onStartSelectingFileUpload: PropTypes.func,
-    onSetEasyMode: PropTypes.func,
+    onSetAdvancedMode: PropTypes.func,
     onToggleLoginOpen: PropTypes.func,
     projectId: PropTypes.string,
     projectTitle: PropTypes.string,
@@ -1205,7 +1188,7 @@ const mapStateToProps = (state, ownProps) => {
         editMenuOpen: editMenuOpen(state),
         errors: state.scratchGui.tw.compileErrors,
         errorsMenuOpen: errorsMenuOpen(state),
-        isEasyMode: state.scratchGui.tw.isEasyMode,
+        isAdvancedMode: state.scratchGui.tw.isAdvancedMode,
         isPlayerOnly: state.scratchGui.mode.isPlayerOnly,
         isRtl: state.locales.isRtl,
         isUpdating: getIsUpdating(loadingState),
@@ -1262,7 +1245,7 @@ const mapDispatchToProps = dispatch => ({
     onClickSaveAsCopy: () => dispatch(saveProjectAsCopy()),
     onSeeCommunity: () => dispatch(setPlayer(true)),
     onSetTimeTravelMode: mode => dispatch(setTimeTravel(mode)),
-    onSetEasyMode: isEasyMode => dispatch(setEasyMode(isEasyMode))
+    onSetAdvancedMode: isAdvancedMode => dispatch(setAdvancedMode(isAdvancedMode))
 });
 
 export default compose(

@@ -1,12 +1,27 @@
 # Glow Lab 
 
-[Glow ETS](glow.earth) custom Scratch instance, based on [TurboWarp](https://turbowarp.org/) scratch-gui (see below).
 
-Release candidate demo: https://glow-ets.github.io/scratch-gui/main/editor.html
-    - [easy mode](https://glow-ets.github.io/scratch-gui/main/editor.html?easymode) for classroom usage
+[Glow Lab](glow.earth) custom Scratch instance, based on [TurboWarp](https://turbowarp.org/) scratch-gui (see below).
 
-Development demo: https://glow-ets.github.io/scratch-gui/develop/editor.html
-    - [easy mode](https://glow-ets.github.io/scratch-gui/develop/editor.html?easymode) for classroom usage
+By default Glow Lab comes with a simplified interface, video recorder enabled and original scratch vm (easier to debug).
+
+Optionally, you can enable 'advanced' mode which shows all turbowarp features
+    - if you want 10x-100x faster code execution, uncheck 'disable compiler' in Advanced options).
+
+- You can enable / disable advanced mode with ctrl+shift+alt+a
+
+Release candidate:
+
+- [demo](https://glow-ets.github.io/scratch-gui/main/editor.html) 
+- [advanced mode](https://glow-ets.github.io/scratch-gui/main/editor.html?advanced) 
+
+Development:
+
+- [demo](https://glow-ets.github.io/scratch-gui/develop/editor.html)
+- [advanced mode](https://glow-ets.github.io/scratch-gui/develop/editor.html?advanced) 
+
+
+Changelog:
 
 - v0.3: MIDI integration - IN PROGRESS 
 - v0.2: custom extension test, build and test pipeline

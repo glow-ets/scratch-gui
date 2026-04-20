@@ -12,6 +12,7 @@ const manifest = {
     "danger"
   ],
   "dynamicDisable": true,
-  "enabledByDefault": false
+  "enabledByDefault": true,
+  "glowAdvanced": true
 };
 export default manifest;
