@@ -1175,14 +1175,19 @@ class AddonSettingsComponent extends React.Component {
                             />
                             {settingsTranslations.filterNonDefault}
                         </label>
-                        {/* glow-ets/scratch-gui#19: reset/export/import
-                            anchored to the top-right of the header row. */}
+                        {/* glow-ets/scratch-gui#19: Import/Export first,
+                            Reset-all last so it's the rightmost action. */}
                         <div className={styles.headerActionButtons}>
+                            <span className={styles.modeLabel}>
+                                {SettingsStore.isAdvancedMode ?
+                                    settingsTranslations.modeAdvanced :
+                                    settingsTranslations.modeDefault}
+                            </span>
                             <button
-                                className={classNames(styles.button, styles.resetAllButton)}
-                                onClick={this.handleResetAll}
+                                className={classNames(styles.button, styles.importButton)}
+                                onClick={this.handleImport}
                             >
-                                {settingsTranslations.resetAll}
+                                {settingsTranslations.import}
                             </button>
                             <button
                                 className={classNames(styles.button, styles.exportButton)}
@@ -1191,10 +1196,10 @@ class AddonSettingsComponent extends React.Component {
                                 {settingsTranslations.export}
                             </button>
                             <button
-                                className={classNames(styles.button, styles.importButton)}
-                                onClick={this.handleImport}
+                                className={classNames(styles.button, styles.resetAllButton)}
+                                onClick={this.handleResetAll}
                             >
-                                {settingsTranslations.import}
+                                {settingsTranslations.resetAll}
                             </button>
                         </div>
                     </div>

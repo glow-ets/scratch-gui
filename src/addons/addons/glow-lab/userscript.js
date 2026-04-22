@@ -4,17 +4,35 @@ const COMMIT = process.env.GLOW_COMMIT_HASH || "?";
 // Keys watched to compute glow-ets/scratch-gui#19 non-default preference signal.
 const GLOW_PREF_KEYS = ["tw:theme", "tw:language", "tw:addons"];
 
-// Advanced settings defaults mirror src/reducers/tw.js initialState; kept here
-// so the addon stays self-contained and doesn't import gui internals.
+// Advanced settings defaults mirror what Reset-settings restores in the
+// editor: warpTimer=true (blocks.jsx dispatches it at mount) and the compiler
+// default tracks the tw-disable-compiler addon (computed below).
 const GLOW_ADVANCED_DEFAULTS = {
     framerate: 30,
     interpolation: false,
     highQualityPen: false,
-    compilerEnabled: true,
-    warpTimer: false,
+    warpTimer: true,
     maxClones: 300,
     miscLimits: true,
     fencing: true
+};
+
+// tw-disable-compiler has enabledByDefault=true in its manifest; honour any
+// user override present in tw:addons. Addon enabled => compiler disabled.
+const getExpectedCompilerEnabled = () => {
+    try {
+        const raw = localStorage.getItem("tw:addons");
+        const parsed = raw ? JSON.parse(raw) : {};
+        const entry = parsed && parsed["tw-disable-compiler"];
+        let addonEnabled = true;
+        if (entry && typeof entry === "object" &&
+            Object.prototype.hasOwnProperty.call(entry, "enabled")) {
+            addonEnabled = !!entry.enabled;
+        }
+        return !addonEnabled;
+    } catch (_e) {
+        return true;
+    }
 };
 
 export default async function ({addon}) {
@@ -122,7 +140,7 @@ export default async function ({addon}) {
         return tw.framerate !== GLOW_ADVANCED_DEFAULTS.framerate ||
             tw.interpolation !== GLOW_ADVANCED_DEFAULTS.interpolation ||
             tw.highQualityPen !== GLOW_ADVANCED_DEFAULTS.highQualityPen ||
-            co.enabled !== GLOW_ADVANCED_DEFAULTS.compilerEnabled ||
+            co.enabled !== getExpectedCompilerEnabled() ||
             co.warpTimer !== GLOW_ADVANCED_DEFAULTS.warpTimer ||
             ro.maxClones !== GLOW_ADVANCED_DEFAULTS.maxClones ||
             ro.miscLimits !== GLOW_ADVANCED_DEFAULTS.miscLimits ||

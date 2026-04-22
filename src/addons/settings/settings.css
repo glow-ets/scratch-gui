@@ -65,6 +65,10 @@ a:active, a:focus {
     display: flex;
     flex-direction: row;
     align-items: center;
+    /* glow-ets/scratch-gui#19: allow filters + action buttons to wrap on
+       narrow viewports instead of clipping. Row-gap kicks in when wrapped. */
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
 }
 
 .button {
@@ -573,12 +577,19 @@ a:active, a:focus {
     font-size: 0.9em;
 }
 
-/* glow-ets/scratch-gui#19: reset/export/import pushed to the far right of
-   the header row, matching the Advanced-settings modal's top-right pattern. */
+/* glow-ets/scratch-gui#19: mode indicator + reset/export/import pushed to
+   the far right of the header row, wrapping to their own line if needed. */
 .header-action-buttons {
     display: flex;
+    align-items: center;
     gap: 0.5rem;
     margin-left: auto;
+    flex-wrap: wrap;
+}
+.mode-label {
+    font-size: 0.9em;
+    opacity: 0.75;
+    padding: 0 0.5rem;
 }
 .reset-all-button {
 
