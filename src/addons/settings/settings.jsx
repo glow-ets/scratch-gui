@@ -388,9 +388,16 @@ const Setting = ({
             {settingName}
         </label>
     );
+    // glow-ets/scratch-gui#19: distinguish "user stored this setting" from
+    // "value differs from default". Both markers may apply simultaneously.
+    const storage = SettingsStore.getAddonStorage(addonId);
+    const isStored = Object.prototype.hasOwnProperty.call(storage, settingId);
+    const isNonDefault = value !== setting.default;
     return (
         <div
             className={styles.setting}
+            data-glow-stored={isStored ? '1' : undefined}
+            data-glow-nondefault={isNonDefault ? '1' : undefined}
         >
             {setting.type === 'boolean' && (
                 <React.Fragment>
@@ -555,7 +562,11 @@ const Addon = ({
     manifest,
     extended
 }) => (
-    <div className={classNames(styles.addon, {[styles.addonDirty]: settings.dirty})}>
+    <div
+        className={classNames(styles.addon, {[styles.addonDirty]: settings.dirty})}
+        data-glow-stored={SettingsStore.hasAddonUserOverride(id) ? '1' : undefined}
+        data-glow-nondefault={SettingsStore.hasAddonNonDefaultSetting(id) ? '1' : undefined}
+    >
         <div className={styles.addonHeader}>
             <label className={styles.addonTitle}>
                 <div className={styles.addonSwitch}>
@@ -854,11 +865,40 @@ class AddonList extends React.Component {
         this.search = new Search(this.props.addons.map(addonToSearchItem));
         this.groups = [];
     }
+    // glow-ets/scratch-gui#19: composable predicate used by both search and
+    // grouped render paths.
+    filterPredicate (addon) {
+        if (this.props.filterUserSet &&
+            !SettingsStore.hasAddonUserOverride(addon.id)) return false;
+        if (this.props.filterDifferent &&
+            !SettingsStore.hasAddonNonDefaultSetting(addon.id)) return false;
+        return true;
+    }
     render () {
+        const isFiltering = this.props.filterUserSet || this.props.filterDifferent;
         if (this.props.search) {
             const addons = this.search.search(this.props.search)
-                .slice(0, 20)
-                .map(({index}) => this.props.addons[index]);
+                .map(({index}) => this.props.addons[index])
+                .filter(addon => this.filterPredicate(addon))
+                .slice(0, 20);
+            if (addons.length === 0) {
+                return (
+                    <div className={styles.noResults}>
+                        {settingsTranslations.noResults}
+                    </div>
+                );
+            }
+            return (
+                <div>
+                    <InternalAddonList
+                        addons={addons}
+                        extended={this.props.extended}
+                    />
+                </div>
+            );
+        }
+        if (isFiltering) {
+            const addons = this.props.addons.filter(addon => this.filterPredicate(addon));
             if (addons.length === 0) {
                 return (
                     <div className={styles.noResults}>
@@ -897,7 +937,9 @@ AddonList.propTypes = {
         manifest: PropTypes.shape({}).isRequired
     })).isRequired,
     search: PropTypes.string.isRequired,
-    extended: PropTypes.bool.isRequired
+    extended: PropTypes.bool.isRequired,
+    filterUserSet: PropTypes.bool,
+    filterDifferent: PropTypes.bool
 };
 
 class AddonSettingsComponent extends React.Component {
@@ -912,6 +954,8 @@ class AddonSettingsComponent extends React.Component {
         this.handleSearch = this.handleSearch.bind(this);
         this.handleClickSearchButton = this.handleClickSearchButton.bind(this);
         this.handleClickVersion = this.handleClickVersion.bind(this);
+        this.handleToggleFilterUserSet = this.handleToggleFilterUserSet.bind(this);
+        this.handleTogglefilterDifferent = this.handleTogglefilterDifferent.bind(this);
         this.searchRef = this.searchRef.bind(this);
         this.searchBar = null;
         this.state = {
@@ -919,6 +963,9 @@ class AddonSettingsComponent extends React.Component {
             dirty: false,
             search: getInitialSearch(),
             extended: false,
+            // glow-ets/scratch-gui#19: two independent filters next to search.
+            filterUserSet: false,
+            filterDifferent: false,
             ...this.readFullAddonState()
         };
         if (Channels.changeChannel) {
@@ -1047,6 +1094,12 @@ class AddonSettingsComponent extends React.Component {
         });
         this.searchBar.focus();
     }
+    handleToggleFilterUserSet (e) {
+        this.setState({filterUserSet: e.target.checked});
+    }
+    handleTogglefilterDifferent (e) {
+        this.setState({filterDifferent: e.target.checked});
+    }
     handleClickVersion () {
         this.setState({
             extended: !this.state.extended
@@ -1101,16 +1154,54 @@ class AddonSettingsComponent extends React.Component {
                                 onClick={this.handleClickSearchButton}
                             />
                         </div>
-                        <a
-                            href="https://scratch.mit.edu/users/GarboMuffin/#comments"
-                            target="_blank"
-                            rel="noreferrer"
-                            className={styles.feedbackButtonOuter}
-                        >
-                            <span className={styles.feedbackButtonInner}>
-                                {settingsTranslations.addonFeedback}
+                        {/* glow-ets/scratch-gui#19: quick filters for
+                            classroom triage, on the right of the search. */}
+                        <span className={styles.filterByLabel}>
+                            {settingsTranslations.filterBy}
+                        </span>
+                        <label className={styles.filterToggle}>
+                            <input
+                                type="checkbox"
+                                checked={this.state.filterUserSet}
+                                onChange={this.handleToggleFilterUserSet}
+                            />
+                            {settingsTranslations.filterUserSet}
+                        </label>
+                        <label className={styles.filterToggle}>
+                            <input
+                                type="checkbox"
+                                checked={this.state.filterDifferent}
+                                onChange={this.handleTogglefilterDifferent}
+                            />
+                            {settingsTranslations.filterDifferent}
+                        </label>
+                        {/* glow-ets/scratch-gui#19: Import/Export first,
+                            Reset-all last so it's the rightmost action. */}
+                        <div className={styles.headerActionButtons}>
+                            <span className={styles.modeLabel}>
+                                {SettingsStore.isAdvancedMode ?
+                                    settingsTranslations.modeAdvanced :
+                                    settingsTranslations.modeDefault}
                             </span>
-                        </a>
+                            <button
+                                className={classNames(styles.button, styles.importButton)}
+                                onClick={this.handleImport}
+                            >
+                                {settingsTranslations.import}
+                            </button>
+                            <button
+                                className={classNames(styles.button, styles.exportButton)}
+                                onClick={this.handleExport}
+                            >
+                                {settingsTranslations.export}
+                            </button>
+                            <button
+                                className={classNames(styles.button, styles.resetAllButton)}
+                                onClick={this.handleResetAll}
+                            >
+                                {settingsTranslations.resetAll}
+                            </button>
+                        </div>
                     </div>
                     {this.state.dirty && (
                         <Dirty
@@ -1125,27 +1216,9 @@ class AddonSettingsComponent extends React.Component {
                                 addons={addonState}
                                 search={this.state.search}
                                 extended={this.state.extended}
+                                filterUserSet={this.state.filterUserSet}
+                                filterDifferent={this.state.filterDifferent}
                             />
-                            <div className={styles.footerButtons}>
-                                <button
-                                    className={classNames(styles.button, styles.resetAllButton)}
-                                    onClick={this.handleResetAll}
-                                >
-                                    {settingsTranslations.resetAll}
-                                </button>
-                                <button
-                                    className={classNames(styles.button, styles.exportButton)}
-                                    onClick={this.handleExport}
-                                >
-                                    {settingsTranslations.export}
-                                </button>
-                                <button
-                                    className={classNames(styles.button, styles.importButton)}
-                                    onClick={this.handleImport}
-                                >
-                                    {settingsTranslations.import}
-                                </button>
-                            </div>
                             <footer className={styles.footer}>
                                 {unsupported.length ? (
                                     <UnsupportedAddons

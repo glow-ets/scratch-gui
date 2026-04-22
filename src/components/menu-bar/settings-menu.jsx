@@ -38,6 +38,7 @@ const SettingsMenu = ({
             draggable={false}
             width={20}
             height={20}
+            data-glow-menu-category="regular"
         />
         <span className={styles.dropdownLabel}>
             <FormattedMessage

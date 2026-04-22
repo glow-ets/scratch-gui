@@ -71,6 +71,7 @@ class UnwrappedSetting extends React.Component {
                 className={classNames(styles.setting, {
                     [styles.active]: this.props.active
                 })}
+                data-glow-nondefault={this.props.nonDefault ? '1' : undefined}
             >
                 <div className={styles.label}>
                     {this.props.primary}
@@ -102,7 +103,8 @@ UnwrappedSetting.propTypes = {
     help: PropTypes.node,
     primary: PropTypes.node,
     secondary: PropTypes.node,
-    slug: PropTypes.string
+    slug: PropTypes.string,
+    nonDefault: PropTypes.bool
 };
 const Setting = injectIntl(UnwrappedSetting);
 
@@ -125,7 +127,8 @@ const BooleanSetting = ({value, onChange, label, ...props}) => (
 BooleanSetting.propTypes = {
     onChange: PropTypes.func.isRequired,
     value: PropTypes.bool.isRequired,
-    label: PropTypes.node.isRequired
+    label: PropTypes.node.isRequired,
+    nonDefault: PropTypes.bool
 };
 
 const HighQualityPen = props => (
@@ -154,6 +157,7 @@ const CustomFPS = props => (
     <BooleanSetting
         value={props.framerate !== 30}
         onChange={props.onChange}
+        nonDefault={props.nonDefault}
         label={
             <FormattedMessage
                 defaultMessage="60 FPS (Custom FPS)"
@@ -189,7 +193,8 @@ const CustomFPS = props => (
 CustomFPS.propTypes = {
     framerate: PropTypes.number,
     onChange: PropTypes.func,
-    onCustomizeFramerate: PropTypes.func
+    onCustomizeFramerate: PropTypes.func,
+    nonDefault: PropTypes.bool
 };
 
 const Interpolation = props => (
@@ -330,10 +335,12 @@ const CustomStageSize = ({
     stageWidth,
     onStageWidthChange,
     stageHeight,
-    onStageHeightChange
+    onStageHeightChange,
+    nonDefault
 }) => (
     <Setting
         active={customStageSizeEnabled}
+        nonDefault={nonDefault}
         primary={(
             <div className={classNames(styles.label, styles.customStageSize)}>
                 <FormattedMessage
@@ -391,7 +398,8 @@ CustomStageSize.propTypes = {
     stageWidth: PropTypes.number,
     onStageWidthChange: PropTypes.func,
     stageHeight: PropTypes.number,
-    onStageHeightChange: PropTypes.func
+    onStageHeightChange: PropTypes.func,
+    nonDefault: PropTypes.bool
 };
 
 const StoreProjectOptions = ({onStoreProjectOptions}) => (
@@ -432,81 +440,107 @@ Header.propTypes = {
     children: PropTypes.node
 };
 
-const SettingsModalComponent = props => (
-    <Modal
-        className={styles.modalContent}
-        onRequestClose={props.onClose}
-        contentLabel={props.intl.formatMessage(messages.title)}
-        id="settingsModal"
-    >
-        <Box className={styles.body}>
-            <Header>
-                <FormattedMessage
-                    defaultMessage="Featured"
-                    description="Settings modal section"
-                    id="tw.settingsModal.featured"
+const SettingsModalComponent = props => {
+    // glow-ets/scratch-gui#19: each setting gets a nonDefault flag.
+    const nd = props.nonDefault || {};
+    return (
+        <Modal
+            className={styles.modalContent}
+            onRequestClose={props.onClose}
+            contentLabel={props.intl.formatMessage(messages.title)}
+            id="settingsModal"
+        >
+            <Box className={styles.body}>
+                {/* glow-ets/scratch-gui#19: top-right reset entry-point. */}
+                <div className={styles.resetAllRow}>
+                    <button
+                        className={styles.button}
+                        onClick={props.onResetAll}
+                    >
+                        <FormattedMessage
+                            defaultMessage="Reset settings"
+                            description="Button that resets regular + advanced settings to defaults"
+                            id="tw.settingsModal.resetAll"
+                        />
+                    </button>
+                </div>
+                <Header>
+                    <FormattedMessage
+                        defaultMessage="Featured"
+                        description="Settings modal section"
+                        id="tw.settingsModal.featured"
+                    />
+                </Header>
+                <CustomFPS
+                    framerate={props.framerate}
+                    onChange={props.onFramerateChange}
+                    onCustomizeFramerate={props.onCustomizeFramerate}
+                    nonDefault={nd.framerate}
                 />
-            </Header>
-            <CustomFPS
-                framerate={props.framerate}
-                onChange={props.onFramerateChange}
-                onCustomizeFramerate={props.onCustomizeFramerate}
-            />
-            <Interpolation
-                value={props.interpolation}
-                onChange={props.onInterpolationChange}
-            />
-            <HighQualityPen
-                value={props.highQualityPen}
-                onChange={props.onHighQualityPenChange}
-            />
-            <WarpTimer
-                value={props.warpTimer}
-                onChange={props.onWarpTimerChange}
-            />
-            <Header>
-                <FormattedMessage
-                    defaultMessage="Remove Limits"
-                    description="Settings modal section"
-                    id="tw.settingsModal.removeLimits"
+                <Interpolation
+                    value={props.interpolation}
+                    onChange={props.onInterpolationChange}
+                    nonDefault={nd.interpolation}
                 />
-            </Header>
-            <InfiniteClones
-                value={props.infiniteClones}
-                onChange={props.onInfiniteClonesChange}
-            />
-            <RemoveFencing
-                value={props.removeFencing}
-                onChange={props.onRemoveFencingChange}
-            />
-            <RemoveMiscLimits
-                value={props.removeLimits}
-                onChange={props.onRemoveLimitsChange}
-            />
-            <Header>
-                <FormattedMessage
-                    defaultMessage="Danger Zone"
-                    description="Settings modal section"
-                    id="tw.settingsModal.dangerZone"
+                <HighQualityPen
+                    value={props.highQualityPen}
+                    onChange={props.onHighQualityPenChange}
+                    nonDefault={nd.highQualityPen}
                 />
-            </Header>
-            {!props.isEmbedded && (
-                <CustomStageSize
-                    {...props}
+                <WarpTimer
+                    value={props.warpTimer}
+                    onChange={props.onWarpTimerChange}
+                    nonDefault={nd.warpTimer}
                 />
-            )}
-            <DisableCompiler
-                value={props.disableCompiler}
-                onChange={props.onDisableCompilerChange}
-            />
-            {!props.isEmbedded && (
-                <StoreProjectOptions
-                    {...props}
+                <Header>
+                    <FormattedMessage
+                        defaultMessage="Remove Limits"
+                        description="Settings modal section"
+                        id="tw.settingsModal.removeLimits"
+                    />
+                </Header>
+                <InfiniteClones
+                    value={props.infiniteClones}
+                    onChange={props.onInfiniteClonesChange}
+                    nonDefault={nd.infiniteClones}
                 />
-            )}
-        </Box>
-    </Modal>
-);
+                <RemoveFencing
+                    value={props.removeFencing}
+                    onChange={props.onRemoveFencingChange}
+                    nonDefault={nd.removeFencing}
+                />
+                <RemoveMiscLimits
+                    value={props.removeLimits}
+                    onChange={props.onRemoveLimitsChange}
+                    nonDefault={nd.removeLimits}
+                />
+                <Header>
+                    <FormattedMessage
+                        defaultMessage="Danger Zone"
+                        description="Settings modal section"
+                        id="tw.settingsModal.dangerZone"
+                    />
+                </Header>
+                {!props.isEmbedded && (
+                    <CustomStageSize
+                        {...props}
+                        nonDefault={nd.customStageSize}
+                    />
+                )}
+                <DisableCompiler
+                    value={props.disableCompiler}
+                    onChange={props.onDisableCompilerChange}
+                    nonDefault={nd.disableCompiler}
+                />
+                {!props.isEmbedded && (
+                    <StoreProjectOptions
+                        {...props}
+                    />
+                )}
+            </Box>
+        </Modal>
+    );
+};
 
 SettingsModalComponent.propTypes = {
     intl: intlShape,
@@ -528,7 +562,9 @@ SettingsModalComponent.propTypes = {
     warpTimer: PropTypes.bool,
     onWarpTimerChange: PropTypes.func,
     disableCompiler: PropTypes.bool,
-    onDisableCompilerChange: PropTypes.func
+    onDisableCompilerChange: PropTypes.func,
+    nonDefault: PropTypes.object,
+    onResetAll: PropTypes.func
 };
 
 export default injectIntl(SettingsModalComponent);
