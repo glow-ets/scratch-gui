@@ -572,6 +572,14 @@ a:active, a:focus {
     cursor: pointer;
     font-size: 0.9em;
 }
+
+/* glow-ets/scratch-gui#19: reset/export/import pushed to the far right of
+   the header row, matching the Advanced-settings modal's top-right pattern. */
+.header-action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: auto;
+}
 .reset-all-button {
 
 }

@@ -143,15 +143,12 @@
     box-shadow: inset 3px 0 0 rgba(230, 31, 90, 0.55);
 }
 
-/* glow-ets/scratch-gui#19: reset-all row at the bottom of the modal. */
+/* glow-ets/scratch-gui#19: reset row anchored to the top-right of the modal. */
 .reset-all-row {
-    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 0 0.5rem 0;
 }
 .reset-all-row .button {
     background-color: rgba(230, 31, 90, 0.85);
-}
-.reset-all-help {
-    margin: 0.25rem 0 0 0;
-    opacity: 0.7;
-    font-size: 0.9em;
 }

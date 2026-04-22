@@ -1175,6 +1175,28 @@ class AddonSettingsComponent extends React.Component {
                             />
                             {settingsTranslations.filterNonDefault}
                         </label>
+                        {/* glow-ets/scratch-gui#19: reset/export/import
+                            anchored to the top-right of the header row. */}
+                        <div className={styles.headerActionButtons}>
+                            <button
+                                className={classNames(styles.button, styles.resetAllButton)}
+                                onClick={this.handleResetAll}
+                            >
+                                {settingsTranslations.resetAll}
+                            </button>
+                            <button
+                                className={classNames(styles.button, styles.exportButton)}
+                                onClick={this.handleExport}
+                            >
+                                {settingsTranslations.export}
+                            </button>
+                            <button
+                                className={classNames(styles.button, styles.importButton)}
+                                onClick={this.handleImport}
+                            >
+                                {settingsTranslations.import}
+                            </button>
+                        </div>
                     </div>
                     {this.state.dirty && (
                         <Dirty
@@ -1185,27 +1207,6 @@ class AddonSettingsComponent extends React.Component {
                 <div className={styles.addons}>
                     {!this.state.loading && (
                         <div className={styles.section}>
-                            {/* glow-ets/scratch-gui#19: reset/export/import moved to the top. */}
-                            <div className={classNames(styles.footerButtons, styles.headerButtons)}>
-                                <button
-                                    className={classNames(styles.button, styles.resetAllButton)}
-                                    onClick={this.handleResetAll}
-                                >
-                                    {settingsTranslations.resetAll}
-                                </button>
-                                <button
-                                    className={classNames(styles.button, styles.exportButton)}
-                                    onClick={this.handleExport}
-                                >
-                                    {settingsTranslations.export}
-                                </button>
-                                <button
-                                    className={classNames(styles.button, styles.importButton)}
-                                    onClick={this.handleImport}
-                                >
-                                    {settingsTranslations.import}
-                                </button>
-                            </div>
                             <AddonList
                                 addons={addonState}
                                 search={this.state.search}

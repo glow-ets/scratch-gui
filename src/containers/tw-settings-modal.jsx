@@ -205,6 +205,14 @@ const mapStateToProps = state => {
     const warpTimer = state.scratchGui.tw.compilerOptions.warpTimer;
     const customStageSize = state.scratchGui.customStageSize;
     const disableCompiler = !state.scratchGui.tw.compilerOptions.enabled;
+    // glow-ets/scratch-gui#19: effective defaults differ from the reducer's
+    // initialState in the editor — blocks.jsx dispatches warpTimer=true at
+    // mount, and the compiler-enabled default tracks the tw-disable-compiler
+    // addon. Use these same defaults in the nonDefault comparison so the pink
+    // marker matches what Reset-settings actually restores.
+    const isEditor = !state.scratchGui.mode.isEmbedded && !state.scratchGui.mode.isPlayerOnly;
+    const editorWarpTimerDefault = isEditor;
+    const editorDisableCompilerDefault = SettingsStore.getAddonEnabled('tw-disable-compiler');
     return {
         vm: state.scratchGui.vm,
         isEmbedded: state.scratchGui.mode.isEmbedded,
@@ -217,8 +225,6 @@ const mapStateToProps = state => {
         warpTimer,
         customStageSize,
         disableCompiler,
-        // glow-ets/scratch-gui#19: surface which rows diverge from defaults so
-        // the modal can mildly flag them. Defaults mirror tw.js initialState.
         nonDefault: {
             framerate: framerate !== 30,
             highQualityPen,
@@ -226,8 +232,8 @@ const mapStateToProps = state => {
             infiniteClones,
             removeFencing,
             removeLimits,
-            warpTimer,
-            disableCompiler,
+            warpTimer: warpTimer !== editorWarpTimerDefault,
+            disableCompiler: disableCompiler !== editorDisableCompilerDefault,
             customStageSize:
                 customStageSize.width !== defaultStageSize.width ||
                 customStageSize.height !== defaultStageSize.height
