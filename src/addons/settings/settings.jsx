@@ -1154,19 +1154,11 @@ class AddonSettingsComponent extends React.Component {
                                 onClick={this.handleClickSearchButton}
                             />
                         </div>
-                        <a
-                            href="https://scratch.mit.edu/users/GarboMuffin/#comments"
-                            target="_blank"
-                            rel="noreferrer"
-                            className={styles.feedbackButtonOuter}
-                        >
-                            <span className={styles.feedbackButtonInner}>
-                                {settingsTranslations.addonFeedback}
-                            </span>
-                        </a>
-                    </div>
-                    {/* glow-ets/scratch-gui#19: quick filters for classroom triage. */}
-                    <div className={styles.filterToggles}>
+                        {/* glow-ets/scratch-gui#19: quick filters for
+                            classroom triage, on the right of the search. */}
+                        <span className={styles.filterByLabel}>
+                            {settingsTranslations.filterBy}
+                        </span>
                         <label className={styles.filterToggle}>
                             <input
                                 type="checkbox"

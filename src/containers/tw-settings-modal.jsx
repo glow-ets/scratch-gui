@@ -11,6 +11,7 @@ import {setTheme} from '../reducers/theme';
 import {detectLocale} from '../lib/detect-locale.js';
 import {systemPreferencesTheme} from '../lib/themes/themePersistance.js';
 import SettingsModalComponent from '../components/tw-settings-modal/settings-modal.jsx';
+import SettingsStore from '../addons/settings-store-singleton';
 import {defaultStageSize} from '../reducers/custom-stage-size';
 
 const messages = defineMessages({
@@ -115,7 +116,14 @@ class UsernameModal extends React.Component {
         if (this.props.vm.renderer && this.props.vm.renderer.setUseHighQualityRender) {
             this.props.vm.renderer.setUseHighQualityRender(false);
         }
-        this.props.vm.setCompilerOptions({enabled: true, warpTimer: false});
+        // Compiler defaults in the editor: warpTimer is ON (matches blocks.jsx
+        // startup), and compiler-enabled follows the tw-disable-compiler addon
+        // so Reset-all doesn't override a still-enabled addon.
+        const compilerDisabledByAddon = SettingsStore.getAddonEnabled('tw-disable-compiler');
+        this.props.vm.setCompilerOptions({
+            enabled: !compilerDisabledByAddon,
+            warpTimer: true
+        });
         this.props.vm.setRuntimeOptions({maxClones: 300, miscLimits: true, fencing: true});
         this.props.vm.setStageSize(defaultStageSize.width, defaultStageSize.height);
     }

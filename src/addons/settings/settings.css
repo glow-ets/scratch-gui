@@ -557,18 +557,20 @@ a:active, a:focus {
     box-shadow: inset 3px 0 0 rgba(230, 31, 90, 0.55);
 }
 
-/* glow-ets/scratch-gui#19: filter toggles next to the search input. */
-.filter-toggles {
-    display: flex;
-    gap: 1rem;
-    margin-top: 0.5rem;
+/* glow-ets/scratch-gui#19: filter toggles sit on the right of the search. */
+.filter-by-label {
+    margin-left: 1rem;
     font-size: 0.9em;
+    opacity: 0.7;
+    align-self: center;
 }
 .filter-toggle {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
+    margin-left: 0.75rem;
     cursor: pointer;
+    font-size: 0.9em;
 }
 .reset-all-button {
 
