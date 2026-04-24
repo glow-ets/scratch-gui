@@ -1,5 +1,5 @@
 /**
- * Glow Lab Smoke Tests (issue #2)
+ * Glow Lab Smoke Tests 
  *
  * These tests verify the minimum viable dev workflow:
  *   1. The build output exists (build completed)

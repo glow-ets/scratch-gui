@@ -1,12 +1,13 @@
 # Glow Lab 
 
 
-[Glow Lab](glow.earth) custom Scratch instance, based on [TurboWarp](https://turbowarp.org/) scratch-gui (see below).
+[Glow Lab](glow.earth) custom Scratch instance, based on [TurboWarp](https://turbowarp.org/) scratch-gui (see below). 
 
 By default Glow Lab comes with a simplified interface, video recorder enabled and original scratch vm (easier to debug).
 
 Optionally, you can enable 'advanced' mode which shows all turbowarp features
-    - if you want 10x-100x faster code execution, uncheck 'disable compiler' in Advanced options).
+
+    - if you want 10x-100x faster code execution, uncheck 'disable compiler' in Advanced options.
 
 - You can enable / disable advanced mode with ctrl+shift+alt+a
 
@@ -20,6 +21,7 @@ Development:
 - [demo](https://glow-ets.github.io/scratch-gui/develop/editor.html)
 - [advanced mode](https://glow-ets.github.io/scratch-gui/develop/editor.html?advanced) 
 
+... and yes, changes were vibe-coded with Claude - still, we do take some time to curate specs, issues and tests.
 
 Changelog:
 
