@@ -1,42 +1,44 @@
 # Glow Lab 
 
+Scratch instance for classroom and live music workshops by [Glow ETS](glow.earth) association. Based on [TurboWarp scratch-gui](https://turbowarp.org/).
 
-[Glow Lab](glow.earth) custom Scratch instance, based on [TurboWarp](https://turbowarp.org/) scratch-gui (see below). 
+- **[demo](https://glow-ets.github.io/scratch-gui/main/editor.html)** (stable): should be usable in workshops
 
-By default Glow Lab comes with a simplified interface, video recorder enabled and original scratch vm (easier to debug).
+- **[dev instance](https://glow-ets.github.io/scratch-gui/develop/editor.html)** (unstable): use at your own risk
 
-Optionally, you can enable 'advanced' mode which shows all turbowarp features
 
-    - if you want 10x-100x faster code execution, uncheck 'disable compiler' in Advanced options.
+Glow Lab comes with:
 
-- You can enable / disable advanced mode with ctrl+shift+alt+a
+- a simplified interface
+- video recorder enabled
+- original scratch VM (easier to debug)
+- extension for MIDI music (adapted from original Uchiwa Fuujinn's [Scratch3webmidi](https://github.com/UchiwaFuujinn/scratch3webmidi))
+- lots of extensions that overcome most Scratch limitations (i.e. fetching data from urls,  showing HTML, 2D physics engine ...)
 
-Release candidate:
+Optionally, you can enable advanced mode to unlock more TurboWarp features:
 
-- [demo](https://glow-ets.github.io/scratch-gui/main/editor.html) 
-- [advanced mode](https://glow-ets.github.io/scratch-gui/main/editor.html?advanced) 
+- to enable / disable advanced mode, you can either:
+    - press `CTRL+SHIFT+ALT+A`
+    - append `?advanced` to the URL
+- for 10x-100x faster code execution, uncheck _Disable compiler_ in _Advanced options_ panel.
+- for GUI and core modifications, see _Addons_ page (mostly intended for Glow Lab developers).
 
-Development:
+## Development
 
-- [demo](https://glow-ets.github.io/scratch-gui/develop/editor.html)
-- [advanced mode](https://glow-ets.github.io/scratch-gui/develop/editor.html?advanced) 
+... was vibe coded (sic): most Glow customizations were written by Claude  under little to no supervision.  
 
-... and yes, changes were vibe-coded with Claude - still, we do take some time to curate specs, issues and tests.
+Still, we do take some time to curate specs, issues and tests:
 
-Changelog:
 
-- v0.3: MIDI integration - IN PROGRESS 
-- v0.2: custom extension test, build and test pipeline
+* [Specs](https://github.com/glow-ets/glow-lab-docs/blob/master/docs/development/glow-specs.md)
+* [Issue board](https://github.com/orgs/glow-ets/projects/1/views/6) 
+* [Roadmap](https://github.com/orgs/glow-ets/projects/1/views/7?filterQuery=label%3A%22milestone+issue%22+status%3ADone%2C%22In+progress%22)
 
-----------------------------------------------------------------------------------------------------
 
-## Setup
+**Setup**: See [Getting started](https://github.com/glow-ets/glow-lab-docs/blob/master/docs/development/getting-started.md) in docs repo to setup the complete Glow Lab environment. If you just want to play with the GUI then it's the same process as upstream scratch-gui.
 
-See https://docs.turbowarp.org/development/getting-started to setup the complete TurboWarp environment.
 
-If you just want to play with the GUI then it's the same process as upstream scratch-gui.
-
-## License
+## Original TurboWarp License
 
 TurboWarp's modifications to Scratch are licensed under the GNU General Public License v3.0. See LICENSE or https://www.gnu.org/licenses/ for details.
 
