@@ -57,6 +57,8 @@ import glowLabIconURL from './glow-lab/glow-lab.svg';
 import glowLabInsetIconURL from './glow-lab/glow-lab-small.svg';
 import glowMidiIconURL from './glow-midi/glow-midi.svg';
 import glowMidiInsetIconURL from './glow-midi/glow-midi-small.svg';
+import glowMl2scratchIconURL from './glow-ml2scratch/glow-ml2scratch.png';
+import glowMl2scratchInsetIconURL from './glow-ml2scratch/glow-ml2scratch-small.png';
 
 export default [
     {
@@ -92,6 +94,26 @@ export default [
         featured: true,
         incompatibleWithScratch: true,
         extensionURL: new URL('static/extensions/glow-midi/glow-midi.js', location.href).href
+    },
+    {
+        name: 'Glow ML2Scratch',
+        extensionId: 'glowMl2scratch',
+        collaborator: 'champierre',
+        iconURL: glowMl2scratchIconURL,
+        insetIconURL: glowMl2scratchInsetIconURL,
+        description: (
+            <FormattedMessage
+                defaultMessage="Train the webcam to recognise images, then react to what it sees."
+                description="Description for the 'Glow ML2Scratch' extension"
+                id="glow.extension.glowMl2scratch.description"
+            />
+        ),
+        tags: ['glow'],
+        featured: true,
+        incompatibleWithScratch: true,
+        internetConnectionRequired: true,
+        bluetoothRequired: false,
+        extensionURL: new URL('static/extensions/glow-ml2scratch/glow-ml2scratch.js', location.href).href
     },
     {
         name: (

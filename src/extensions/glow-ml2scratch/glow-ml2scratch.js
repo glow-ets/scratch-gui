@@ -1,22 +1,47 @@
-const ArgumentType = require('../../extension-support/argument-type');
-const BlockType = require('../../extension-support/block-type');
-const Cast = require('../../util/cast');
-const log = require('../../util/log');
-const ml5 = require('ml5');
+// Glow Lab integration of ML2Scratch by Junya Ishihara (champierre), AGPL-3.0.
+// Upstream: https://github.com/champierre/ml2scratch  (see GLOW-NOTES.md)
+//
+// Upstream ships this file as a scratch-vm built-in extension, so it required
+// scratch-vm internals and the 'ml5' npm package. Glow loads it instead as a
+// same-origin (therefore unsandboxed) TurboWarp custom extension, so the same
+// values come from the global Scratch API and from ml5 fetched at load time.
+// Everything below this preamble is champierre's original code, apart from the
+// glowMl2scratch renaming and the registration block at the end of the file.
+
+/* global Scratch */
+
+const ArgumentType = Scratch.ArgumentType;
+const BlockType = Scratch.BlockType;
+const Cast = Scratch.Cast;
+const log = console;
+
+/**
+ * ml5.js is not bundled: it is loaded from a CDN just before the extension is
+ * registered, and assigned here. ml5 downloads the MobileNet weights over the
+ * network anyway, so this extension cannot work offline either way.
+ * TODO glow-ets/scratch-gui#21: self-host ml5 to drop the third-party origin.
+ * @type {object}
+ */
+let ml5 = null;
+
+const ML5_URL = 'https://unpkg.com/ml5@0.12.2/dist/ml5.min.js';
 
 /**
  * Formatter which is used for translating.
- * When it was loaded as a module, 'formatMessage' will be replaced which is used in the runtime.
+ * Upstream expects scratch-vm's 'format-message'; the unsandboxed extension API
+ * exposes the same thing as Scratch.translate, minus the setup() accessor that
+ * setLocale() reads below.
  * @type {Function}
  */
-let formatMessage = require('format-message');
+let formatMessage = message => Scratch.translate(message);
+formatMessage.setup = () => ({locale: Scratch.vm.getLocale()});
 
 /**
  * URL to get this extension as a module.
  * When it was loaded as a module, 'extensionURL' will be replaced a URL which is retrieved from.
  * @type {string}
  */
-let extensionURL = 'https://champierre.github.io/ml2scratch/ml2scratch.mjs';
+let extensionURL = new URL('static/extensions/glow-ml2scratch/glow-ml2scratch.js', location.href).href;
 
 const HAT_TIMEOUT = 100;
 
@@ -1135,5 +1160,29 @@ class GlowML2ScratchBlocks {
   }
 }
 
-exports.blockClass = GlowML2ScratchBlocks; // loadable-extension needs this line.
-module.exports = GlowML2ScratchBlocks;
+// Glow: upstream ends with CommonJS exports, because it is built either into
+// scratch-vm or into an Xcratch module. Here the file is served as a plain
+// script from our own origin, so ml5 is pulled in first and the extension then
+// registers itself through the TurboWarp unsandboxed extension API.
+const loadMl5 = () => new Promise((resolve, reject) => {
+  if (typeof window.ml5 !== 'undefined') {
+    resolve(window.ml5);
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = ML5_URL;
+  script.onload = () => resolve(window.ml5);
+  script.onerror = () => reject(new Error(`Glow ML2Scratch: could not load ml5 from ${ML5_URL}`));
+  document.head.appendChild(script);
+});
+
+loadMl5().then(loaded => {
+  ml5 = loaded;
+  Scratch.extensions.register(new GlowML2ScratchBlocks(Scratch.vm.runtime));
+}).catch(error => {
+  // The extension manager has no way to hear about this: it is waiting for a
+  // register() call that will never come, so it would otherwise hang silently.
+  // Say out loud what went wrong instead.
+  console.error(error);
+  alert(`Glow ML2Scratch could not start because ml5.js did not load.\n\nCheck the internet connection and add the extension again.\n\n${error.message}`);
+});
