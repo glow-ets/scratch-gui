@@ -1,37 +1,37 @@
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
 
-import ml2scratchIconURL from './ml2scratch.png';
-import ml2scratchInsetIconURL from './ml2scratch-small.png';
+import glowMl2scratchIconURL from './glow-ml2scratch.png';
+import glowMl2scratchInsetIconURL from './glow-ml2scratch-small.png';
 
 const translationMap = {
     'ja': {
-        'gui.extension.ml2scratch.description': '機械学習を使う'
+        'gui.extension.glowMl2scratch.description': '機械学習を使う'
     },
     'ja-Hira': {
-        'gui.extension.ml2scratch.description': 'きかいがくしゅうをつかう'
+        'gui.extension.glowMl2scratch.description': 'きかいがくしゅうをつかう'
     }
 };
 
 const entry = {
-    name: 'ML2Scratch',
-    extensionId: 'ml2scratch',
-    extensionURL: 'https://champierre.github.io/ml2scratch/ml2scratch.mjs',
+    name: 'GlowML2Scratch',
+    extensionId: 'glowMl2scratch',
+    extensionURL: 'https://champierre.github.io/ml2scratch/ml2scratch.mjs',  // TODO fix
     collaborator: 'champierre',
-    iconURL: ml2scratchIconURL,
-    insetIconURL: ml2scratchInsetIconURL,
+    iconURL: glowMl2scratchIconURL,
+    insetIconURL: glowMl2scratchInsetIconURL,
     description: (
         <FormattedMessage
-            defaultMessage="ML2Scratch Blocks."
-            description="Description for ML2Scratch Blocks."
-            id="gui.extension.ml2scratch.description"
+            defaultMessage="Glow ML2Scratch Blocks."
+            description="Description for GlowML2Scratch Blocks."
+            id="gui.extension.glowMl2scratch.description"
         />
     ),
     featured: true,
     disabled: false,
     bluetoothRequired: false,
     internetConnectionRequired: true,
-    helpLink: 'https://github.com/champierre/ml2scratch/',
+    helpLink: 'https://github.com/glow-ets/scratch-gui/',
     translationMap: translationMap
 };
 

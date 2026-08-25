@@ -286,20 +286,20 @@ const Message = {
 
 const AvailableLocales = ['en', 'ja', 'ja-Hira', 'zh-cn', 'zh-tw'];
 
-class Scratch3ML2ScratchBlocks {
+class GlowML2ScratchBlocks {
 
   /**
    * @return {string} - the name of this extension.
    */
   static get EXTENSION_NAME() {
-    return 'ML2Scratch';
+    return 'GlowML2Scratch';
   }
 
   /**
    * @return {string} - the ID of this extension.
    */
   static get EXTENSION_ID() {
-    return 'ml2scratch';
+    return 'glowMl2scratch';
   }
 
   /**
@@ -396,9 +396,9 @@ class Scratch3ML2ScratchBlocks {
     this.locale = this.setLocale();
 
     return {
-      id: Scratch3ML2ScratchBlocks.EXTENSION_ID,
-      name: Scratch3ML2ScratchBlocks.EXTENSION_NAME,
-      extensionURL: Scratch3ML2ScratchBlocks.extensionURL,
+      id: GlowML2ScratchBlocks.EXTENSION_ID,
+      name: GlowML2ScratchBlocks.EXTENSION_NAME,
+      extensionURL: GlowML2ScratchBlocks.extensionURL,
       blockIconURI: blockIconURI,
       blocks: [
         {
@@ -1135,5 +1135,5 @@ class Scratch3ML2ScratchBlocks {
   }
 }
 
-exports.blockClass = Scratch3ML2ScratchBlocks; // loadable-extension needs this line.
-module.exports = Scratch3ML2ScratchBlocks;
+exports.blockClass = GlowML2ScratchBlocks; // loadable-extension needs this line.
+module.exports = GlowML2ScratchBlocks;
