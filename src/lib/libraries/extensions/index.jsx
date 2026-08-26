@@ -103,7 +103,7 @@ export default [
         insetIconURL: glowMl2scratchInsetIconURL,
         description: (
             <FormattedMessage
-                defaultMessage="Train the webcam to recognise images, then react to what it sees."
+                defaultMessage="Train and recognize images from webcam or stage. Customization of original Junya Ishihara's ML2Scratch."
                 description="Description for the 'Glow ML2Scratch' extension"
                 id="glow.extension.glowMl2scratch.description"
             />
