@@ -5,44 +5,146 @@
    height="372"
    version="1.1"
    id="glow-ml"
-   xmlns="http://www.w3.org/2000/svg">
+   sodipodi:docname="glow-ml.svg"
+   inkscape:version="1.2.2 (b0a8486, 2022-12-01)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs33" />
+  <sodipodi:namedview
+     id="namedview31"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="1.1443368"
+     inkscape:cx="171.27825"
+     inkscape:cy="144.18832"
+     inkscape:window-width="2256"
+     inkscape:window-height="1464"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="glow-ml" />
   <!-- Glow Machine Learning extension icon, glow-ets/scratch-gui#21.
        Laid out like glow-midi.svg: Glow swirl on the left, wordmark on the
        right. Background is the magenta of glow-ml-small.png, which is also the
        block palette colour. -->
-  <rect x="0" y="0" width="600" height="372" rx="24" ry="24" fill="#fc00ee" />
-
+  <rect
+     x="0"
+     y="0"
+     width="600"
+     height="372"
+     rx="24"
+     ry="24"
+     fill="#fc00ee"
+     id="rect2" />
   <!-- A 3-2-1 network: examples in, features across, one label out. The single
        output node is filled to read as 'the answer', the rest are outlines. -->
-  <g stroke="#ffdafb" stroke-width="6" fill="none" opacity="0.85">
-    <path d="M 400 80 L 484 132 M 400 80 L 484 226 M 400 179 L 484 132 M 400 179 L 484 226 M 400 278 L 484 132 M 400 278 L 484 226" />
-    <path d="M 484 132 L 556 179 M 484 226 L 556 179" />
+  <g
+     stroke="#ffdafb"
+     stroke-width="6"
+     fill="none"
+     opacity="0.85"
+     id="g8"
+     transform="matrix(0.65338286,0,0,0.65338286,160.67466,2.33176)">
+    <path
+       d="m 400,80 84,52 m -84,-52 84,146 m -84,-47 84,-47 m -84,47 84,47 m -84,52 84,-146 m -84,146 84,-52"
+       id="path4" />
+    <path
+       d="m 484,132 72,47 m -72,47 72,-47"
+       id="path6" />
   </g>
-  <g fill="#fc00ee" stroke="#ffdafb" stroke-width="8">
-    <circle cx="400" cy="80" r="19" />
-    <circle cx="400" cy="179" r="19" />
-    <circle cx="400" cy="278" r="19" />
-    <circle cx="484" cy="132" r="19" />
-    <circle cx="484" cy="226" r="19" />
+  <g
+     fill="#fc00ee"
+     stroke="#ffdafb"
+     stroke-width="8"
+     id="g20"
+     transform="matrix(0.65338286,0,0,0.65338286,160.67466,2.33176)">
+    <circle
+       cx="400"
+       cy="80"
+       r="19"
+       id="circle10" />
+    <circle
+       cx="400"
+       cy="179"
+       r="19"
+       id="circle12" />
+    <circle
+       cx="400"
+       cy="278"
+       r="19"
+       id="circle14" />
+    <circle
+       cx="484"
+       cy="132"
+       r="19"
+       id="circle16" />
+    <circle
+       cx="484"
+       cy="226"
+       r="19"
+       id="circle18" />
   </g>
-  <circle cx="556" cy="179" r="24" fill="#ffdafb" />
-
+  <circle
+     cx="523.95551"
+     cy="119.28729"
+     r="15.681189"
+     fill="#ffdafb"
+     id="circle22"
+     style="stroke-width:0.653382" />
   <!-- Wordmark, same placement and treatment as glow-midi's 'MIDI'. -->
   <text
-     x="250"
-     y="322"
+     x="157.84526"
+     y="334.81604"
      text-anchor="middle"
      font-family="'Courier New', Courier, monospace"
      font-weight="bold"
-     font-size="110px"
+     font-size="77.2046px"
      fill="#ffdafb"
      stroke="#9c0093"
-     stroke-width="2.3"
-     stroke-opacity="0.83">ML</text>
-
+     stroke-width="1.61428"
+     stroke-opacity="0.83"
+     id="text24"
+     style="stroke:#e148e7;stroke-opacity:1"><tspan
+       sodipodi:role="line"
+       id="tspan366"
+       x="157.84526"
+       y="334.81604"
+       style="text-align:start;text-anchor:start;stroke-width:1.61428;stroke:#e148e7;stroke-opacity:1">Learning</tspan></text>
+  <text
+     x="158.77757"
+     y="277.10751"
+     text-anchor="middle"
+     font-family="'Courier New', Courier, monospace"
+     font-weight="bold"
+     font-size="77.2046px"
+     fill="#ffdafb"
+     stroke="#9c0093"
+     stroke-width="1.61428"
+     stroke-opacity="0.83"
+     id="text24-3"
+     style="stroke:#e148e7;stroke-opacity:1"><tspan
+       sodipodi:role="line"
+       id="tspan366-7"
+       x="158.77757"
+       y="277.10751"
+       style="text-align:start;text-anchor:start;stroke-width:1.61428;stroke:#e148e7;stroke-opacity:1"><tspan
+         dy="0"
+         id="tspan468"
+         style="text-align:start;text-anchor:start;stroke-width:1.61428;stroke:#e148e7;stroke-opacity:1"><tspan
+   style="fill:#fbdaff;fill-opacity:1;stroke:#e148e7;stroke-opacity:1"
+   id="tspan974">M</tspan>achine</tspan></tspan></text>
   <g
      id="g316"
-     transform="matrix(4.0987081,0,0,4.0987081,8.6388243,81.965519)">
+     transform="matrix(3.4772302,0,0,3.4772302,27.125952,71.058384)">
     <path
        fill="#fdfbfc"
        opacity="1"
