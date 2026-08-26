@@ -6,7 +6,8 @@
 // same-origin (therefore unsandboxed) TurboWarp custom extension, so the same
 // values come from the global Scratch API and from ml5 fetched at load time.
 // Everything below this preamble is champierre's original code, apart from the
-// glowMl2scratch renaming and the registration block at the end of the file.
+// Glow renaming, the block review recorded in GLOW-NOTES.md, and the
+// registration block at the end of the file.
 
 /* global Scratch */
 
@@ -41,38 +42,13 @@ formatMessage.setup = () => ({locale: Scratch.vm.getLocale()});
  * When it was loaded as a module, 'extensionURL' will be replaced a URL which is retrieved from.
  * @type {string}
  */
-let extensionURL = new URL('static/extensions/glow-ml2scratch/glow-ml2scratch.js', location.href).href;
+let extensionURL = new URL('static/extensions/glow-ml/glow-ml.js', location.href).href;
 
 const HAT_TIMEOUT = 100;
 
 const blockIconURI = 'data:image/png;base64,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';
 
 const Message = {
-  train_label_1: {
-    'ja': 'ラベル1を学習する',
-    'ja-Hira': 'ラベル1をがくしゅうする',
-    'en': 'train label 1',
-    'it': 'addestra etichetta 1',
-    'zh-cn': '学习标签1',
-    'zh-tw': '學習標籤1'
-  },
-  train_label_2: {
-    'ja': 'ラベル2を学習する',
-    'ja-Hira': 'ラベル2をがくしゅうする',
-    'en': 'train label 2',
-    'it': 'addestra etichetta 2',
-    'zh-cn': '学习标签2',
-    'zh-tw': '學習標籤2'
-  },
-  train_label_3: {
-    'ja': 'ラベル3を学習する',
-    'ja-Hira': 'ラベル3をがくしゅうする',
-    'en': 'train label 3',
-    'it': 'addestra etichetta 3',
-    'zh-cn': '学习标签3',
-    'zh-tw': '學習標籤3',
-
-  },
   train: {
     'ja': 'ラベル[LABEL]を学習する',
     'ja-Hira': 'ラベル[LABEL]をがくしゅうする',
@@ -97,85 +73,21 @@ const Message = {
     'zh-cn': '标签',
     'zh-tw': '標籤'
   },
-  counts_label_1: {
-    'ja': 'ラベル1の枚数',
-    'ja-Hira': 'ラベル1のまいすう',
-    'en': 'counts of label 1',
-    'it': 'conteggio etichetta 1',
-    'zh-cn': '标签数量1',
-    'zh-tw': '標籤數量1'
+  labels_block: {
+    'ja': 'ラベルのリスト',
+    'ja-Hira': 'ラベルのリスト',
+    'en': 'labels',
+    'it': 'etichette',
+    'zh-cn': '标签列表',
+    'zh-tw': '標籤列表'
   },
-  counts_label_2: {
-    'ja': 'ラベル2の枚数',
-    'ja-Hira': 'ラベル2のまいすう',
-    'en': 'counts of label 2',
-    'it': 'conteggio etichetta 2',
-    'zh-cn': '标签数量2',
-    'zh-tw': '標籤數量2'
-  },
-  counts_label_3: {
-    'ja': 'ラベル3の枚数',
-    'ja-Hira': 'ラベル3のまいすう',
-    'en': 'counts of label 3',
-    'it': 'conteggio etichetta 3',
-    'zh-cn': '标签数量3',
-    'zh-tw': '標籤數量3'
-  },
-  counts_label_4: {
-    'ja': 'ラベル4の枚数',
-    'ja-Hira': 'ラベル4のまいすう',
-    'en': 'counts of label 4',
-    'it': 'conteggio etichetta 4',
-    'zh-cn': '标签数量4',
-    'zh-tw': '標籤數量4'
-  },
-  counts_label_5: {
-    'ja': 'ラベル5の枚数',
-    'ja-Hira': 'ラベル5のまいすう',
-    'en': 'counts of label 5',
-    'it': 'conteggio etichetta 5',
-    'zh-cn': '标签数量5',
-    'zh-tw': '標籤數量5'
-  },
-  counts_label_6: {
-    'ja': 'ラベル6の枚数',
-    'ja-Hira': 'ラベル6のまいすう',
-    'en': 'counts of label 6',
-    'it': 'conteggio etichetta 6',
-    'zh-cn': '标签数量6',
-    'zh-tw': '標籤數量6'
-  },
-  counts_label_7: {
-    'ja': 'ラベル7の枚数',
-    'ja-Hira': 'ラベル7のまいすう',
-    'en': 'counts of label 7',
-    'it': 'conteggio etichetta 7',
-    'zh-cn': '标签数量7',
-    'zh-tw': '標籤數量7'
-  },
-  counts_label_8: {
-    'ja': 'ラベル8の枚数',
-    'ja-Hira': 'ラベル8のまいすう',
-    'en': 'counts of label 8',
-    'it': 'conteggio etichetta 8',
-    'zh-cn': '标签数量8',
-    'zh-tw': '標籤數量8'
-  },
-  counts_label_9: {
-    'ja': 'ラベル9の枚数',
-    'ja-Hira': 'ラベル9のまいすう',
-    'en': 'counts of label 9',
-    'it': 'conteggio etichetta 9',
-    'zh-cn': '标签数量9',
-    'zh-tw': '標籤數量9'
-  },
-  counts_label_10: {
-    'ja': 'ラベル10の枚数',
-    'ja-Hira': 'ラベル10のまいすう',
-    'en': 'counts of label 10',
-    'it': 'conteggio etichetta 10',
-    'zh-cn': '标签数量10',
-    'zh-tw': '標籤數量10'
+  counts_block: {
+    'ja': '枚数のリスト',
+    'ja-Hira': 'まいすうのリスト',
+    'en': 'counts',
+    'it': 'conteggi',
+    'zh-cn': '数量列表',
+    'zh-tw': '數量列表'
   },
   counts_label: {
     'ja': 'ラベル[LABEL]の枚数',
@@ -233,6 +145,22 @@ const Message = {
     'zh-cn': '上传',
     'zh-tw': '上傳'
   },
+  close: {
+    'ja': '閉じる',
+    'ja-Hira': 'とじる',
+    'en': 'close',
+    'it': 'chiudi',
+    'zh-cn': '关闭',
+    'zh-tw': '關閉'
+  },
+  select_file: {
+    'ja': 'JSONファイルを選んで下さい。',
+    'ja-Hira': 'JSONファイルをえらんでください。',
+    'en': 'Please select a JSON file.',
+    'it': 'Seleziona un file JSON.',
+    'zh-cn': '请选择JSON文件。',
+    'zh-tw': '請選擇JSON檔案。'
+  },
   uploaded: {
     'ja': 'アップロードが完了しました。',
     'ja-Hira': 'アップロードがかんりょうしました。',
@@ -280,6 +208,14 @@ const Message = {
     'it': 'Imposta video [VIDEO_STATE]',
     'zh-cn': '[VIDEO_STATE]摄像头',
     'zh-tw': '視訊設為[VIDEO_STATE]'
+  },
+  set_video_transparency: {
+    'ja': 'ビデオの透明度を[TRANSPARENCY]にする',
+    'ja-Hira': 'ビデオのとうめいどを[TRANSPARENCY]にする',
+    'en': 'set video transparency to [TRANSPARENCY]',
+    'it': 'imposta trasparenza video a [TRANSPARENCY]',
+    'zh-cn': '将视频透明度设为[TRANSPARENCY]',
+    'zh-tw': '將視訊透明度設為[TRANSPARENCY]'
   },
   set_input: {
     'ja': '[INPUT]の画像を学習/判定する',
@@ -349,20 +285,20 @@ const Message = {
 
 const AvailableLocales = ['en', 'it', 'ja', 'ja-Hira', 'zh-cn', 'zh-tw'];
 
-class GlowML2ScratchBlocks {
+class GlowMLBlocks {
 
   /**
    * @return {string} - the name of this extension.
    */
   static get EXTENSION_NAME() {
-    return 'GlowML2Scratch';
+    return 'Glow Machine Learning';
   }
 
   /**
    * @return {string} - the ID of this extension.
    */
   static get EXTENSION_ID() {
-    return 'glowMl2scratch';
+    return 'glowMl';
   }
 
   /**
@@ -424,7 +360,7 @@ class GlowML2ScratchBlocks {
     dialog.innerHTML = `
       <html><body>
       <div>${Message.upload_instruction[this.locale]}</p><input type="file" id="upload-files"><input type="button" value="${Message.upload[this.locale]}" id="upload-button"></div>
-      <div style="margin-top:10px;display:flex;justify-content:flex-end;"><button id="close" aria-label="close" formnovalidate>閉じる</button></div>
+      <div style="margin-top:10px;display:flex;justify-content:flex-end;"><button id="close" aria-label="${Message.close[this.locale]}" formnovalidate>${Message.close[this.locale]}</button></div>
       </body><body>
     `;
     this.uploadDialog = dialog;
@@ -459,38 +395,14 @@ class GlowML2ScratchBlocks {
     this.locale = this.setLocale();
 
     return {
-      id: GlowML2ScratchBlocks.EXTENSION_ID,
-      name: GlowML2ScratchBlocks.EXTENSION_NAME,
-      extensionURL: GlowML2ScratchBlocks.extensionURL,
+      id: GlowMLBlocks.EXTENSION_ID,
+      name: GlowMLBlocks.EXTENSION_NAME,
+      extensionURL: GlowMLBlocks.extensionURL,
       blockIconURI: blockIconURI,
+      color1: '#fc00ee',
+      color2: '#c900be',
+      color3: '#9c0093',
       blocks: [
-        {
-          opcode: 'addExample1',
-          blockType: BlockType.COMMAND,
-          text: Message.train_label_1[this.locale]
-        },
-        {
-          opcode: 'addExample2',
-          blockType: BlockType.COMMAND,
-          text: Message.train_label_2[this.locale]
-        },
-        {
-          opcode: 'addExample3',
-          blockType: BlockType.COMMAND,
-          text: Message.train_label_3[this.locale]
-        },
-        {
-          opcode: 'train',
-          text: Message.train[this.locale],
-          blockType: BlockType.COMMAND,
-          arguments: {
-            LABEL: {
-              type: ArgumentType.STRING,
-              menu: 'train_menu',
-              defaultValue: '4'
-            }
-          }
-        },
         {
           opcode: 'trainAny',
           text: Message.train[this.locale],
@@ -498,7 +410,7 @@ class GlowML2ScratchBlocks {
           arguments: {
             LABEL: {
               type: ArgumentType.STRING,
-              defaultValue: '11'
+              defaultValue: ''
             }
           }
         },
@@ -508,77 +420,15 @@ class GlowML2ScratchBlocks {
           blockType: BlockType.REPORTER
         },
         {
-          opcode: 'whenReceived',
-          text: Message.when_received_block[this.locale],
-          blockType: BlockType.HAT,
-          arguments: {
-            LABEL: {
-              type: ArgumentType.STRING,
-              menu: 'received_menu',
-              defaultValue: 'any'
-            }
-          }
-        },
-        {
           opcode: 'whenReceivedAny',
           text: Message.when_received_block[this.locale],
           blockType: BlockType.HAT,
           arguments: {
             LABEL: {
               type: ArgumentType.STRING,
-              defaultValue: '11'
+              defaultValue: ''
             }
           }
-        },
-        {
-          opcode: 'getCountByLabel1',
-          text: Message.counts_label_1[this.locale],
-          blockType: BlockType.REPORTER
-        },
-        {
-          opcode: 'getCountByLabel2',
-          text: Message.counts_label_2[this.locale],
-          blockType: BlockType.REPORTER
-        },
-        {
-          opcode: 'getCountByLabel3',
-          text: Message.counts_label_3[this.locale],
-          blockType: BlockType.REPORTER
-        },
-        {
-          opcode: 'getCountByLabel4',
-          text: Message.counts_label_4[this.locale],
-          blockType: BlockType.REPORTER
-        },
-        {
-          opcode: 'getCountByLabel5',
-          text: Message.counts_label_5[this.locale],
-          blockType: BlockType.REPORTER
-        },
-        {
-          opcode: 'getCountByLabel6',
-          text: Message.counts_label_6[this.locale],
-          blockType: BlockType.REPORTER
-        },
-        {
-          opcode: 'getCountByLabel7',
-          text: Message.counts_label_7[this.locale],
-          blockType: BlockType.REPORTER
-        },
-        {
-          opcode: 'getCountByLabel8',
-          text: Message.counts_label_8[this.locale],
-          blockType: BlockType.REPORTER
-        },
-        {
-          opcode: 'getCountByLabel9',
-          text: Message.counts_label_9[this.locale],
-          blockType: BlockType.REPORTER
-        },
-        {
-          opcode: 'getCountByLabel10',
-          text: Message.counts_label_10[this.locale],
-          blockType: BlockType.REPORTER
         },
         {
           opcode: 'getCountByLabel',
@@ -587,9 +437,19 @@ class GlowML2ScratchBlocks {
           arguments: {
             LABEL: {
               type: ArgumentType.STRING,
-              defaultValue: '11'
+              defaultValue: ''
             }
           }
+        },
+        {
+          opcode: 'getLabels',
+          text: Message.labels_block[this.locale],
+          blockType: BlockType.REPORTER
+        },
+        {
+          opcode: 'getCounts',
+          text: Message.counts_block[this.locale],
+          blockType: BlockType.REPORTER
         },
         {
           opcode: 'reset',
@@ -662,11 +522,8 @@ class GlowML2ScratchBlocks {
         },
         {
           opcode: 'setVideoTransparency',
-          text: formatMessage({
-            id: 'videoSensing.setVideoTransparency',
-            default: 'set video transparency to [TRANSPARENCY]',
-            description: 'Controls transparency of the video preview layer'
-          }),
+          text: Message.set_video_transparency[this.locale],
+          blockType: BlockType.COMMAND,
           arguments: {
             TRANSPARENCY: {
               type: ArgumentType.NUMBER,
@@ -701,17 +558,8 @@ class GlowML2ScratchBlocks {
 
       ],
       menus: {
-        received_menu: {
-          items: this.getMenu('received')
-        },
         reset_menu: {
           items: this.getMenu('reset')
-        },
-        train_menu: {
-          items: this.getTrainMenu()
-        },
-        count_menu: {
-          items: this.getTrainMenu()
         },
         video_menu: this.getVideoMenu(),
         classification_interval_menu: {
@@ -747,27 +595,6 @@ class GlowML2ScratchBlocks {
       stage.videoTransparency = transparency;
     }
     return transparency;
-  }
-
-  addExample1() {
-    this.firstTrainingWarning();
-    let features = this.featureExtractor.infer(this.input);
-    this.knnClassifier.addExample(features, '1');
-    this.updateCounts();
-  }
-
-  addExample2() {
-    this.firstTrainingWarning();
-    let features = this.featureExtractor.infer(this.input);
-    this.knnClassifier.addExample(features, '2');
-    this.updateCounts();
-  }
-
-  addExample3() {
-    this.firstTrainingWarning();
-    let features = this.featureExtractor.infer(this.input);
-    this.knnClassifier.addExample(features, '3');
-    this.updateCounts();
   }
 
   train(args) {
@@ -806,95 +633,47 @@ class GlowML2ScratchBlocks {
   }
 
   whenReceivedAny(args) {
+    if (args.LABEL === '') {
+      return this.whenReceived({ LABEL: 'any' });
+    }
     return this.whenReceived(args);
   }
 
-  getCountByLabel1() {
-    if (this.counts) {
-      return this.counts['1'];
-    } else {
-      return 0;
-    }
-  }
-
-  getCountByLabel2() {
-    if (this.counts) {
-      return this.counts['2'];
-    } else {
-      return 0;
-    }
-  }
-
-  getCountByLabel3() {
-    if (this.counts) {
-      return this.counts['3'];
-    } else {
-      return 0;
-    }
-  }
-
-  getCountByLabel4() {
-    if (this.counts) {
-      return this.counts['4'];
-    } else {
-      return 0;
-    }
-  }
-
-  getCountByLabel5() {
-    if (this.counts) {
-      return this.counts['5'];
-    } else {
-      return 0;
-    }
-  }
-
-  getCountByLabel6() {
-    if (this.counts) {
-      return this.counts['6'];
-    } else {
-      return 0;
-    }
-  }
-
-  getCountByLabel7() {
-    if (this.counts) {
-      return this.counts['7'];
-    } else {
-      return 0;
-    }
-  }
-
-  getCountByLabel8() {
-    if (this.counts) {
-      return this.counts['8'];
-    } else {
-      return 0;
-    }
-  }
-
-  getCountByLabel9() {
-    if (this.counts) {
-      return this.counts['9'];
-    } else {
-      return 0;
-    }
-  }
-
-  getCountByLabel10() {
-    if (this.counts) {
-      return this.counts['10'];
-    } else {
-      return 0;
-    }
-  }
-
   getCountByLabel(args) {
+    if (!this.counts) {
+      return 0;
+    }
+    if (args.LABEL === '') {
+      return Object.values(this.counts).reduce((total, count) => total + count, 0);
+    }
     if (this.counts[args.LABEL]) {
       return this.counts[args.LABEL];
     } else {
       return 0;
     }
+  }
+
+  /**
+   * Glow: Scratch has no list-valued reporter, so the labels and their example
+   * counts are reported as two comma separated strings that line up index by
+   * index. Both read the same object, so the order matches.
+   * @return {string} - the trained labels, comma separated
+   */
+  getLabels() {
+    if (!this.counts) {
+      return '';
+    }
+    return Object.keys(this.counts).join(',');
+  }
+
+  /**
+   * @return {string} - the example count of each trained label, comma separated
+   */
+  getCounts() {
+    if (!this.counts) {
+      return '';
+    }
+    return Object.values(this.counts).join(',');
   }
 
   reset(args) {
@@ -993,7 +772,7 @@ class GlowML2ScratchBlocks {
     let files = document.getElementById('upload-files').files;
 
     if (files.length <= 0) {
-      alert('Please select JSON file.');
+      alert(Message.select_file[this.locale]);
       return false;
     }
 
@@ -1039,6 +818,9 @@ class GlowML2ScratchBlocks {
 
     for (let label in confidences) {
       if (confidences[label] > topConfidence) {
+        // Glow: upstream never advances topConfidence, so this returns the last
+        // label with a non-zero confidence rather than the best one.
+        topConfidence = confidences[label];
         topConfidenceLabel = label;
       }
     }
@@ -1073,17 +855,6 @@ class GlowML2ScratchBlocks {
     }
     arr.push({ text: text, value: defaultValue });
     for (let i = 1; i <= 10; i++) {
-      let obj = {};
-      obj.text = i.toString(10);
-      obj.value = i.toString(10);
-      arr.push(obj);
-    };
-    return arr;
-  }
-
-  getTrainMenu() {
-    let arr = [];
-    for (let i = 4; i <= 10; i++) {
       let obj = {};
       obj.text = i.toString(10);
       obj.value = i.toString(10);
@@ -1210,17 +981,17 @@ const loadMl5 = () => new Promise((resolve, reject) => {
   const script = document.createElement('script');
   script.src = ML5_URL;
   script.onload = () => resolve(window.ml5);
-  script.onerror = () => reject(new Error(`Glow ML2Scratch: could not load ml5 from ${ML5_URL}`));
+  script.onerror = () => reject(new Error(`Glow Machine Learning: could not load ml5 from ${ML5_URL}`));
   document.head.appendChild(script);
 });
 
 loadMl5().then(loaded => {
   ml5 = loaded;
-  Scratch.extensions.register(new GlowML2ScratchBlocks(Scratch.vm.runtime));
+  Scratch.extensions.register(new GlowMLBlocks(Scratch.vm.runtime));
 }).catch(error => {
   // The extension manager has no way to hear about this: it is waiting for a
   // register() call that will never come, so it would otherwise hang silently.
   // Say out loud what went wrong instead.
   console.error(error);
-  alert(`Glow ML2Scratch could not start because ml5.js did not load.\n\nCheck the internet connection and add the extension again.\n\n${error.message}`);
+  alert(`Glow Machine Learning could not start because ml5.js did not load.\n\nCheck the internet connection and add the extension again.\n\n${error.message}`);
 });

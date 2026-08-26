@@ -57,8 +57,8 @@ import glowLabIconURL from './glow-lab/glow-lab.svg';
 import glowLabInsetIconURL from './glow-lab/glow-lab-small.svg';
 import glowMidiIconURL from './glow-midi/glow-midi.svg';
 import glowMidiInsetIconURL from './glow-midi/glow-midi-small.svg';
-import glowMl2scratchIconURL from './glow-ml2scratch/glow-ml2scratch.png';
-import glowMl2scratchInsetIconURL from './glow-ml2scratch/glow-ml2scratch-small.png';
+import glowMlIconURL from './glow-ml/glow-ml.svg';
+import glowMlInsetIconURL from './glow-ml/glow-ml-small.png';
 
 export default [
     {
@@ -96,16 +96,16 @@ export default [
         extensionURL: new URL('static/extensions/glow-midi/glow-midi.js', location.href).href
     },
     {
-        name: 'Glow ML2Scratch',
-        extensionId: 'glowMl2scratch',
+        name: 'Glow Machine Learning',
+        extensionId: 'glowMl',
         collaborator: 'champierre',
-        iconURL: glowMl2scratchIconURL,
-        insetIconURL: glowMl2scratchInsetIconURL,
+        iconURL: glowMlIconURL,
+        insetIconURL: glowMlInsetIconURL,
         description: (
             <FormattedMessage
                 defaultMessage="Train and recognize images from webcam or stage. Customization of original Junya Ishihara's ML2Scratch."
-                description="Description for the 'Glow ML2Scratch' extension"
-                id="glow.extension.glowMl2scratch.description"
+                description="Description for the 'Glow Machine Learning' extension"
+                id="glow.extension.glowMl.description"
             />
         ),
         tags: ['glow'],
@@ -113,7 +113,7 @@ export default [
         incompatibleWithScratch: true,
         internetConnectionRequired: true,
         bluetoothRequired: false,
-        extensionURL: new URL('static/extensions/glow-ml2scratch/glow-ml2scratch.js', location.href).href
+        extensionURL: new URL('static/extensions/glow-ml/glow-ml.js', location.href).href
     },
     {
         name: (
