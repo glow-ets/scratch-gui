@@ -25,7 +25,14 @@ const log = console;
  */
 let ml5 = null;
 
-const ML5_URL = 'https://unpkg.com/ml5@0.12.2/dist/ml5.min.js';
+/**
+ * Where ml5 is loaded from. The self-hosted copy is preferred; drop
+ * ml5.min.js next to this file and webpack ships it to static/extensions/.
+ * The CDN is only a fallback for a checkout that has not vendored it yet.
+ * See GLOW-NOTES.md.
+ */
+const ML5_LOCAL_URL = new URL('static/extensions/glow-ml/ml5.min.js', location.href).href;
+const ML5_CDN_URL = 'https://unpkg.com/ml5@0.12.2/dist/ml5.min.js';
 
 /**
  * Formatter which is used for translating.
@@ -46,7 +53,23 @@ let extensionURL = new URL('static/extensions/glow-ml/glow-ml.js', location.href
 
 const HAT_TIMEOUT = 100;
 
-const blockIconURI = 'data:image/png;base64,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';
+/**
+ * Glow: labels a fresh project starts with, so the dropdowns are never empty.
+ * The pool behaves like Scratch's broadcast messages, except that a label is
+ * never removed just because nothing uses it any more.
+ */
+const DEFAULT_LABELS = ['label A', 'label B'];
+
+/** Menu value meaning 'every label', used by reset, delete and counts. */
+const ALL = 'all';
+
+/** Menu value meaning 'whichever label was recognised', used by when received. */
+const ANY = 'any';
+
+// Glow: the same artwork as the library inset icon, so the palette, the
+// blocks and the library card all read as one extension. Upstream's icon is
+// green, which clashed with the pink blocks.
+const blockIconURI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFOUlEQVR4Xu2az4oUSRDGo6rHVZQRvCzKIANCy6JP4BsIzjyBIIuCiHgVxbsiwt5FELz4BKPgyYOXfYJd/LM0LIsoHjyMIDJ2VRlfVsVMdk11T3ZGVXePGzm0U2NXZGX+8ouMzMhKhvS5ICvRBNJoSzN0BAygUggG0AAqCSjNTYEGUElAaW4KNIBKAkpzU6ABVBJQmpsCDaCSgNLcFGgAlQSU5qZAA6gkoDQ3BRpAJQGluSnQACoJKM1NgUqAS7H2T+hprOnC2P1OF9VtSWKONT/e36Rfb56khAr+If69f4o7wy343zSlTw/+o+O3j6oaPzVAKO9Sfp0OJD+B9z8bUrb+RQUwikJS5O6hWZ5TzqO5nz4Ftzer2o8+aKeiqDmwqJw2TRJK+LPfStLiuxhxCqyItdiO/TYG2+2NUuCk3iKsYI6GLgEYKg0pmAb8OycpG27oYgECGBuxH4Q8opN7WgVYRmS4ddlW6VZIpA4F7eqtHjBN/Z3Q40pbAwjlOSVwZHv351vX3v6505Rd6FEvRIVsN1LWltwiyVfXuGckDfd2Baxeb2sA0VEo7Z8K3ql7JyijL9TbWCbiDsJF6ypDFO/xegzQ/eXE4M4H6tNpAhixE3Xj3sfrD7f78Ype0pXixtzcOCqI1EdBgslWNiSAw0cK1LhVZA6eH3Qwjzl4XESxYuPby//JvNekrK1qWTKPoNYKQOkUPLW+rgKMX56XXcu99VcuOFlRTcBm5YLa7VyrAMd1GgrL+Mse715clOYfXDepbxbgZCop1nh+5ikGW9PYBfVMAEJhvSpI5DmrUXxtzupzAYrn2ZVbq3T+/nrU2M0EoCgNG8BempC4b33ui+qB0ki2dStnV6JqmhlAqDD9FwiT0n35ep5zn9BKlYvwmQF0Knz0miNymYjA9SIUbeRubR0YAgOKG1AJbhHUF9Lmve6ZKcCfCdzOFLAXYvt+IoGZzoGLOBbaPM7/HiD22prS+RyIxICUeuCQ7w4fPaI63HH7ZJbS9n65JqtJ+ULZj7//6z0dp+kPmDoHiJQWVvvYyg3o713Rt3/3DH3LMxpsvomOzEtpz43RuJxiPRPkp8Vg5+BFns51CrBMS3E6iwu62L/6G72rljG47q8eoyHDO1QBiHUlt01E6osrqM9p+LsO1gm2uhFptBjlSVs7BehcdqN8lFPBakpQnBS4nKgnFh7s/PxgUz1XNq45wHhe/agAiYRY9TnVaxpet500H6PhgIhO4OMm75BMtbKBSBIA8JB3QGhDPa+ogdcaQHEbmZClz34AQQrGuVL1cUeifOOkRKnPLpb1i9ulC/i5SL/e2DRW6y7s3JGTBBjxwWYZeRFdnet4Zxvj1l2414/KK2vHXB07B0hlRhtpfrjkXm7rQ3IunO64cOighYi/tTlQOorcWr1MWkY4t2IDsauf4I0cdUrFDPEyn4OIW448z6sAoPxXULp4CaA1gNIJf6JuOkhqGlVxZXTQvx6nAHlG4/s5o4fLroqm4BGirpB7ogCW72Q1l1JR5ffTnvXKcfleSvGfsasVuw6hu339JAqgJCFdRMUI13ohItg+OAoZSsxv1X0hdhP3sCMN4ojvPR92oZ4R0uypX29DpV+/H6blpYMh9S/2PS283halwM0/PtJy5BnCIhGN3f/6fYhS4CJBmHdbWt2JzLsz83i+AVRSN4AGUElAaW4KNIBKAkpzU6ABVBJQmpsCDaCSgNLcFGgAlQSU5qZAA6gkoDQ3BRpAJQGluSnQACoJKM1NgQZQSUBpbgo0gEoCSvMfVmgck4O62jUAAAAASUVORK5CYII=';
 
 const Message = {
   train: {
@@ -73,21 +96,21 @@ const Message = {
     'zh-cn': '标签',
     'zh-tw': '標籤'
   },
-  labels_block: {
-    'ja': 'ラベルのリスト',
-    'ja-Hira': 'ラベルのリスト',
-    'en': 'labels',
-    'it': 'etichette',
-    'zh-cn': '标签列表',
-    'zh-tw': '標籤列表'
+  confidence_block: {
+    'ja': '確信度',
+    'ja-Hira': 'かくしんど',
+    'en': 'confidence',
+    'it': 'confidenza',
+    'zh-cn': '置信度',
+    'zh-tw': '信心度'
   },
-  counts_block: {
-    'ja': '枚数のリスト',
-    'ja-Hira': 'まいすうのリスト',
-    'en': 'counts',
-    'it': 'conteggi',
-    'zh-cn': '数量列表',
-    'zh-tw': '數量列表'
+  labels_and_counts_block: {
+    'ja': 'ラベルと枚数',
+    'ja-Hira': 'ラベルとまいすう',
+    'en': 'labels and counts',
+    'it': 'etichette e conteggi',
+    'zh-cn': '标签和数量',
+    'zh-tw': '標籤和數量'
   },
   counts_label: {
     'ja': 'ラベル[LABEL]の枚数',
@@ -112,6 +135,46 @@ const Message = {
     'it': 'tutte',
     'zh-cn': '所有',
     'zh-tw': '所有量'
+  },
+  new_label_button: {
+    'ja': '新しいラベルを作る',
+    'ja-Hira': 'あたらしいラベルをつくる',
+    'en': 'New label',
+    'it': 'Nuova etichetta',
+    'zh-cn': '新建标签',
+    'zh-tw': '新增標籤'
+  },
+  new_label_prompt: {
+    'ja': '新しいラベルの名前は？',
+    'ja-Hira': 'あたらしいラベルのなまえは？',
+    'en': 'Name of the new label?',
+    'it': 'Nome della nuova etichetta?',
+    'zh-cn': '新标签的名称？',
+    'zh-tw': '新標籤的名稱？'
+  },
+  label_exists: {
+    'ja': 'そのラベルはすでにあります。',
+    'ja-Hira': 'そのラベルはすでにあります。',
+    'en': 'That label already exists.',
+    'it': 'Questa etichetta esiste già.',
+    'zh-cn': '该标签已存在。',
+    'zh-tw': '該標籤已存在。'
+  },
+  delete_label: {
+    'ja': 'ラベル[LABEL]を削除',
+    'ja-Hira': 'ラベル[LABEL]をさくじょ',
+    'en': 'delete label [LABEL]',
+    'it': 'elimina etichetta [LABEL]',
+    'zh-cn': '删除标签[LABEL]',
+    'zh-tw': '刪除標籤[LABEL]'
+  },
+  confirm_delete_all: {
+    'ja': '本当にすべてのラベルを削除してもよろしいですか？',
+    'ja-Hira': 'ほんとうにすべてのラベルをさくじょしてもよろしいですか？',
+    'en': 'Delete every label and everything it learned?',
+    'it': 'Vuoi davvero eliminare tutte le etichette e quanto hanno imparato?',
+    'zh-cn': '确定要删除所有标签及其学习内容吗？',
+    'zh-tw': '確定要刪除所有標籤及其學習內容嗎？'
   },
   reset: {
     'ja': 'ラベル[LABEL]の学習をリセット',
@@ -291,7 +354,9 @@ class GlowMLBlocks {
    * @return {string} - the name of this extension.
    */
   static get EXTENSION_NAME() {
-    return 'Glow Machine Learning';
+    // Also the stage monitor prefix ('<name>: <block text>') and the palette
+    // category heading, so it has to stay short.
+    return 'Glow ML';
   }
 
   /**
@@ -328,6 +393,7 @@ class GlowMLBlocks {
     this.when_received = false;
     this.when_received_arr = Array(8).fill(false);
     this.label = null;
+    this.confidence = 0;
     this.locale = this.setLocale();
 
     this.blockClickedAt = null;
@@ -399,18 +465,23 @@ class GlowMLBlocks {
       name: GlowMLBlocks.EXTENSION_NAME,
       extensionURL: GlowMLBlocks.extensionURL,
       blockIconURI: blockIconURI,
-      color1: '#fc00ee',
-      color2: '#c900be',
-      color3: '#9c0093',
+      color1: '#f000ee',
+      color2: '#c000be',
+      color3: '#950094',
       blocks: [
         {
-          opcode: 'trainAny',
+          blockType: BlockType.BUTTON,
+          text: Message.new_label_button[this.locale],
+          func: 'createLabel'
+        },
+        {
+          opcode: 'train',
           text: Message.train[this.locale],
           blockType: BlockType.COMMAND,
           arguments: {
             LABEL: {
               type: ArgumentType.STRING,
-              defaultValue: ''
+              menu: 'train_menu'
             }
           }
         },
@@ -420,15 +491,20 @@ class GlowMLBlocks {
           blockType: BlockType.REPORTER
         },
         {
-          opcode: 'whenReceivedAny',
+          opcode: 'whenReceived',
           text: Message.when_received_block[this.locale],
           blockType: BlockType.HAT,
           arguments: {
             LABEL: {
               type: ArgumentType.STRING,
-              defaultValue: ''
+              menu: 'received_menu'
             }
           }
+        },
+        {
+          opcode: 'getConfidence',
+          text: Message.confidence_block[this.locale],
+          blockType: BlockType.REPORTER
         },
         {
           opcode: 'getCountByLabel',
@@ -437,18 +513,13 @@ class GlowMLBlocks {
           arguments: {
             LABEL: {
               type: ArgumentType.STRING,
-              defaultValue: ''
+              menu: 'count_menu'
             }
           }
         },
         {
-          opcode: 'getLabels',
-          text: Message.labels_block[this.locale],
-          blockType: BlockType.REPORTER
-        },
-        {
-          opcode: 'getCounts',
-          text: Message.counts_block[this.locale],
+          opcode: 'getLabelsAndCounts',
+          text: Message.labels_and_counts_block[this.locale],
           blockType: BlockType.REPORTER
         },
         {
@@ -458,19 +529,18 @@ class GlowMLBlocks {
           arguments: {
             LABEL: {
               type: ArgumentType.STRING,
-              menu: 'reset_menu',
-              defaultValue: 'all'
+              menu: 'reset_menu'
             }
           }
         },
         {
-          opcode: 'resetAny',
+          opcode: 'deleteLabel',
           blockType: BlockType.COMMAND,
-          text: Message.reset[this.locale],
+          text: Message.delete_label[this.locale],
           arguments: {
             LABEL: {
               type: ArgumentType.STRING,
-              defaultValue: '11'
+              menu: 'delete_menu'
             }
           }
         },
@@ -558,8 +628,20 @@ class GlowMLBlocks {
 
       ],
       menus: {
+        train_menu: {
+          items: 'getTrainMenu'
+        },
+        received_menu: {
+          items: 'getReceivedMenu'
+        },
         reset_menu: {
-          items: this.getMenu('reset')
+          items: 'getResetMenu'
+        },
+        delete_menu: {
+          items: 'getDeleteMenu'
+        },
+        count_menu: {
+          items: 'getCountMenu'
         },
         video_menu: this.getVideoMenu(),
         classification_interval_menu: {
@@ -604,16 +686,22 @@ class GlowMLBlocks {
     this.updateCounts();
   }
 
-  trainAny(args) {
-    this.train(args);
-  }
-
   getLabel() {
     return this.label;
   }
 
+  /**
+   * Glow: how sure the classifier is about the label it is currently reporting.
+   * @return {number} - confidence of the current label, 0 to 1
+   */
+  getConfidence() {
+    // Rounded, because a k-nearest-neighbour vote share reads as
+    // 0.6666666666666666 on a stage monitor otherwise.
+    return Math.round(this.confidence * 100) / 100;
+  }
+
   whenReceived(args) {
-    if (args.LABEL === 'any') {
+    if (args.LABEL === ANY) {
       if (this.when_received) {
         setTimeout(() => {
           this.when_received = false;
@@ -632,18 +720,11 @@ class GlowMLBlocks {
     }
   }
 
-  whenReceivedAny(args) {
-    if (args.LABEL === '') {
-      return this.whenReceived({ LABEL: 'any' });
-    }
-    return this.whenReceived(args);
-  }
-
   getCountByLabel(args) {
     if (!this.counts) {
       return 0;
     }
-    if (args.LABEL === '') {
+    if (args.LABEL === ALL) {
       return Object.values(this.counts).reduce((total, count) => total + count, 0);
     }
     if (this.counts[args.LABEL]) {
@@ -654,26 +735,16 @@ class GlowMLBlocks {
   }
 
   /**
-   * Glow: Scratch has no list-valued reporter, so the labels and their example
-   * counts are reported as two comma separated strings that line up index by
-   * index. Both read the same object, so the order matches.
-   * @return {string} - the trained labels, comma separated
+   * Glow: Scratch has no list-valued reporter, so every label and its example
+   * count go into one string, 'label:count' pairs separated by two spaces.
+   * Labels with nothing trained yet are included, so the reporter doubles as a
+   * view of the pool.
+   * @return {string} - e.g. 'label A:12  label B:9'
    */
-  getLabels() {
-    if (!this.counts) {
-      return '';
-    }
-    return Object.keys(this.counts).join(',');
-  }
-
-  /**
-   * @return {string} - the example count of each trained label, comma separated
-   */
-  getCounts() {
-    if (!this.counts) {
-      return '';
-    }
-    return Object.values(this.counts).join(',');
+  getLabelsAndCounts() {
+    return this.labels
+      .map(label => `${label}:${(this.counts && this.counts[label]) || 0}`)
+      .join('  ');
   }
 
   reset(args) {
@@ -682,13 +753,14 @@ class GlowMLBlocks {
     setTimeout(() => {
       let result = confirm(Message.confirm_reset[this.locale]);
       if (result) {
-        if (args.LABEL == 'all') {
+        if (args.LABEL == ALL) {
           this.knnClassifier.clearAllLabels();
           for (let label in this.counts) {
             this.counts[label] = 0;
           }
         } else {
-          if (this.counts[args.LABEL] > 0) {
+          // Glow: this.counts is null until something has been trained.
+          if (this.counts && this.counts[args.LABEL] > 0) {
             this.knnClassifier.clearLabel(args.LABEL);
             this.counts[args.LABEL] = 0;
           }
@@ -697,8 +769,31 @@ class GlowMLBlocks {
     }, 1000);
   }
 
-  resetAny(args) {
-    this.reset(args);
+  /**
+   * Glow: reset forgets what a label learned but keeps the label; delete takes
+   * it out of the pool as well, so the dropdowns stop offering it.
+   * @param {object} args - the block arguments
+   * @param {string} args.LABEL - a label, or ALL
+   */
+  deleteLabel(args) {
+    if (this.actionRepeated()) { return };
+
+    setTimeout(() => {
+      if (args.LABEL === ALL) {
+        if (!confirm(Message.confirm_delete_all[this.locale])) {
+          return;
+        }
+        this.knnClassifier.clearAllLabels();
+        this.counts = null;
+        this.labels = DEFAULT_LABELS.slice();
+        return;
+      }
+      if (this.counts && this.counts[args.LABEL] > 0) {
+        this.knnClassifier.clearLabel(args.LABEL);
+        delete this.counts[args.LABEL];
+      }
+      this.labels = this.labels.filter(label => label !== args.LABEL);
+    }, 1000);
   }
 
   download() {
@@ -806,6 +901,7 @@ class GlowMLBlocks {
         console.error(err);
       } else {
         this.label = this.getTopConfidenceLabel(result.confidencesByLabel);
+        this.confidence = result.confidencesByLabel[this.label] || 0;
         this.when_received = true;
         this.when_received_arr[this.label] = true
       }
@@ -845,22 +941,81 @@ class GlowMLBlocks {
     }
   }
 
-  getMenu(name) {
-    let arr = [];
-    let defaultValue = 'any';
-    let text = Message.any[this.locale];
-    if (name == 'reset') {
-      defaultValue = 'all';
-      text = Message.all[this.locale];
+  /**
+   * Glow: the label pool, kept in runtime.extensionStorage so that it is saved
+   * into project.json and comes back with the project. Read through here rather
+   * than cached, because the storage is replaced wholesale when a project loads.
+   * @return {string[]} - the labels this project knows about
+   */
+  get labels() {
+    const stored = this.runtime.extensionStorage[GlowMLBlocks.EXTENSION_ID];
+    if (!stored || !Array.isArray(stored.labels) || stored.labels.length === 0) {
+      // Deleting the last label brings the defaults back rather than leaving a
+      // dropdown with nothing in it.
+      return DEFAULT_LABELS.slice();
     }
-    arr.push({ text: text, value: defaultValue });
-    for (let i = 1; i <= 10; i++) {
-      let obj = {};
-      obj.text = i.toString(10);
-      obj.value = i.toString(10);
-      arr.push(obj);
-    };
-    return arr;
+    // Anything that has been trained belongs in the pool even if the stored
+    // list has fallen behind, so a dropdown never hides a label that exists.
+    const trained = this.counts ? Object.keys(this.counts) : [];
+    return stored.labels.concat(trained.filter(label => !stored.labels.includes(label)));
+  }
+
+  set labels(labels) {
+    const stored = this.runtime.extensionStorage[GlowMLBlocks.EXTENSION_ID] || {};
+    stored.labels = labels;
+    this.runtime.extensionStorage[GlowMLBlocks.EXTENSION_ID] = stored;
+  }
+
+  /**
+   * Palette button. Scratch's own 'new message' lives inside the dropdown, but
+   * scratch-blocks gives extensions no hook on dropdown selection, so this
+   * follows the 'Make a Variable' pattern instead. The menus below are dynamic,
+   * so a new label shows up in all of them straight away.
+   */
+  createLabel() {
+    const name = prompt(Message.new_label_prompt[this.locale], '');
+    if (name === null) {
+      return;
+    }
+    const label = name.trim();
+    if (label === '' || label === ALL || label === ANY) {
+      return;
+    }
+    if (this.labels.includes(label)) {
+      alert(Message.label_exists[this.locale]);
+      return;
+    }
+    this.labels = this.labels.concat([label]);
+  }
+
+  /**
+   * @return {object[]} - one menu item per label
+   */
+  getLabelItems() {
+    return this.labels.map(label => ({ text: label, value: label }));
+  }
+
+  getTrainMenu() {
+    return this.getLabelItems();
+  }
+
+  getReceivedMenu() {
+    return [{ text: Message.any[this.locale], value: ANY }].concat(this.getLabelItems());
+  }
+
+  getResetMenu() {
+    return [{ text: Message.all[this.locale], value: ALL }].concat(this.getLabelItems());
+  }
+
+  getDeleteMenu() {
+    // 'all' last here, unlike the other menus: a block dragged out of the
+    // palette takes the first item as its default, and that must not be the
+    // one that wipes everything.
+    return this.getLabelItems().concat([{ text: Message.all[this.locale], value: ALL }]);
+  }
+
+  getCountMenu() {
+    return this.getResetMenu();
   }
 
   getVideoMenu() {
@@ -973,17 +1128,23 @@ class GlowMLBlocks {
 // scratch-vm or into an Xcratch module. Here the file is served as a plain
 // script from our own origin, so ml5 is pulled in first and the extension then
 // registers itself through the TurboWarp unsandboxed extension API.
-const loadMl5 = () => new Promise((resolve, reject) => {
-  if (typeof window.ml5 !== 'undefined') {
-    resolve(window.ml5);
-    return;
-  }
+const loadScript = url => new Promise((resolve, reject) => {
   const script = document.createElement('script');
-  script.src = ML5_URL;
+  script.src = url;
   script.onload = () => resolve(window.ml5);
-  script.onerror = () => reject(new Error(`Glow Machine Learning: could not load ml5 from ${ML5_URL}`));
+  script.onerror = () => reject(new Error(`Glow ML: could not load ml5 from ${url}`));
   document.head.appendChild(script);
 });
+
+const loadMl5 = () => {
+  if (typeof window.ml5 !== 'undefined') {
+    return Promise.resolve(window.ml5);
+  }
+  return loadScript(ML5_LOCAL_URL).catch(() => {
+    console.warn(`Glow ML: no self-hosted ml5 at ${ML5_LOCAL_URL}, falling back to ${ML5_CDN_URL}`);
+    return loadScript(ML5_CDN_URL);
+  });
+};
 
 loadMl5().then(loaded => {
   ml5 = loaded;
@@ -993,5 +1154,5 @@ loadMl5().then(loaded => {
   // register() call that will never come, so it would otherwise hang silently.
   // Say out loud what went wrong instead.
   console.error(error);
-  alert(`Glow Machine Learning could not start because ml5.js did not load.\n\nCheck the internet connection and add the extension again.\n\n${error.message}`);
+  alert(`Glow ML could not start because ml5.js did not load.\n\nCheck the internet connection and add the extension again.\n\n${error.message}`);
 });
