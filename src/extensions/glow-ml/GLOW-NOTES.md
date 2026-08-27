@@ -209,8 +209,9 @@ table.
   resolves only when `Scratch.extensions.register` is called, and there is no
   way to reject it from inside the extension, so the failure path just logs and
   alerts. Self-hosting ml5 would make this far less likely.
-- **Training data still lives outside the project.** `download` / `upload`
-  write and read a JSON file by hand. See "Storing the training data" below.
+- **Storing training data in the project needs the forked VM.** See "Training
+  data in the project" below. Against upstream TurboWarp's VM the extension
+  logs a warning once and falls back to the download and upload blocks.
 - **Classroom readiness: to review.** Not stress-tested. The upload dialog is
   still built with nested `<html><body>` inside `innerHTML`, as upstream has it.
 
@@ -387,3 +388,63 @@ our blob. So the vetting has to be ours, at the point we parse it:
 None of that is specific to being an asset; it applies just as much to the
 `upload learning data` block we already ship, which today calls `JSON.parse`
 and passes the result straight to ml5.
+
+## Training data in the project
+
+Implemented against `runtime.glowAssetManager`, the generic asset store added in
+glow-ets/scratch-vm for glow-ets/scratch-gui#22. Training data is stored under
+owner `glowMl`, name `training`, format `json` — a real entry in the `.sb3` zip
+rather than a blob inside `project.json`, so TurboWarp's restore points keep one
+shared copy instead of duplicating it in every snapshot.
+
+- `serializeTrainingData()` repeats the serialising half of ml5's `save()`,
+  which otherwise serialises and downloads in one step. The output is
+  byte-identical in shape to what the download block produces, so a file saved
+  by one can be loaded by the other. It reads `knnClassifier.mapStringToIndex`,
+  which is ml5 internals — acceptable only because ml5 is vendored at a pinned
+  0.12.2 and cannot drift underneath us.
+- Writes are debounced by a second (`scheduleSave`), because a pupil clicking
+  train repeatedly would otherwise re-serialise a megabyte of feature vectors on
+  every click. Hooked into train, reset, delete label and upload.
+- `runtime.emitProjectChanged()` is called after a successful write, or the
+  editor has no idea there is anything new to save.
+- `loadFromProject()` runs on `PROJECT_LOADED` and once at construction, since
+  the extension can be added to an already-open project. A project holding
+  nothing clears the classifier rather than leaving the previous project's
+  training in place.
+- Over the manager's ceiling, `set()` throws: the data stays usable for the
+  session, the user is told once, and the project simply saves without it.
+
+**If the VM has no `glowAssetManager`** — which is the case against upstream
+`TurboWarp/scratch-vm`, what `package.json` still points at — the extension logs
+one warning and everything else works as before.
+
+### Pointing scratch-gui at the forked VM
+
+`scratch-vm`'s `main` is `./src/index.js`, so scratch-gui builds it from source
+and edits show up on the next build. `webpack.config.js` already sets
+`resolve.symlinks: false`, which is what makes the linked copy resolve cleanly.
+
+For local work, link the two checkouts:
+
+```
+cd ../scratch-vm && npm ci && npm link
+cd ../scratch-gui && npm link scratch-vm
+npm start
+```
+
+`npm link` survives until the next `npm install` in scratch-gui, which silently
+replaces the link with the published dependency — if the extension starts
+warning that the VM has no `glowAssetManager` again, that is why. `ls -l
+node_modules/scratch-vm` says whether the link is still there.
+
+To make it permanent instead, point the dependency at the fork:
+
+```json
+"scratch-vm": "github:glow-ets/scratch-vm#glow-assets-feat22"
+```
+
+That is also what CI and the GitHub Pages build would need, since neither knows
+about a local link. It has not been done yet: the specs say scratch-gui links to
+the original TurboWarp dependencies rather than our forks, so switching is a
+deliberate decision, not a side effect of this work.

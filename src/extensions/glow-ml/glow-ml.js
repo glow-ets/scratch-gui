@@ -86,6 +86,17 @@ const ALL = 'all';
 const ANY = 'any';
 
 /**
+ * Where the training data lives inside the project, via the VM's asset manager
+ * (glow-ets/scratch-gui#22). Stored as a real asset rather than in project.json,
+ * so restore points share one copy of it instead of duplicating it per snapshot.
+ */
+const ASSET_OWNER = 'glowMl';
+const ASSET_NAME = 'training';
+
+/** How long to wait after the last change before writing the data again. */
+const SAVE_DEBOUNCE_MS = 1000;
+
+/**
  * Glow: labels are shown in order everywhere, so a dropdown and the reporter
  * never disagree. Numeric so that 'label 10' sorts after 'label 2', and
  * case-insensitive so that capitalisation does not scatter related labels.
@@ -358,6 +369,14 @@ const Message = {
     'zh-cn': '舞台',
     'zh-tw': '舞台'
   },
+  too_much_data: {
+    'ja': '学習データが大きすぎてプロジェクトに保存できません。ラベルを減らすか、学習をリセットして下さい。',
+    'ja-Hira': 'がくしゅうデータがおおきすぎてプロジェクトにほぞんできません。ラベルをへらすか、がくしゅうをリセットしてください。',
+    'en': 'There is too much training data to save inside the project. Delete a label or reset some training.',
+    'it': "Ci sono troppi dati di addestramento per salvarli dentro al progetto. Elimina un'etichetta o resetta un po' di addestramento.",
+    'zh-cn': '训练数据太多，无法保存在项目中。请删除标签或重置部分训练。',
+    'zh-tw': '訓練資料太多，無法儲存在專案中。請刪除標籤或重置部分訓練。'
+  },
   model_broken: {
     'ja': 'MobileNetモデルを読み込めませんでした。学習と判定はできません。詳しくはコンソールを見て下さい。',
     'ja-Hira': 'MobileNetモデルをよみこめませんでした。がくしゅうとはんていはできません。くわしくはコンソールをみてください。',
@@ -451,6 +470,25 @@ class GlowMLBlocks {
     this.runtime.ioDevices.video.enableVideo().then(() => { this.input = this.runtime.ioDevices.video.provider.video });
 
     this.knnClassifier = ml5.KNNClassifier();
+
+    // Glow: the VM's asset manager, when running against a VM that has one.
+    this.assetManager = runtime.glowAssetManager || null;
+    this.saveTimer = null;
+    this.warnedAboutSize = false;
+    if (this.assetManager) {
+      this.assetManager.on('warning', event => {
+        console.warn(`Glow ML: the project is holding ${event.totalBytes} bytes of extension data, ` +
+          `the limit is ${event.maxBytes}`);
+      });
+      // Loading a project replaces what the manager holds, so follow it.
+      this.runtime.on('PROJECT_LOADED', () => this.loadFromProject());
+      // The extension can also be added to a project that is already open.
+      this.loadFromProject();
+    } else {
+      console.warn('Glow ML: this VM has no glowAssetManager, so training data will not be saved ' +
+        'inside the project. The download and upload blocks still work. See glow-ets/scratch-gui#22');
+    }
+
     this.featureExtractor = ml5.featureExtractor('MobileNet', mobilenetOptions, error => {
       // Glow: upstream ignores this argument and starts classifying regardless,
       // which turns a failed model into one exception per interval forever and
@@ -755,6 +793,7 @@ class GlowMLBlocks {
           const features = this.featureExtractor.infer(this.input);
           this.knnClassifier.addExample(features, args.LABEL);
           this.updateCounts();
+          this.scheduleSave();
         } catch (error) {
           this.reportBrokenModel(error);
         }
@@ -846,6 +885,7 @@ class GlowMLBlocks {
           this.counts[args.LABEL] = 0;
         }
       }
+      this.scheduleSave();
     }, 1000);
   }
 
@@ -866,6 +906,7 @@ class GlowMLBlocks {
         this.knnClassifier.clearAllLabels();
         this.counts = null;
         this.labels = DEFAULT_LABELS.slice();
+        this.scheduleSave();
         return;
       }
       if (this.counts && this.counts[args.LABEL] > 0) {
@@ -873,6 +914,7 @@ class GlowMLBlocks {
         delete this.counts[args.LABEL];
       }
       this.labels = this.labels.filter(label => label !== args.LABEL);
+      this.scheduleSave();
     }, 1000);
   }
 
@@ -959,6 +1001,7 @@ class GlowMLBlocks {
         console.log('uploaded!');
 
         this.updateCounts();
+        this.scheduleSave();
         alert(Message.uploaded[this.locale]);
       });
     }
@@ -1169,6 +1212,109 @@ class GlowMLBlocks {
         value: 'on'
       }
     ]
+  }
+
+  /**
+   * Glow: ml5's save() serialises the classifier and downloads it in one step,
+   * so this repeats only the serialising half. The shape is identical to the
+   * file the download block produces, which keeps the two interchangeable, and
+   * matches what knnClassifier.load() expects back.
+   *
+   * It reads knnClassifier.mapStringToIndex, which is ml5 internals rather than
+   * public API. ml5 is vendored at a pinned 0.12.2, so this cannot drift under
+   * us without someone deliberately updating that file.
+   * @return {string|null} - the serialised data, or null if nothing is trained
+   */
+  serializeTrainingData() {
+    const dataset = this.knnClassifier.getClassifierDataset();
+    if (Object.keys(dataset).length === 0) {
+      return null;
+    }
+    const mapStringToIndex = this.knnClassifier.mapStringToIndex;
+    if (mapStringToIndex && mapStringToIndex.length > 0) {
+      Object.keys(dataset).forEach(key => {
+        if (mapStringToIndex[key]) {
+          dataset[key].label = mapStringToIndex[key];
+        }
+      });
+    }
+    const tensors = Object.keys(dataset).map(key => (dataset[key] ? dataset[key].dataSync() : null));
+    return JSON.stringify({ dataset, tensors });
+  }
+
+  /**
+   * Glow: write the current training data into the project.
+   */
+  saveToProject() {
+    if (!this.assetManager) {
+      return;
+    }
+    const json = this.serializeTrainingData();
+    if (json === null) {
+      // Nothing trained: take the entry out rather than storing an empty one.
+      if (this.assetManager.delete(ASSET_OWNER, ASSET_NAME)) {
+        this.runtime.emitProjectChanged();
+      }
+      return;
+    }
+    try {
+      this.assetManager.set(ASSET_OWNER, ASSET_NAME, 'json', new TextEncoder().encode(json));
+      // Otherwise the editor has no idea there is anything new to save.
+      this.runtime.emitProjectChanged();
+      this.warnedAboutSize = false;
+    } catch (error) {
+      // Over the manager's ceiling. The data stays in memory and still works for
+      // this session; it just will not be saved with the project.
+      console.error('Glow ML: could not store the training data in the project.', error);
+      if (!this.warnedAboutSize) {
+        this.warnedAboutSize = true;
+        alert(Message.too_much_data[this.locale]);
+      }
+    }
+  }
+
+  /**
+   * Glow: training changes come in bursts - a pupil clicking train repeatedly -
+   * and serialising a megabyte of feature vectors each time would be felt. Wait
+   * for the burst to end.
+   */
+  scheduleSave() {
+    if (!this.assetManager) {
+      return;
+    }
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+    }
+    this.saveTimer = setTimeout(() => {
+      this.saveTimer = null;
+      this.saveToProject();
+    }, SAVE_DEBOUNCE_MS);
+  }
+
+  /**
+   * Glow: read back whatever the open project stored. A project holding nothing
+   * means an empty classifier, not whatever the previous project left behind.
+   */
+  loadFromProject() {
+    if (!this.assetManager) {
+      return;
+    }
+    const asset = this.assetManager.get(ASSET_OWNER, ASSET_NAME);
+    if (!asset) {
+      this.knnClassifier.clearAllLabels();
+      this.counts = null;
+      this.label = null;
+      this.confidence = 0;
+      return;
+    }
+    try {
+      const data = JSON.parse(new TextDecoder().decode(asset.data));
+      this.knnClassifier.load(data, () => {
+        this.updateCounts();
+      });
+    } catch (error) {
+      console.error('Glow ML: the training data stored in this project could not be read.', error);
+    }
   }
 
   /**
