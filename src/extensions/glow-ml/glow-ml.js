@@ -145,7 +145,7 @@ const Message = {
   counts_label: {
     'ja': 'ラベル[LABEL]の枚数',
     'ja-Hira': 'ラベル[LABEL]のまいすう',
-    'en': 'counts of label [LABEL]',
+    'en': 'count of label [LABEL]',
     'it': 'conteggio etichetta [LABEL]',
     'zh-cn': '标签数量[LABEL]',
     'zh-tw': '標籤數量[LABEL]'
@@ -537,9 +537,15 @@ class GlowMLBlocks {
           blockType: BlockType.REPORTER
         },
         {
+          opcode: 'getLabelsAndCounts',
+          text: Message.labels_and_counts_block[this.locale],
+          blockType: BlockType.REPORTER
+        },
+        {
           opcode: 'getCountByLabel',
           text: Message.counts_label[this.locale],
           blockType: BlockType.REPORTER,
+          disableMonitor: true,
           arguments: {
             LABEL: {
               type: ArgumentType.STRING,
@@ -547,11 +553,7 @@ class GlowMLBlocks {
             }
           }
         },
-        {
-          opcode: 'getLabelsAndCounts',
-          text: Message.labels_and_counts_block[this.locale],
-          blockType: BlockType.REPORTER
-        },
+
         {
           opcode: 'reset',
           blockType: BlockType.COMMAND,
@@ -620,18 +622,6 @@ class GlowMLBlocks {
           }
         },
         {
-          opcode: 'setInput',
-          text: Message.set_input[this.locale],
-          blockType: BlockType.COMMAND,
-          arguments: {
-            INPUT: {
-              type: ArgumentType.STRING,
-              menu: 'input_menu',
-              defaultValue: 'webcam'
-            }
-          }
-        },
-        {
           opcode: 'switchCamera',
           blockType: BlockType.COMMAND,
           text: Message.switch_webcam[this.locale],
@@ -640,6 +630,18 @@ class GlowMLBlocks {
               type: ArgumentType.STRING,
               defaultValue: '',
               menu: 'mediadevices'
+            }
+          }
+        },
+        {
+          opcode: 'setInput',
+          text: Message.set_input[this.locale],
+          blockType: BlockType.COMMAND,
+          arguments: {
+            INPUT: {
+              type: ArgumentType.STRING,
+              menu: 'input_menu',
+              defaultValue: 'webcam'
             }
           }
         },

@@ -21,19 +21,7 @@ export default function ({id, mode, spriteName, opcode, params, value, vm}) {
     let {label, category, labelFn} = (vm && vm.runtime.getLabelForOpcode(opcode)) || OpcodeLabels.getLabel(opcode);
 
     // Use labelFn if provided for dynamic labelling (e.g. variables)
-    if (!isUndefined(labelFn)) {
-        label = labelFn(params);
-    } else if (params) {
-        // Glow: extension monitors get their label straight from the block's
-        // text (Runtime.getLabelForOpcode), placeholders and all, and there is
-        // no way for an extension to supply a labelFn. So a reporter with a
-        // dropdown shows up on the stage as literally 'counts of label [LABEL]'.
-        // Fill the placeholders in from the block's own fields.
-        label = label.replace(
-            /\[([A-Za-z0-9_]+)\]/g,
-            (match, name) => (isUndefined(params[name]) ? match : params[name])
-        );
-    }
+    if (!isUndefined(labelFn)) label = labelFn(params);
 
     // Append sprite name for sprite-specific monitors
     if (spriteName) {
