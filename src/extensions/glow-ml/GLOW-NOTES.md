@@ -122,6 +122,12 @@ straight out of the palette does not default to wiping everything.
   never advanced it, so classification returned the *last* label with a non-zero
   confidence rather than the best one. One line, fixed here rather than left in
   place, since every classify call depends on it.
+- Every label menu and the `labels and counts` reporter are sorted the same
+  way (`sortLabels`, numeric and case-insensitive, so `label 10` follows
+  `label 2`). The special `all` / `any` items keep their fixed position.
+- `reset label` only asks for confirmation when the target is `all`. Asking
+  every time trained people to click through it, which is the opposite of what
+  a confirmation is for.
 - `set video transparency to [ ]` took its text from scratch-vm's videoSensing
   translation strings rather than this extension's `Message` table. It now uses
   the table like every other block, and its `blockType` is stated rather than
@@ -146,6 +152,14 @@ Blocks not mentioned above are upstream's, unchanged.
 
 ### Look
 
+Stage monitors for extension blocks are labelled from the block's raw text, so
+`counts of label [LABEL]` showed up on the stage with the placeholder intact.
+An extension cannot fix that itself — `Runtime.getLabelForOpcode`
+(`runtime.js:3317`) returns no `labelFn` — so `src/lib/monitor-adapter.js` now
+fills placeholders in from the monitor's own `params`. That is a scratch-gui
+edit, but it is the shallowest place it can be done and it fixes every
+extension monitor, not just ours.
+
 Block palette colours are `#f000ee` / `#c000be` / `#950094`. The block icon is
 the same artwork as the library inset icon, inlined as a data URI — upstream's
 is ML2Scratch green, which clashed badly with the pink blocks.
@@ -161,18 +175,11 @@ table.
 - **Licence.** ML2Scratch is AGPL-3.0 and Glow inherits TurboWarp's GPL-3.0.
   Distributing the two together needs a deliberate decision; see
   glow-ets/scratch-gui#21.
-- **ml5 is not vendored yet.** `loadMl5()` already tries
-  `static/extensions/glow-ml/ml5.min.js` first and only falls back to unpkg,
-  logging a warning. To finish the job, drop the file in and commit it:
-
-  ```
-  curl -L https://unpkg.com/ml5@0.12.2/dist/ml5.min.js \
-    -o src/extensions/glow-ml/ml5.min.js
-  ```
-
-  The existing `src/extensions/**` copy rule ships it; no build change needed.
-  ml5 still fetches the MobileNet weights from the network at runtime, so this
-  removes the unpkg dependency but does not make the extension work offline.
+- **MobileNet is not vendored yet.** See "Going fully offline" below. ml5
+  itself is vendored (`ml5.min.js`), but the two models it downloads are not.
+- **Nothing throttles `train`.** `firstTrainingWarning()` shows a one-off alert
+  and that is the only thing standing between an impatient click and a training
+  set full of noise. See "Why the first-training warning exists" below.
 - **A failed ml5 load leaves the extension manager waiting.** `loadExtensionURL`
   resolves only when `Scratch.extensions.register` is called, and there is no
   way to reject it from inside the extension, so the failure path just logs and
@@ -181,6 +188,68 @@ table.
   write and read a JSON file by hand. See "Storing the training data" below.
 - **Classroom readiness: to review.** Not stress-tested. The upload dialog is
   still built with nested `<html><body>` inside `innerHTML`, as upstream has it.
+
+
+## Going fully offline
+
+Loading `ml5.min.js` from our own origin is only half of it. `featureExtractor`
+downloads **two** models of its own. Both were observed in a headless browser
+with `fetch` instrumented:
+
+| | default URL | option that overrides it |
+| --- | --- | --- |
+| tfjs LayersModel | `storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json` | `mobilenetURL` |
+| tfjs GraphModel | `tfhub.dev/google/imagenet/mobilenet_v1_025_224/classification/1/model.json?tfjs-format=file` | `graphModelURL` |
+
+Both are ordinary constructor options — `this.mobilenetURL = e.mobilenetURL || …`
+— so **no patching of ml5 is needed**. Passing both was verified to send every
+request to the given URLs and none to the internet.
+
+`glow-ml.js` already passes them: it HEADs
+`static/extensions/glow-ml/mobilenet/model.json` and
+`static/extensions/glow-ml/mobilenet-graph/model.json`, uses them when *both*
+are present, and otherwise warns and lets ml5 use its remote defaults. To
+finish, vendor the two model directories (each is `model.json` plus its weight
+shards, which tfjs resolves relative to `model.json`):
+
+```
+src/extensions/glow-ml/mobilenet/         # from the storage.googleapis.com URL
+src/extensions/glow-ml/mobilenet-graph/   # from the tfhub URL, ?tfjs-format=file
+```
+
+Roughly 2 MB each; the existing `src/extensions/**` copy rule ships them, so no
+build change is needed. Note the graph model must be saved in plain tfjs layout:
+a local `graphModelURL` does not contain `https://tfhub.dev/`, so ml5 loads it
+with `fromTFHub: false` and expects `model.json` directly.
+
+Careful: `ml5.tf` is a *different* object from the tfjs namespace the bundle
+uses internally — patching `ml5.tf.loadLayersModel` has no effect, as a probe
+confirmed. The options are the supported route.
+
+## Why the first-training warning exists
+
+`train` calls `firstTrainingWarning()`, which alerts once per session with
+"the first training will take a while, so do not click again and again".
+
+The delay it warns about is the *first* `featureExtractor.infer()` call, not a
+download: the models are fetched when the extension loads, but tfjs only
+compiles and uploads the WebGL shaders on the first forward pass. That first
+pass can take a second or more on weak hardware; later ones are tens of
+milliseconds. On fast hardware it is invisible, which is why the alert looks
+gratuitous.
+
+The warning is the *only* guard. Unlike `reset`, `download` and `upload`,
+`train` has no `actionRepeated()` check, so a confused pupil clicking repeatedly
+fills the training set with whatever the camera happened to see. Two better
+shapes, neither implemented:
+
+- Make `train` return a promise. scratch-vm keeps a block's yellow glow up until
+  the promise it returned settles, so the block would visibly stay busy, and a
+  re-entrancy flag could drop clicks that arrive while it is. This is how the
+  timed blocks already behave.
+- Turn the `labels and counts` monitor on when the extension first loads, so
+  the counts moving is the feedback. `runtime.requestAddMonitor` exists, but
+  whether an extension can drive it for its own block wants checking.
 
 ## Storing the training data
 
@@ -214,3 +283,63 @@ Either way the data needs a cap. `knnClassifier.save()` emits raw float arrays,
 1024 floats per example, roughly 10-12 KB of JSON each. Quantising the vectors
 first (float32 to int8, or rounding to four decimals) cuts that several-fold;
 after that a hard limit on example count with rotation and a warning.
+
+### Can an addon do it instead of forking scratch-vm?
+
+Mechanically, yes. `addon.tab.traps.vm` (`src/addons/api.js:200`) hands an addon
+the live `VirtualMachine` off the Redux store, so it can wrap methods at
+runtime. No addon in the tree does anything with assets or serialization today,
+so there is no precedent to copy, but the hook points are:
+
+- **Save.** Wrap `vm.serializeAssets()` and append a
+  `{fileName, fileContent}` entry. Both `saveProjectSb3` (`virtual-machine.js:552`)
+  and `saveProjectSb3DontZip` (`:619`) go through it, so one wrap covers
+  exported `.sb3` files *and* restore points.
+- **Manifest.** Nothing in `project.json` would point at the new entry, and
+  `sb3.serialize` has no hook. The way around it is to split: keep the pointer
+  (filename, hash, example count) in `runtime.extensionStorage.glowMl`, which is
+  already supported and tiny, and put only the bulk in the zip entry.
+- **Load.** Wrap `vm.loadProject(input)` and pull the entry out of the zip with
+  JSZip before delegating. This is the awkward half: it means opening the
+  archive a second time.
+- **Restore points.** These already work generically. `createRestorePoint`
+  treats every key of `saveProjectSb3DontZip()` other than `project.json` as an
+  asset and stores it by id, deduplicated (`checkMissingAssets`); the export
+  path re-zips whatever ids the manifest lists (`zip.file(asset.md5ext, …)`).
+  An extra entry rides along for free.
+
+So an addon avoids the fork at the cost of monkey-patching three VM methods and
+parsing the project archive twice. Worth weighing against a `glow-ml-manager.js`
+in the scratch-vm fork, which is more code but no patching, and which is what
+`tw-font-manager.js` does.
+
+### What MIME type?
+
+Inside the `.sb3` this barely matters: the zip entry is named
+`${assetId}.${dataFormat}` and `dataFormat` is just the extension. A
+scratch-storage `AssetType` also carries a `contentType`, but that is used when
+fetching assets from a web store, which we do not do.
+
+The data is JSON, so `application/json` with `dataFormat: 'json'` is the honest
+answer. A generic `data` / `application/octet-stream` type would be worse, not
+for any sandbox reason but because it throws away the one bit of information
+that lets a loader refuse the wrong thing early.
+
+The security question is not really the MIME label. Loading a project means
+deserializing bytes a stranger produced, and there is no vetting layer for asset
+payloads: TurboWarp's `SecurityManager` (`src/containers/tw-security-manager.jsx`)
+gates *extensions and network access* — `canFetch`, `canOpenWindow`,
+`canDownload`, `getSandboxMode`, `canLoadExtensionFromProject` — which is real
+protection vanilla Scratch lacks, but none of it inspects a costume, a sound or
+our blob. So the vetting has to be ours, at the point we parse it:
+
+- validate the shape before handing anything to `knnClassifier.load()` — labels
+  are strings, vectors are fixed-length arrays of finite numbers
+- cap the total size and the example count before allocating, so a crafted file
+  cannot exhaust memory
+- build the parsed object with `Object.create(null)`, or reject `__proto__` and
+  `constructor` as label names, so label names cannot pollute a prototype
+
+None of that is specific to being an asset; it applies just as much to the
+`upload learning data` block we already ship, which today calls `JSON.parse`
+and passes the result straight to ml5.

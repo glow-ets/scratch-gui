@@ -35,6 +35,25 @@ const ML5_LOCAL_URL = new URL('static/extensions/glow-ml/ml5.min.js', location.h
 const ML5_CDN_URL = 'https://unpkg.com/ml5@0.12.2/dist/ml5.min.js';
 
 /**
+ * Loading ml5 is only half of going offline: featureExtractor('MobileNet')
+ * then fetches two models of its own, a tfjs LayersModel from
+ * storage.googleapis.com and a GraphModel from tfhub.dev. Both are plain
+ * options on the constructor, so no patching of ml5 is needed - point them at
+ * vendored copies and nothing leaves the origin. See GLOW-NOTES.md for what to
+ * download.
+ */
+const MOBILENET_LOCAL_URL = new URL('static/extensions/glow-ml/mobilenet/model.json', location.href).href;
+const MOBILENET_GRAPH_LOCAL_URL = new URL('static/extensions/glow-ml/mobilenet-graph/model.json', location.href).href;
+
+/**
+ * Options handed to featureExtractor. Empty means 'use ml5's own remote URLs',
+ * which is what happens when the models have not been vendored. Resolved once,
+ * before the extension registers.
+ * @type {object}
+ */
+let mobilenetOptions = {};
+
+/**
  * Formatter which is used for translating.
  * Upstream expects scratch-vm's 'format-message'; the unsandboxed extension API
  * exposes the same thing as Scratch.translate, minus the setup() accessor that
@@ -65,6 +84,17 @@ const ALL = 'all';
 
 /** Menu value meaning 'whichever label was recognised', used by when received. */
 const ANY = 'any';
+
+/**
+ * Glow: labels are shown in order everywhere, so a dropdown and the reporter
+ * never disagree. Numeric so that 'label 10' sorts after 'label 2', and
+ * case-insensitive so that capitalisation does not scatter related labels.
+ * @param {string[]} labels - labels to sort, sorted in place
+ * @return {string[]} - the same array
+ */
+const sortLabels = labels => labels.sort(
+  (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+);
 
 // Glow: the same artwork as the library inset icon, so the palette, the
 // blocks and the library card all read as one extension. Upstream's icon is
@@ -412,7 +442,7 @@ class GlowMLBlocks {
     this.runtime.ioDevices.video.enableVideo().then(() => { this.input = this.runtime.ioDevices.video.provider.video });
 
     this.knnClassifier = ml5.KNNClassifier();
-    this.featureExtractor = ml5.featureExtractor('MobileNet', () => {
+    this.featureExtractor = ml5.featureExtractor('MobileNet', mobilenetOptions, () => {
       console.log('[featureExtractor] Model Loaded!');
       this.timer = setInterval(() => {
         this.classify();
@@ -750,19 +780,21 @@ class GlowMLBlocks {
     if (this.actionRepeated()) { return };
 
     setTimeout(() => {
-      let result = confirm(Message.confirm_reset[this.locale]);
-      if (result) {
-        if (args.LABEL == ALL) {
-          this.knnClassifier.clearAllLabels();
-          for (let label in this.counts) {
-            this.counts[label] = 0;
-          }
-        } else {
-          // Glow: this.counts is null until something has been trained.
-          if (this.counts && this.counts[args.LABEL] > 0) {
-            this.knnClassifier.clearLabel(args.LABEL);
-            this.counts[args.LABEL] = 0;
-          }
+      if (args.LABEL == ALL) {
+        // Glow: only wiping everything is worth interrupting for. Resetting one
+        // label used to ask too, which trained people to click through it.
+        if (!confirm(Message.confirm_reset[this.locale])) {
+          return;
+        }
+        this.knnClassifier.clearAllLabels();
+        for (let label in this.counts) {
+          this.counts[label] = 0;
+        }
+      } else {
+        // Glow: this.counts is null until something has been trained.
+        if (this.counts && this.counts[args.LABEL] > 0) {
+          this.knnClassifier.clearLabel(args.LABEL);
+          this.counts[args.LABEL] = 0;
         }
       }
     }, 1000);
@@ -951,12 +983,12 @@ class GlowMLBlocks {
     if (!stored || !Array.isArray(stored.labels) || stored.labels.length === 0) {
       // Deleting the last label brings the defaults back rather than leaving a
       // dropdown with nothing in it.
-      return DEFAULT_LABELS.slice();
+      return sortLabels(DEFAULT_LABELS.slice());
     }
     // Anything that has been trained belongs in the pool even if the stored
     // list has fallen behind, so a dropdown never hides a label that exists.
     const trained = this.counts ? Object.keys(this.counts) : [];
-    return stored.labels.concat(trained.filter(label => !stored.labels.includes(label)));
+    return sortLabels(stored.labels.concat(trained.filter(label => !stored.labels.includes(label))));
   }
 
   set labels(labels) {
@@ -1145,8 +1177,42 @@ const loadMl5 = () => {
   });
 };
 
+/**
+ * @param {string} url - a URL on our own origin
+ * @returns {Promise<boolean>} - whether it is actually there
+ */
+const isPresent = url => fetch(url, { method: 'HEAD' })
+  .then(response => response.ok)
+  .catch(() => false);
+
+/**
+ * Use the vendored MobileNet only if both halves of it are present; a
+ * half-vendored model would fail at load with a much less obvious error than
+ * this warning.
+ * @returns {Promise<void>}
+ */
+const resolveMobilenet = () => Promise.all([
+  isPresent(MOBILENET_LOCAL_URL),
+  isPresent(MOBILENET_GRAPH_LOCAL_URL)
+]).then(([hasLayers, hasGraph]) => {
+  if (hasLayers && hasGraph) {
+    mobilenetOptions = {
+      mobilenetURL: MOBILENET_LOCAL_URL,
+      graphModelURL: MOBILENET_GRAPH_LOCAL_URL
+    };
+    return;
+  }
+  console.warn(
+    'Glow ML: MobileNet is not vendored (layers model present: ' + hasLayers +
+    ', graph model present: ' + hasGraph + '), so ml5 will download it from ' +
+    'storage.googleapis.com and tfhub.dev. See GLOW-NOTES.md.'
+  );
+});
+
 loadMl5().then(loaded => {
   ml5 = loaded;
+  return resolveMobilenet();
+}).then(() => {
   Scratch.extensions.register(new GlowMLBlocks(Scratch.vm.runtime));
 }).catch(error => {
   // The extension manager has no way to hear about this: it is waiting for a
