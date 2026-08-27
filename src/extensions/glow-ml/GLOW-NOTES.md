@@ -113,6 +113,28 @@ Menu order matters: an argument with no `defaultValue` takes the **first** item
 leads with `any` — and `delete label` puts `all` *last*, so a block dragged
 straight out of the palette does not default to wiping everything.
 
+### Failing loudly
+
+Upstream ignores the error argument of the `featureExtractor` callback and
+starts the classify interval regardless. When the model does not load, that
+turns one failure into an exception every interval forever, and the video
+pipeline never settles — the symptom is a frozen webcam preview, counts that
+never move, and hundreds of identical console errors.
+
+`glow-ml.js` now tracks `modelReady` / `modelBroken`:
+
+- the `featureExtractor` callback checks its error argument, and
+  `featureExtractor.ready` is watched as well, because the callback has been
+  observed firing before a later stage of the load rejects
+- `reportBrokenModel()` says so once, clears the classify interval and stops
+  everything that calls `infer()`
+- `train` and `classify` check readiness first and wrap `infer()`, so a model
+  that breaks later (a lost WebGL context, say) also reports once instead of
+  per frame
+- the readiness check runs *before* `firstTrainingWarning()`, so a broken model
+  reports itself rather than showing the "this will take a while" warning
+  followed by a stack trace
+
 ### Other behaviour changes
 
 - `counts of label [all]` returns the sum over all labels, and every count
@@ -175,8 +197,13 @@ table.
 - **Licence.** ML2Scratch is AGPL-3.0 and Glow inherits TurboWarp's GPL-3.0.
   Distributing the two together needs a deliberate decision; see
   glow-ets/scratch-gui#21.
-- **MobileNet is not vendored yet.** See "Going fully offline" below. ml5
-  itself is vendored (`ml5.min.js`), but the two models it downloads are not.
+- **MobileNet weights are not vendored yet.** `ml5.min.js` and the two
+  `model.json` manifests are committed, but not the 56 weight shards they
+  reference. Run `node scripts/glow-fetch-mobilenet.mjs`. See "Going fully
+  offline" below.
+- **A block pressed while the model is still loading does nothing, silently.**
+  `checkModelReady()` returns false and `train` just returns. Better than the
+  exception it used to throw, but there is no feedback.
 - **Nothing throttles `train`.** `firstTrainingWarning()` shows a one-off alert
   and that is the only thing standing between an impatient click and a training
   set full of noise. See "Why the first-training warning exists" below.
@@ -205,22 +232,38 @@ Both are ordinary constructor options — `this.mobilenetURL = e.mobilenetURL ||
 — so **no patching of ml5 is needed**. Passing both was verified to send every
 request to the given URLs and none to the internet.
 
-`glow-ml.js` already passes them: it HEADs
+`glow-ml.js` passes them, using the vendored copies when both
 `static/extensions/glow-ml/mobilenet/model.json` and
-`static/extensions/glow-ml/mobilenet-graph/model.json`, uses them when *both*
-are present, and otherwise warns and lets ml5 use its remote defaults. To
-finish, vendor the two model directories (each is `model.json` plus its weight
-shards, which tfjs resolves relative to `model.json`):
+`static/extensions/glow-ml/mobilenet-graph/model.json` parse as tfjs manifests,
+and otherwise warning and letting ml5 use its remote defaults.
 
-```
-src/extensions/glow-ml/mobilenet/         # from the storage.googleapis.com URL
-src/extensions/glow-ml/mobilenet-graph/   # from the tfhub URL, ?tfjs-format=file
-```
+**A model.json on its own is not a model.** Each one lists its weights in a
+`weightsManifest`, and tfjs fetches those shards relative to the model.json's
+own URL. There are 56 of them:
 
-Roughly 2 MB each; the existing `src/extensions/**` copy rule ships them, so no
-build change is needed. Note the graph model must be saved in plain tfjs layout:
-a local `graphModelURL` does not contain `https://tfhub.dev/`, so ml5 loads it
-with `fromTFHub: false` and expects `model.json` directly.
+| | shards | bytes |
+| --- | --- | --- |
+| `mobilenet/` | `group1-shard1of1` … `group55-shard1of1` (no extension) | 1.81 MB |
+| `mobilenet-graph/` | `group1-shard1of1.bin` | 1.78 MB |
+
+`node scripts/glow-fetch-mobilenet.mjs` reads the committed manifests and
+fetches exactly those files next to them. It checks each download against the
+size the manifest implies and refuses to write a mismatch, because a
+wrong-sized shard does not fail at download time — it fails much later, inside
+tfjs, as `byte length of Float32Array should be a multiple of 4`.
+
+The existing `src/extensions/**` copy rule ships whatever is in the directory,
+so no build change is needed. Two things to keep in mind:
+
+- The graph model must be saved as plain `model.json`. A local `graphModelURL`
+  does not contain `https://tfhub.dev/`, so ml5 loads it with
+  `fromTFHub: false` and expects that name — not `model.json?tfjs-format=file`,
+  which is what a naive `curl -O` of the tfhub URL leaves behind.
+- Checking for the files with a HEAD request is not enough.
+  `webpack-dev-server`'s `historyApiFallback` answers some misses with
+  `index.html` and a 200, and a plain 404 body is still bytes that tfjs will
+  try to decode. `isModelManifest()` therefore fetches and insists the response
+  parses with a `weightsManifest` array.
 
 Careful: `ml5.tf` is a *different* object from the tfjs namespace the bundle
 uses internally — patching `ml5.tf.loadLayersModel` has no effect, as a probe

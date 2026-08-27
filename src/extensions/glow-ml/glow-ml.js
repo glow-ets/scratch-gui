@@ -358,6 +358,14 @@ const Message = {
     'zh-cn': '舞台',
     'zh-tw': '舞台'
   },
+  model_broken: {
+    'ja': 'MobileNetモデルを読み込めませんでした。学習と判定はできません。詳しくはコンソールを見て下さい。',
+    'ja-Hira': 'MobileNetモデルをよみこめませんでした。がくしゅうとはんていはできません。くわしくはコンソールをみてください。',
+    'en': 'The MobileNet model could not be loaded, so training and recognising will not work. See the browser console for details.',
+    'it': 'Non è stato possibile caricare il modello MobileNet, perciò addestramento e riconoscimento non funzioneranno. Guarda la console del browser per i dettagli.',
+    'zh-cn': '无法加载MobileNet模型，训练和识别将无法使用。详见浏览器控制台。',
+    'zh-tw': '無法載入MobileNet模型，訓練和辨識將無法使用。詳見瀏覽器主控台。'
+  },
   first_training_warning: {
     'ja': '最初の学習にはしばらく時間がかかるので、何度もクリックしないで下さい。',
     'ja-Hira': 'さいしょのがくしゅうにはしばらくじかんがかかるので、なんどもクリックしないでください。',
@@ -431,6 +439,12 @@ class GlowMLBlocks {
     this.counts = null;
     this.firstTraining = true;
 
+    // Glow: the model loads asynchronously and can fail (missing or truncated
+    // weight shards, for one). Until it is known good, nothing that calls
+    // infer() may run.
+    this.modelReady = false;
+    this.modelBroken = false;
+
     this.interval = 1000;
     this.globalVideoTransparency = 0;
     this.setVideoTransparency({
@@ -442,12 +456,26 @@ class GlowMLBlocks {
     this.runtime.ioDevices.video.enableVideo().then(() => { this.input = this.runtime.ioDevices.video.provider.video });
 
     this.knnClassifier = ml5.KNNClassifier();
-    this.featureExtractor = ml5.featureExtractor('MobileNet', mobilenetOptions, () => {
+    this.featureExtractor = ml5.featureExtractor('MobileNet', mobilenetOptions, error => {
+      // Glow: upstream ignores this argument and starts classifying regardless,
+      // which turns a failed model into one exception per interval forever and
+      // a video pipeline that never settles.
+      if (error) {
+        this.reportBrokenModel(error);
+        return;
+      }
       console.log('[featureExtractor] Model Loaded!');
+      this.modelReady = true;
       this.timer = setInterval(() => {
         this.classify();
       }, this.interval);
     });
+
+    // The callback above has been seen to fire before a later stage of the load
+    // rejects, so watch the promise too.
+    if (this.featureExtractor && this.featureExtractor.ready && this.featureExtractor.ready.catch) {
+      this.featureExtractor.ready.catch(error => this.reportBrokenModel(error));
+    }
 
     this.devices = [{ text: 'default', value: '' }];
 
@@ -711,10 +739,19 @@ class GlowMLBlocks {
   }
 
   train(args) {
+    // Glow: readiness first, so a broken model reports itself instead of the
+    // first-training warning followed by a stack trace.
+    if (!this.checkModelReady()) {
+      return;
+    }
     this.firstTrainingWarning();
-    let features = this.featureExtractor.infer(this.input);
-    this.knnClassifier.addExample(features, args.LABEL);
-    this.updateCounts();
+    try {
+      let features = this.featureExtractor.infer(this.input);
+      this.knnClassifier.addExample(features, args.LABEL);
+      this.updateCounts();
+    } catch (error) {
+      this.reportBrokenModel(error);
+    }
   }
 
   getLabel() {
@@ -925,10 +962,19 @@ class GlowMLBlocks {
   }
 
   classify() {
+    if (!this.checkModelReady()) {
+      return;
+    }
     let numLabels = this.knnClassifier.getNumLabels();
     if (numLabels == 0) return;
 
-    let features = this.featureExtractor.infer(this.input);
+    let features;
+    try {
+      features = this.featureExtractor.infer(this.input);
+    } catch (error) {
+      this.reportBrokenModel(error);
+      return;
+    }
     this.knnClassifier.classify(features, (err, result) => {
       if (err) {
         console.error(err);
@@ -1115,6 +1161,39 @@ class GlowMLBlocks {
     ]
   }
 
+  /**
+   * Glow: say once, loudly, that the model is unusable, and stop the classify
+   * loop so it cannot keep throwing.
+   * @param {Error} error - what went wrong
+   */
+  reportBrokenModel(error) {
+    if (this.modelBroken) {
+      return;
+    }
+    this.modelBroken = true;
+    this.modelReady = false;
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    console.error('Glow ML: MobileNet failed to load.', error);
+    alert(Message.model_broken[this.locale]);
+  }
+
+  /**
+   * @return {boolean} - whether infer() can be called
+   */
+  checkModelReady() {
+    if (this.modelReady) {
+      return true;
+    }
+    if (!this.modelBroken) {
+      // Still loading. Say nothing: the block was pressed early, that is all.
+      return false;
+    }
+    return false;
+  }
+
   firstTrainingWarning() {
     if (this.firstTraining) {
       alert(Message.first_training_warning[this.locale]);
@@ -1180,11 +1259,16 @@ const loadMl5 = () => {
 };
 
 /**
- * @param {string} url - a URL on our own origin
- * @returns {Promise<boolean>} - whether it is actually there
+ * Whether a vendored model manifest is really there. A HEAD request is not
+ * enough: webpack-dev-server's historyApiFallback answers plenty of misses with
+ * index.html and a 200, and a 404 page is still a body tfjs will try to decode.
+ * So fetch it and insist it parses as a tfjs manifest.
+ * @param {string} url - a model.json on our own origin
+ * @returns {Promise<boolean>} - whether it is a real manifest
  */
-const isPresent = url => fetch(url, { method: 'HEAD' })
-  .then(response => response.ok)
+const isModelManifest = url => fetch(url)
+  .then(response => (response.ok ? response.json() : null))
+  .then(json => Boolean(json && Array.isArray(json.weightsManifest)))
   .catch(() => false);
 
 /**
@@ -1194,8 +1278,8 @@ const isPresent = url => fetch(url, { method: 'HEAD' })
  * @returns {Promise<void>}
  */
 const resolveMobilenet = () => Promise.all([
-  isPresent(MOBILENET_LOCAL_URL),
-  isPresent(MOBILENET_GRAPH_LOCAL_URL)
+  isModelManifest(MOBILENET_LOCAL_URL),
+  isModelManifest(MOBILENET_GRAPH_LOCAL_URL)
 ]).then(([hasLayers, hasGraph]) => {
   if (hasLayers && hasGraph) {
     mobilenetOptions = {
@@ -1205,9 +1289,10 @@ const resolveMobilenet = () => Promise.all([
     return;
   }
   console.warn(
-    'Glow ML: MobileNet is not vendored (layers model present: ' + hasLayers +
-    ', graph model present: ' + hasGraph + '), so ml5 will download it from ' +
-    'storage.googleapis.com and tfhub.dev. See GLOW-NOTES.md.'
+    'Glow ML: MobileNet is not vendored (layers manifest: ' + hasLayers +
+    ', graph manifest: ' + hasGraph + '), so ml5 will download it from ' +
+    'storage.googleapis.com and tfhub.dev. Run ' +
+    '`node scripts/glow-fetch-mobilenet.mjs` to vendor it. See GLOW-NOTES.md.'
   );
 });
 
