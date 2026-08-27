@@ -486,11 +486,6 @@ class GlowMLBlocks {
           }
         },
         {
-          opcode: 'getLabel',
-          text: Message.label_block[this.locale],
-          blockType: BlockType.REPORTER
-        },
-        {
           opcode: 'whenReceived',
           text: Message.when_received_block[this.locale],
           blockType: BlockType.HAT,
@@ -500,6 +495,11 @@ class GlowMLBlocks {
               menu: 'received_menu'
             }
           }
+        },        
+        {
+          opcode: 'getLabel',
+          text: Message.label_block[this.locale],
+          blockType: BlockType.REPORTER
         },
         {
           opcode: 'getConfidence',
@@ -545,6 +545,18 @@ class GlowMLBlocks {
           }
         },
         {
+          opcode: 'setClassificationInterval',
+          text: Message.set_classification_interval[this.locale],
+          blockType: BlockType.COMMAND,
+          arguments: {
+            CLASSIFICATION_INTERVAL: {
+              type: ArgumentType.STRING,
+              menu: 'classification_interval_menu',
+              defaultValue: '1'
+            }
+          }
+        },
+        {
           opcode: 'download',
           text: Message.download_learning_data[this.locale],
           blockType: BlockType.COMMAND
@@ -562,30 +574,6 @@ class GlowMLBlocks {
             CLASSIFICATION_STATE: {
               type: ArgumentType.STRING,
               menu: 'classification_menu',
-              defaultValue: 'off'
-            }
-          }
-        },
-        {
-          opcode: 'setClassificationInterval',
-          text: Message.set_classification_interval[this.locale],
-          blockType: BlockType.COMMAND,
-          arguments: {
-            CLASSIFICATION_INTERVAL: {
-              type: ArgumentType.STRING,
-              menu: 'classification_interval_menu',
-              defaultValue: '1'
-            }
-          }
-        },
-        {
-          opcode: 'videoToggle',
-          text: Message.video_toggle[this.locale],
-          blockType: BlockType.COMMAND,
-          arguments: {
-            VIDEO_STATE: {
-              type: ArgumentType.STRING,
-              menu: 'video_menu',
               defaultValue: 'off'
             }
           }
@@ -624,8 +612,19 @@ class GlowMLBlocks {
               menu: 'mediadevices'
             }
           }
+        },
+        {
+          opcode: 'videoToggle',
+          text: Message.video_toggle[this.locale],
+          blockType: BlockType.COMMAND,
+          arguments: {
+            VIDEO_STATE: {
+              type: ArgumentType.STRING,
+              menu: 'video_menu',
+              defaultValue: 'off'
+            }
+          }
         }
-
       ],
       menus: {
         train_menu: {
