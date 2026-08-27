@@ -131,9 +131,10 @@ never move, and hundreds of identical console errors.
 - `train` and `classify` check readiness first and wrap `infer()`, so a model
   that breaks later (a lost WebGL context, say) also reports once instead of
   per frame
-- the readiness check runs *before* `firstTrainingWarning()`, so a broken model
-  reports itself rather than showing the "this will take a while" warning
-  followed by a stack trace
+- when the vendored models are in use, `diagnoseModelFiles()` then fetches every
+  shard the manifests name and checks its size, so the alert says *which* file is
+  missing or wrong instead of `byte length of Float32Array should be a multiple
+  of 4`, which tfjs throws many frames away from the file that caused it
 
 ### Other behaviour changes
 
@@ -197,16 +198,13 @@ table.
 - **Licence.** ML2Scratch is AGPL-3.0 and Glow inherits TurboWarp's GPL-3.0.
   Distributing the two together needs a deliberate decision; see
   glow-ets/scratch-gui#21.
-- **MobileNet weights are not vendored yet.** `ml5.min.js` and the two
-  `model.json` manifests are committed, but not the 56 weight shards they
-  reference. Run `node scripts/glow-fetch-mobilenet.mjs`. See "Going fully
-  offline" below.
+- **Serving the vendored models needs a dev server restart.**
+  `copy-webpack-plugin` copies `src/extensions/**` at build start; files added
+  while `npm start` is running are not always picked up, which shows as a 404
+  for a weight shard that is plainly there on disk.
 - **A block pressed while the model is still loading does nothing, silently.**
   `checkModelReady()` returns false and `train` just returns. Better than the
   exception it used to throw, but there is no feedback.
-- **Nothing throttles `train`.** `firstTrainingWarning()` shows a one-off alert
-  and that is the only thing standing between an impatient click and a training
-  set full of noise. See "Why the first-training warning exists" below.
 - **A failed ml5 load leaves the extension manager waiting.** `loadExtensionURL`
   resolves only when `Scratch.extensions.register` is called, and there is no
   way to reject it from inside the extension, so the failure path just logs and
@@ -269,30 +267,33 @@ Careful: `ml5.tf` is a *different* object from the tfjs namespace the bundle
 uses internally — patching `ml5.tf.loadLayersModel` has no effect, as a probe
 confirmed. The options are the supported route.
 
-## Why the first-training warning exists
+## Training feedback instead of a warning
 
-`train` calls `firstTrainingWarning()`, which alerts once per session with
-"the first training will take a while, so do not click again and again".
+Upstream alerted once per session on the first `train`: "the first training will
+take a while, so do not click again and again". The delay is real but hardware
+dependent — it is the *first* `featureExtractor.infer()` call, not a download.
+The models are fetched when the extension loads; tfjs only compiles and uploads
+the WebGL shaders on the first forward pass. That can take a second on weak
+hardware and be invisible on fast hardware, which is why the alert so often
+looked gratuitous.
 
-The delay it warns about is the *first* `featureExtractor.infer()` call, not a
-download: the models are fetched when the extension loads, but tfjs only
-compiles and uploads the WebGL shaders on the first forward pass. That first
-pass can take a second or more on weak hardware; later ones are tens of
-milliseconds. On fast hardware it is invisible, which is why the alert looks
-gratuitous.
+The alert was also the only guard. Unlike `reset`, `download` and `upload`,
+`train` had no `actionRepeated()` check, so a pupil who did not understand the
+block could fill the training set with whatever the camera happened to see.
 
-The warning is the *only* guard. Unlike `reset`, `download` and `upload`,
-`train` has no `actionRepeated()` check, so a confused pupil clicking repeatedly
-fills the training set with whatever the camera happened to see. Two better
-shapes, neither implemented:
+It is replaced by feedback the block gives itself:
 
-- Make `train` return a promise. scratch-vm keeps a block's yellow glow up until
-  the promise it returned settles, so the block would visibly stay busy, and a
-  re-entrancy flag could drop clicks that arrive while it is. This is how the
-  timed blocks already behave.
-- Turn the `labels and counts` monitor on when the extension first loads, so
-  the counts moving is the feedback. `runtime.requestAddMonitor` exists, but
-  whether an extension can drive it for its own block wants checking.
+- `train` returns a promise, which puts the thread in `STATUS_PROMISE_WAIT`
+  (`scratch-vm/src/engine/execute.js`, `handlePromise`), so the block keeps its
+  yellow glow until the work finishes — the same mechanism the timed blocks use.
+- The work starts after the next paint, so the glow is actually on screen before
+  `infer()` blocks the thread. `afterPaint` races a `requestAnimationFrame` with
+  a 250 ms timeout, because rAF does not fire in a background tab and a pupil
+  who switches tabs must not be left with a block glowing on a promise that
+  never settles.
+- A click arriving while `this.training` is set is dropped.
+- Every path resolves the promise, including the one where `infer()` throws, so
+  the glow always clears.
 
 ## Storing the training data
 

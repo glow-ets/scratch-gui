@@ -366,14 +366,6 @@ const Message = {
     'zh-cn': '无法加载MobileNet模型，训练和识别将无法使用。详见浏览器控制台。',
     'zh-tw': '無法載入MobileNet模型，訓練和辨識將無法使用。詳見瀏覽器主控台。'
   },
-  first_training_warning: {
-    'ja': '最初の学習にはしばらく時間がかかるので、何度もクリックしないで下さい。',
-    'ja-Hira': 'さいしょのがくしゅうにはしばらくじかんがかかるので、なんどもクリックしないでください。',
-    'en': 'The first training will take a while, so DO *NOT* CLICK AGAIN AND AGAIN !',
-    'it': "Il primo addestramento ci metterà un po', perciò *NON* CLICCARE A RIPETIZIONE!!",
-    'zh-cn': '第一项研究需要一段时间，所以不要一次又一次地点击。',
-    'zh-tw': '第一次訓練需要一段時間，請稍後，不要一直點擊。'
-  },
   switch_webcam: {
     'ja': 'カメラを[DEVICE]に切り替える',
     'ja-Hira': 'カメラを[DEVICE]にきりかえる',
@@ -437,7 +429,10 @@ class GlowMLBlocks {
     this.blockClickedAt = null;
 
     this.counts = null;
-    this.firstTraining = true;
+
+    // Glow: set while train() is working, so repeated clicks are dropped
+    // instead of stacking identical frames into the training set.
+    this.training = false;
 
     // Glow: the model loads asynchronously and can fail (missing or truncated
     // weight shards, for one). Until it is known good, nothing that calls
@@ -739,19 +734,34 @@ class GlowMLBlocks {
   }
 
   train(args) {
-    // Glow: readiness first, so a broken model reports itself instead of the
-    // first-training warning followed by a stack trace.
     if (!this.checkModelReady()) {
       return;
     }
-    this.firstTrainingWarning();
-    try {
-      let features = this.featureExtractor.infer(this.input);
-      this.knnClassifier.addExample(features, args.LABEL);
-      this.updateCounts();
-    } catch (error) {
-      this.reportBrokenModel(error);
+    // Glow: a click arriving while the previous one is still working is dropped.
+    // Upstream relied on a one-off alert telling people not to click again; the
+    // block now shows that it is busy, and ignores the extra clicks either way.
+    if (this.training) {
+      return;
     }
+    this.training = true;
+
+    // Returning a promise puts the thread in STATUS_PROMISE_WAIT
+    // (scratch-vm execute.js), which keeps the block glowing until it settles.
+    // infer() blocks, and the first call also compiles the WebGL shaders, so
+    // wait for the glow to be on screen before starting it.
+    return new Promise(resolve => {
+      afterPaint(() => {
+        try {
+          const features = this.featureExtractor.infer(this.input);
+          this.knnClassifier.addExample(features, args.LABEL);
+          this.updateCounts();
+        } catch (error) {
+          this.reportBrokenModel(error);
+        }
+        this.training = false;
+        resolve();
+      });
+    });
   }
 
   getLabel() {
@@ -1170,14 +1180,36 @@ class GlowMLBlocks {
     if (this.modelBroken) {
       return;
     }
+    // Stop everything first, synchronously, so nothing keeps throwing while the
+    // diagnosis below runs.
     this.modelBroken = true;
     this.modelReady = false;
+    this.training = false;
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
     }
     console.error('Glow ML: MobileNet failed to load.', error);
-    alert(Message.model_broken[this.locale]);
+
+    const message = Message.model_broken[this.locale];
+    if (!mobilenetOptions.mobilenetURL) {
+      alert(message);
+      return;
+    }
+    diagnoseModelFiles().then(problems => {
+      if (problems.length === 0) {
+        alert(message);
+        return;
+      }
+      const detail = problems.slice(0, 5).join('\n');
+      const more = problems.length > 5 ? `\n... and ${problems.length - 5} more` : '';
+      console.error(`Glow ML: these vendored model files are missing or wrong:\n${detail}${more}`);
+      alert(
+        `${message}\n\n${detail}${more}\n\n` +
+        'Run `node scripts/glow-fetch-mobilenet.mjs`, then restart the dev server ' +
+        '(copy-webpack-plugin only picks up files that exist when it starts).'
+      );
+    });
   }
 
   /**
@@ -1192,13 +1224,6 @@ class GlowMLBlocks {
       return false;
     }
     return false;
-  }
-
-  firstTrainingWarning() {
-    if (this.firstTraining) {
-      alert(Message.first_training_warning[this.locale]);
-      this.firstTraining = false;
-    }
   }
 
   setLocale() {
@@ -1266,6 +1291,88 @@ const loadMl5 = () => {
  * @param {string} url - a model.json on our own origin
  * @returns {Promise<boolean>} - whether it is a real manifest
  */
+/**
+ * Run a callback after the browser has painted. requestAnimationFrame alone
+ * fires *before* the paint, so blocking work started there still hides the
+ * frame we wanted to show.
+ * @param {Function} callback - what to run once the frame is on screen
+ */
+const afterPaint = callback => {
+  // requestAnimationFrame does not fire in a background tab, and a pupil who
+  // switches tabs mid-training must not be left with a block glowing forever on
+  // a promise that never settles. Whichever path arrives first wins.
+  let done = false;
+  const once = () => {
+    if (done) {
+      return;
+    }
+    done = true;
+    callback();
+  };
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => setTimeout(once, 0));
+  }
+  setTimeout(once, 250);
+};
+
+const BYTES_PER_DTYPE = {
+  float32: 4, int32: 4, complex64: 8, float16: 2, uint16: 2, uint8: 1, bool: 1
+};
+
+/**
+ * @param {object} group - one weightsManifest entry
+ * @return {number} - how many bytes its shard should be
+ */
+const groupBytes = group => group.weights.reduce((total, weight) => {
+  const elements = weight.shape.reduce((a, b) => a * b, 1);
+  return total + (elements * (BYTES_PER_DTYPE[weight.dtype] || 4));
+}, 0);
+
+/**
+ * Glow: work out what is actually wrong with the vendored models. tfjs reports
+ * a missing or truncated weight shard as 'byte length of Float32Array should be
+ * a multiple of 4', many frames away from the file that caused it, so name the
+ * file instead. Only runs after a failure, so the cost does not matter.
+ * @return {Promise<string[]>} - one line per problem, empty if the files are fine
+ */
+const diagnoseModelFiles = async () => {
+  const problems = [];
+  for (const manifestURL of [MOBILENET_LOCAL_URL, MOBILENET_GRAPH_LOCAL_URL]) {
+    const directory = manifestURL.slice(0, manifestURL.lastIndexOf('/') + 1);
+    let manifest;
+    try {
+      const response = await fetch(manifestURL);
+      if (!response.ok) {
+        problems.push(`${manifestURL} -> HTTP ${response.status}`);
+        continue;
+      }
+      manifest = await response.json();
+    } catch (error) {
+      problems.push(`${manifestURL} -> ${error.message}`);
+      continue;
+    }
+    for (const group of manifest.weightsManifest || []) {
+      const expected = groupBytes(group);
+      for (const shard of group.paths) {
+        try {
+          const response = await fetch(directory + shard);
+          if (!response.ok) {
+            problems.push(`${directory}${shard} -> HTTP ${response.status}`);
+            continue;
+          }
+          const actual = (await response.arrayBuffer()).byteLength;
+          if (actual !== expected) {
+            problems.push(`${directory}${shard} -> ${actual} bytes, expected ${expected}`);
+          }
+        } catch (error) {
+          problems.push(`${directory}${shard} -> ${error.message}`);
+        }
+      }
+    }
+  }
+  return problems;
+};
+
 const isModelManifest = url => fetch(url)
   .then(response => (response.ok ? response.json() : null))
   .then(json => Boolean(json && Array.isArray(json.weightsManifest)))
