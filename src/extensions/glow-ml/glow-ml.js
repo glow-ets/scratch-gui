@@ -279,8 +279,8 @@ const Message = {
   confirm_delete_all: {
     'ja': '本当にすべてのラベルを削除してもよろしいですか？',
     'ja-Hira': 'ほんとうにすべてのラベルをさくじょしてもよろしいですか？',
-    'en': 'Delete every label and everything it learned?',
-    'it': 'Vuoi davvero eliminare tutte le etichette e quanto hanno imparato?',
+    'en': 'Delete every label and learnt data ?',
+    'it': 'Vuoi davvero eliminare tutte le etichette e i dati imparati?',
     'zh-cn': '确定要删除所有标签及其学习内容吗？',
     'zh-tw': '確定要刪除所有標籤及其學習內容嗎？'
   },
@@ -360,15 +360,15 @@ const Message = {
     'ja': 'ラベル付けを[CLASSIFICATION_STATE]にする',
     'ja-Hira': 'ラベルづけを[CLASSIFICATION_STATE]にする',
     'en': 'turn classification [CLASSIFICATION_STATE]',
-    'it': 'Imposta classificazione [CLASSIFICATION_STATE]',
+    'it': 'imposta classificazione [CLASSIFICATION_STATE]',
     'zh-cn': '[CLASSIFICATION_STATE]分类',
     'zh-tw': '[CLASSIFICATION_STATE]分類'
   },
   set_classification_interval: {
     'ja': 'ラベル付けを[CLASSIFICATION_INTERVAL]秒間に1回行う',
     'ja-Hira': 'ラベルづけを[CLASSIFICATION_INTERVAL]びょうかんに1かいおこなう',
-    'en': 'Label once every [CLASSIFICATION_INTERVAL] seconds',
-    'it': 'Classifica una volta ogni [CLASSIFICATION_INTERVAL] secondi',
+    'en': 'label once every [CLASSIFICATION_INTERVAL] seconds',
+    'it': 'classifica una volta ogni [CLASSIFICATION_INTERVAL] secondi',
     'zh-cn': '每隔[CLASSIFICATION_INTERVAL]秒标记一次',
     'zh-tw': '每隔[CLASSIFICATION_INTERVAL]秒標記一次'
   },
@@ -376,7 +376,7 @@ const Message = {
     'ja': 'ビデオを[VIDEO_STATE]にする',
     'ja-Hira': 'ビデオを[VIDEO_STATE]にする',
     'en': 'turn video [VIDEO_STATE]',
-    'it': 'Imposta video [VIDEO_STATE]',
+    'it': 'imposta video [VIDEO_STATE]',
     'zh-cn': '[VIDEO_STATE]摄像头',
     'zh-tw': '視訊設為[VIDEO_STATE]'
   },
@@ -391,10 +391,18 @@ const Message = {
   set_input: {
     'ja': '[INPUT]の画像を学習/判定する',
     'ja-Hira': '[INPUT]のがぞうをがくしゅう/はんていする',
-    'en': 'Learn/Classify [INPUT] image',
-    'it': 'Addestra / classifica immagine da [INPUT]',
+    'en': 'learn/classify [INPUT] image',
+    'it': 'addestra / classifica immagine da [INPUT]',
     'zh-cn': '学习/分类[INPUT]图像',
     'zh-tw': '學習/分類[INPUT]影像'
+  },
+  switch_webcam: {
+    'ja': 'カメラを[DEVICE]に切り替える',
+    'ja-Hira': 'カメラを[DEVICE]にきりかえる',
+    'en': 'switch webcam to [DEVICE]',
+    'it': 'imposta webcam a [DEVICE]',
+    'zh-cn': '网络摄像头切换到[DEVICE]',
+    'zh-tw': '網路攝影機切換到[DEVICE]'
   },
   on: {
     'ja': '入',
@@ -447,59 +455,51 @@ const Message = {
   no_cameras: {
     'ja': '[BLOCK]は何もしませんでした。切り替えられるカメラがありません。ブラウザでカメラを許可して下さい。',
     'ja-Hira': '[BLOCK]はなにもしませんでした。きりかえられるカメラがありません。ブラウザでカメラをきょかしてください。',
-    'en': '[BLOCK] did nothing: there are no cameras to switch to. Allow the camera in your browser.',
-    'it': '[BLOCK] non ha fatto nulla: non ci sono webcam a cui passare. Permetti la webcam nel browser.',
+    'en': "[BLOCK] FAILED: can't find cameras! Allow the camera in your browser.",
+    'it': "[BLOCK] E' FALLITO: non ci sono webcam a cui passare! Permetti la webcam nel browser.",
     'zh-cn': '[BLOCK]没有任何作用：没有可切换的摄像头。请在浏览器中允许摄像头。',
     'zh-tw': '[BLOCK]沒有任何作用：沒有可切換的攝影機。請在瀏覽器中允許攝影機。'
   },
   no_input: {
     'ja': '[BLOCK]を停止しました。カメラの映像がありません。ブラウザでカメラを許可するか、「[INPUT]」でステージから学習して下さい。',
     'ja-Hira': '[BLOCK]をていししました。カメラのえいぞうがありません。ブラウザでカメラをきょかするか、「[INPUT]」でステージからがくしゅうしてください。',
-    'en': '[BLOCK] stopped: there is no picture to learn from. Allow the camera in your browser, or use "[INPUT]" to learn from the stage instead.',
-    'it': "[BLOCK] fermato: non c'è nessuna immagine da cui imparare. Permetti la webcam nel browser, oppure usa \"[INPUT]\" per imparare dallo stage.",
+    'en': '[BLOCK] FAILED: there is no picture to learn from! Allow the camera in your browser, or use "[INPUT]" instead.',
+    'it': "[BLOCK] E' FALLITO: non c'è nessuna immagine da cui imparare! Permetti la webcam nel browser, oppure usa \"[INPUT]\".",
     'zh-cn': '[BLOCK]已停止：没有可学习的画面。请在浏览器中允许摄像头，或使用“[INPUT]”改从舞台学习。',
     'zh-tw': '[BLOCK]已停止：沒有可學習的畫面。請在瀏覽器中允許攝影機，或使用「[INPUT]」改從舞台學習。'
   },
   max_examples_per_label: {
     'ja': '[BLOCK]を停止しました。1つのラベルに保存できる学習例は[N]個までです。[LABEL]をリセットするか削除すると、また学習できます。',
     'ja-Hira': '[BLOCK]をていししました。1つのラベルにほぞんできるがくしゅうれいは[N]こまでです。[LABEL]をリセットするかさくじょすると、またがくしゅうできます。',
-    'en': '[BLOCK] stopped: a label holds at most [N] training examples. Reset or delete [LABEL] to train it again.',
-    'it': "[BLOCK] fermato: un'etichetta può contenere al massimo [N] esempi. Resetta o elimina [LABEL] per addestrarla ancora.",
+    'en': '[BLOCK] FAILED: a label can hold at most [N] training examples! Reset or delete [LABEL] to train it again.',
+    'it': "[BLOCK] E' FALLITO: un'etichetta può contenere al massimo [N] esempi. Resetta o elimina [LABEL] per addestrarla ancora.",
     'zh-cn': '[BLOCK]已停止：每个标签最多保存[N]个训练样本。请重置或删除[LABEL]后再训练。',
     'zh-tw': '[BLOCK]已停止：每個標籤最多儲存[N]個訓練範例。請重置或刪除[LABEL]後再訓練。'
   },
   max_examples_total: {
     'ja': '[BLOCK]を停止しました。1つのプロジェクトに保存できる学習例は全部で[N]個までです。現在は[COUNTS]です。ラベルをリセットするか削除して下さい。',
     'ja-Hira': '[BLOCK]をていししました。1つのプロジェクトにほぞんできるがくしゅうれいはぜんぶで[N]こまでです。いまは[COUNTS]です。ラベルをリセットするかさくじょしてください。',
-    'en': '[BLOCK] stopped: a project holds at most [N] training examples in total. Currently [COUNTS]. Reset or delete a label to train more.',
-    'it': "[BLOCK] fermato: un progetto può contenere al massimo [N] esempi in tutto. Attualmente [COUNTS]. Resetta o elimina un'etichetta per addestrarne altri.",
+    'en': '[BLOCK] FAILED: a project can hold at most [N] training examples in total! Currently [COUNTS]. Reset or delete a label to train more.',
+    'it': "[BLOCK] E' FALLITO: un progetto può contenere al massimo [N] esempi in tutto. Attualmente [COUNTS]. Resetta o elimina un'etichetta per addestrarne altri.",
     'zh-cn': '[BLOCK]已停止：每个项目最多共保存[N]个训练样本。当前为[COUNTS]。请重置或删除某个标签后再训练。',
     'zh-tw': '[BLOCK]已停止：每個專案最多共儲存[N]個訓練範例。目前為[COUNTS]。請重置或刪除某個標籤後再訓練。'
   },
   too_much_data: {
     'ja': '学習データが大きすぎてプロジェクトに保存できません。ラベルを減らすか、学習をリセットして下さい。',
     'ja-Hira': 'がくしゅうデータがおおきすぎてプロジェクトにほぞんできません。ラベルをへらすか、がくしゅうをリセットしてください。',
-    'en': 'There is too much training data to save inside the project ([SIZE], the limit is [LIMIT]). Delete a label or reset some training.',
-    'it': "Ci sono troppi dati di addestramento per salvarli dentro al progetto. Elimina un'etichetta o resetta un po' di addestramento.",
+    'en': 'Too much training data ([SIZE], the limit is [LIMIT])! Delete a label or reset some training.',
+    'it': "Ci sono troppi dati di addestramento ([SIZE], il limite è [LIMIT])! Elimina un'etichetta o resetta un po' di addestramento.",
     'zh-cn': '训练数据太多，无法保存在项目中。请删除标签或重置部分训练。',
     'zh-tw': '訓練資料太多，無法儲存在專案中。請刪除標籤或重置部分訓練。'
   },
   model_broken: {
     'ja': 'MobileNetモデルを読み込めませんでした。学習と判定はできません。詳しくはコンソールを見て下さい。',
     'ja-Hira': 'MobileNetモデルをよみこめませんでした。がくしゅうとはんていはできません。くわしくはコンソールをみてください。',
-    'en': 'The MobileNet model could not be loaded, so training and recognising will not work. See the browser console for details.',
-    'it': 'Non è stato possibile caricare il modello MobileNet, perciò addestramento e riconoscimento non funzioneranno. Guarda la console del browser per i dettagli.',
+    'en': 'The MobileNet model could not be loaded, so training and recognising will not work (see browser console for details)',
+    'it': 'Non è stato possibile caricare il modello MobileNet, perciò addestramento e riconoscimento non funzioneranno (per dettagli vedere la console del browser)',
     'zh-cn': '无法加载MobileNet模型，训练和识别将无法使用。详见浏览器控制台。',
     'zh-tw': '無法載入MobileNet模型，訓練和辨識將無法使用。詳見瀏覽器主控台。'
   },
-  switch_webcam: {
-    'ja': 'カメラを[DEVICE]に切り替える',
-    'ja-Hira': 'カメラを[DEVICE]にきりかえる',
-    'en': 'switch webcam to [DEVICE]',
-    'it': 'imposta webcam a [DEVICE]',
-    'zh-cn': '网络摄像头切换到[DEVICE]',
-    'zh-tw': '網路攝影機切換到[DEVICE]'
-  }
 }
 
 const AvailableLocales = ['en', 'it', 'ja', 'ja-Hira', 'zh-cn', 'zh-tw'];
