@@ -291,6 +291,36 @@ The stage suggestion is not a consolation prize: `setInput` accepts `stage`, so
 the whole extension works without a camera at all. `classify()` runs on a timer
 and stays silent when there is no input — `train` is where a person finds out.
 
+## Error paths
+
+`hasWorkingCamera()` is the single source of truth. `VideoProvider.videoReady`
+covers a camera that never started; it does **not** notice a permission revoked
+mid-session, because the track ends while the video element keeps its last
+dimensions — so the track's `readyState` is checked too. `usingStageInput()`
+short-circuits all of it, because `Learn/Classify [stage] image` needs no camera
+at all and the whole extension works without one.
+
+| block | with no working camera |
+| --- | --- |
+| `train label [▾]` | refuses, names itself, points at the stage alternative |
+| `turn classification [on]` | still starts the timer, but says it will see nothing |
+| `Label once every [N] seconds` | same, since it restarts the same timer |
+| `turn video [on]` | reports after `enableVideo()` resolves — it resolves either way |
+| `Learn/Classify [webcam] image` | reports at the moment of switching, not at the next `train` |
+| `switch webcam to [▾]` | reports; with no permission the menu holds only an empty `default` and picking it did nothing at all |
+| `when received label`, all reporters | silent by design — a hat runs every frame and a reporter has a neutral value |
+| `reset`, `delete label`, `download`, `upload`, `set video transparency` | no camera needed |
+
+`classify()` runs on a timer and stays silent, but it checks the camera rather
+than just `this.input` — a revoked permission leaves the video element in place
+and dead, and the old truthiness check let it through to ml5, which threw.
+
+`train`'s catch does the same distinction: if the camera has died between the
+check and `infer()`, that is reported as a camera problem, not as a broken
+model. That misattribution is what made a refused camera say
+"The MobileNet model could not be loaded" directly under a console line reading
+`[featureExtractor] Model Loaded!`.
+
 ## Training feedback instead of a warning
 
 Upstream alerted once per session on the first `train`: "the first training will
@@ -457,12 +487,19 @@ Three things now stop that:
   endlessly with two: `forever [train label A]` hits the per-label cap while
   `forever [train label C]` hits the total cap, the two messages differ, so each
   one looked new on every frame and both alerted forever.
-- Only the **first** problem opens a modal; every later one goes to a speech
-  bubble on the sprite whose block ran (`sayOnTarget`, the `runtime.emit('SAY', …)`
-  pattern glow-midi uses for a missing device), falling back to the editing
-  target and then the stage. A second modal is not a warning any more, it is an
-  obstacle — the scripts keep running behind it and the pupil cannot reach the
-  stop button. Reset and delete clear the set, so a fresh run reports afresh.
+- Only the **first** problem opens a modal. Everything after it — including
+  repeats of the same problem — goes to a speech bubble via `sayOnTarget`, the
+  `runtime.emit('SAY', …)` pattern glow-midi uses for a missing device. A second
+  modal is not a warning any more, it is an obstacle: the scripts keep running
+  behind it and the pupil cannot reach the stop button.
+- Bubbles are throttled to one per 200 ms. A click always gets through; a
+  `forever` loop is capped, since the bubble only ever shows the last message
+  anyway. 20000 calls produce one bubble.
+- `sayOnTarget` picks a target that can actually show the bubble:
+  `scratch3_looks._updateBubble` **removes** a bubble whose target is hidden
+  (`if (!target.visible || text === '')`), so it tries the sprite that ran the
+  block, then the editing target, then the stage — which is visible by default
+  and takes bubbles fine.
 - `reportProblem` is now the single route for every background problem: the
   caps, the missing camera, a model that failed to load, and training data too
   big to save. The alerts that remain are the ones a person just asked for — the

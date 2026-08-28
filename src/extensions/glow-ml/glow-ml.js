@@ -97,6 +97,13 @@ const ASSET_NAME = 'training';
 const SAVE_DEBOUNCE_MS = 1000;
 
 /**
+ * How often a repeated problem may raise a speech bubble. A click always gets
+ * through; a 'forever' loop is capped, because the bubble only ever shows the
+ * last message anyway and emitting sixty SAY events a second is waste.
+ */
+const SAY_THROTTLE_MS = 200;
+
+/**
  * How many training examples to keep. A MobileNet feature vector is 1024 floats,
  * which serialises to roughly 7 KB, so 500 of them is about 3.5 MB - comfortably
  * inside the asset manager's 8 MB ceiling with room for other extensions.
@@ -408,6 +415,14 @@ const Message = {
     'zh-cn': '舞台',
     'zh-tw': '舞台'
   },
+  no_cameras: {
+    'ja': '[BLOCK]は何もしませんでした。切り替えられるカメラがありません。ブラウザでカメラを許可して下さい。',
+    'ja-Hira': '[BLOCK]はなにもしませんでした。きりかえられるカメラがありません。ブラウザでカメラをきょかしてください。',
+    'en': '[BLOCK] did nothing: there are no cameras to switch to. Allow the camera in your browser.',
+    'it': '[BLOCK] non ha fatto nulla: non ci sono webcam a cui passare. Permetti la webcam nel browser.',
+    'zh-cn': '[BLOCK]没有任何作用：没有可切换的摄像头。请在浏览器中允许摄像头。',
+    'zh-tw': '[BLOCK]沒有任何作用：沒有可切換的攝影機。請在瀏覽器中允許攝影機。'
+  },
   no_input: {
     'ja': '[BLOCK]を停止しました。カメラの映像がありません。ブラウザでカメラを許可するか、「[INPUT]」でステージから学習して下さい。',
     'ja-Hira': '[BLOCK]をていししました。カメラのえいぞうがありません。ブラウザでカメラをきょかするか、「[INPUT]」でステージからがくしゅうしてください。',
@@ -550,6 +565,8 @@ class GlowMLBlocks {
     // Every problem already reported. A Set, not a single slot: several scripts
     // can be stopped by different problems at the same time.
     this.reportedProblems = new Set();
+    // When the last speech bubble went up, so a loop cannot emit one per frame.
+    this.lastSayAt = 0;
     if (this.assetManager) {
       this.assetManager.on('warning', event => {
         console.warn(`Glow ML: the project is holding ${event.totalBytes} bytes of extension data, ` +
@@ -850,7 +867,7 @@ class GlowMLBlocks {
     if (!this.checkModelReady()) {
       return;
     }
-    if (!this.checkInputReady(util)) {
+    if (!this.checkInputReady(args, util)) {
       return;
     }
     // Glow: a click arriving while the previous one is still working is dropped.
@@ -876,7 +893,13 @@ class GlowMLBlocks {
           this.updateCounts();
           this.scheduleSave();
         } catch (error) {
-          this.reportBrokenModel(error);
+          // The camera can die between the check above and here. That is not a
+          // broken model, and saying so would be the old misleading message.
+          if (!this.usingStageInput() && !this.hasWorkingCamera()) {
+            this.checkCamera(this.blockName('train', {LABEL: args.LABEL}), util);
+          } else {
+            this.reportBrokenModel(error);
+          }
         }
         this.training = false;
         resolve();
@@ -1014,36 +1037,51 @@ class GlowMLBlocks {
     document.getElementById('upload-dialog').showModal();
   }
 
-  toggleClassification(args) {
+  toggleClassification(args, util) {
     let state = args.CLASSIFICATION_STATE;
     if (this.timer) {
       clearTimeout(this.timer);
     }
     if (state === 'on') {
+      // Glow: classify() is on a timer and has to stay silent, so turning it on
+      // is the moment to say that it will not see anything.
+      this.checkCamera(this.blockName('toggle_classification', {CLASSIFICATION_STATE: state}), util);
       this.timer = setInterval(() => {
         this.classify();
       }, this.interval);
     }
   }
 
-  setClassificationInterval(args) {
+  setClassificationInterval(args, util) {
     if (this.timer) {
       clearTimeout(this.timer);
     }
 
+    // Glow: this restarts the classify timer, so it has the same blind spot.
+    this.checkCamera(
+      this.blockName('set_classification_interval', {CLASSIFICATION_INTERVAL: args.CLASSIFICATION_INTERVAL}),
+      util
+    );
     this.interval = args.CLASSIFICATION_INTERVAL * 1000;
     this.timer = setInterval(() => {
       this.classify();
     }, this.interval);
   }
 
-  videoToggle(args) {
+  videoToggle(args, util) {
     let state = args.VIDEO_STATE;
     if (state === 'off') {
       this.runtime.ioDevices.video.disableVideo();
     } else {
+      const block = this.blockName('video_toggle', {VIDEO_STATE: state});
       this.runtime.ioDevices.video.enableVideo().then(() => {
         this.input = this.runtime.ioDevices.video.provider.video;
+        // Glow: enableVideo() resolves whether or not permission was given, so
+        // this is the only place the block can find out that nothing happened.
+        // Without it the failure was a console line and a dead stage.
+        if (!this.usingStageInput()) {
+          this.checkCamera(block, util);
+        }
       });
       this.runtime.ioDevices.video.mirror = state === "on";
     }
@@ -1062,12 +1100,18 @@ class GlowMLBlocks {
     this.runtime.ioDevices.video.setPreviewGhost(transparency);
   }
 
-  setInput(args) {
+  setInput(args, util) {
     let input = args.INPUT;
     if (input === 'webcam') {
       this.input = this.runtime.ioDevices.video.provider.video;
+      // Glow: switching to a camera that is not there should say so now, rather
+      // than leaving the next train block to fail.
+      this.checkCamera(this.blockName('set_input', {INPUT: Message.webcam[this.locale]}), util);
     } else {
       this.input = this.canvas;
+      if (!this.input) {
+        console.warn('Glow ML: no stage canvas found, so the stage cannot be used as input');
+      }
     }
   }
 
@@ -1104,9 +1148,11 @@ class GlowMLBlocks {
     if (!this.checkModelReady()) {
       return;
     }
-    // Glow: no camera, nothing to classify. The timer runs every second, so this
-    // must stay silent - train() is where a person finds out.
-    if (!this.input) {
+    // Glow: no picture, nothing to classify. Checks the camera rather than just
+    // this.input, because a permission revoked mid-session leaves the video
+    // element in place but dead. Silent: the timer runs every second, and
+    // train() or 'turn classification on' is where a person finds out.
+    if (!this.usingStageInput() && (!this.input || !this.hasWorkingCamera())) {
       return;
     }
     let numLabels = this.knnClassifier.getNumLabels();
@@ -1308,6 +1354,68 @@ class GlowMLBlocks {
   }
 
   /**
+   * Glow: whether the camera is actually delivering frames right now.
+   *
+   * VideoProvider.videoReady covers a camera that never started - refused at the
+   * prompt, or absent from the machine. It does not notice a permission revoked
+   * mid-session: the track ends but the video element keeps its last dimensions,
+   * so readyState is the only reliable signal for that.
+   * @return {boolean} - whether the camera is usable
+   */
+  hasWorkingCamera() {
+    const video = this.runtime.ioDevices.video;
+    if (!video || !video.provider || !video.videoReady) {
+      return false;
+    }
+    const track = video.provider._track;
+    return !track || track.readyState !== 'ended';
+  }
+
+  /**
+   * Glow: 'Learn/Classify [stage] image' works with no camera at all, so a
+   * missing camera is only a problem when the stage is not the input.
+   * @return {boolean} - whether the stage is the current input
+   */
+  usingStageInput() {
+    return Boolean(this.canvas) && this.input === this.canvas;
+  }
+
+  /**
+   * Glow: build a block's name the way it reads in the palette, for messages
+   * that need to say which block stopped.
+   * @param {string} key - a key of Message holding the block's text
+   * @param {object} [values] - placeholder values, e.g. {LABEL: 'cat'}
+   * @return {string} - the block text, quoted
+   */
+  blockName(key, values) {
+    let text = Message[key][this.locale];
+    for (const placeholder of Object.keys(values || {})) {
+      text = text.replace(`[${placeholder}]`, `[${values[placeholder]}]`);
+    }
+    return `"${text}"`;
+  }
+
+  /**
+   * Glow: the single place that decides whether there is a picture to work with,
+   * and what to tell someone when there is not.
+   * @param {string} block - the block name, from blockName()
+   * @param {object} [util] - block utility, for the speech bubble
+   * @return {boolean} - whether there is something to look at
+   */
+  checkCamera(block, util) {
+    if (this.usingStageInput()) {
+      return true;
+    }
+    if (this.hasWorkingCamera() && this.input) {
+      return true;
+    }
+    this.reportProblem(Message.no_input[this.locale]
+      .replace('[BLOCK]', block)
+      .replace('[INPUT]', Message.set_input[this.locale].replace('[INPUT]', Message.stage[this.locale])), util);
+    return false;
+  }
+
+  /**
    * Glow: there is no point inferring without a picture. ml5 would take the null
    * video, read '.elt' off it and throw, and the old catch-all reported that as
    * a broken MobileNet - which is exactly what a pupil who refused the camera
@@ -1315,17 +1423,8 @@ class GlowMLBlocks {
    * @param {object} [util] - block utility, for the speech bubble
    * @return {boolean} - whether there is something to learn from
    */
-  checkInputReady(util) {
-    if (this.input) {
-      return true;
-    }
-    // Covers a refused camera, a machine with no camera, and a camera that has
-    // not started yet: in all three the advice is the same, and 'Learn/Classify
-    // [stage] image' is a way to carry on without one.
-    this.reportProblem(Message.no_input[this.locale]
-      .replace('[BLOCK]', `"${Message.train[this.locale].replace('[LABEL]', '[...]')}"`)
-      .replace('[INPUT]', Message.set_input[this.locale].replace('[INPUT]', Message.stage[this.locale])), util);
-    return false;
+  checkInputReady(args, util) {
+    return this.checkCamera(this.blockName('train', {LABEL: args.LABEL}), util);
   }
 
   /**
@@ -1372,8 +1471,15 @@ class GlowMLBlocks {
    * @param {object} [util] - block utility, when a block is what raised this
    */
   sayOnTarget(message, util) {
-    const target = (util && util.target) ||
-      this.runtime.getEditingTarget() ||
+    // scratch3_looks drops a bubble whose target is hidden, so pick something
+    // that can actually show it: the sprite that ran the block, then whatever is
+    // being edited, then the stage.
+    const candidates = [
+      util && util.target,
+      this.runtime.getEditingTarget(),
+      this.runtime.getTargetForStage()
+    ];
+    const target = candidates.find(candidate => candidate && candidate.visible) ||
       this.runtime.getTargetForStage();
     if (target && this.runtime.emit) {
       this.runtime.emit('SAY', target, 'say', String(message));
@@ -1396,16 +1502,22 @@ class GlowMLBlocks {
    * @param {object} [util] - block utility, when a block is what raised this
    */
   reportProblem(message, util) {
-    if (this.reportedProblems.has(message)) {
+    if (!this.reportedProblems.has(message)) {
+      this.reportedProblems.add(message);
+      console.warn(`Glow ML: ${message}`);
+      if (this.reportedProblems.size === 1) {
+        // The very first problem gets a modal, which is the only one anybody
+        // reads. Everything after it, including repeats of this one, is a bubble.
+        alert(message);
+        return;
+      }
+    }
+    const now = Date.now();
+    if (now - this.lastSayAt < SAY_THROTTLE_MS) {
       return;
     }
-    this.reportedProblems.add(message);
-    console.warn(`Glow ML: ${message}`);
-    if (this.reportedProblems.size === 1) {
-      alert(message);
-    } else {
-      this.sayOnTarget(message, util);
-    }
+    this.lastSayAt = now;
+    this.sayOnTarget(message, util);
   }
 
   /**
@@ -1590,7 +1702,16 @@ class GlowMLBlocks {
     }
   }
 
-  switchCamera(args) {
+  switchCamera(args, util) {
+    // Glow: with no camera permission, enumerateDevices() reports no labels and
+    // no ids, so the menu holds only the empty 'default' entry and picking it
+    // used to do nothing at all, silently.
+    if (args.DEVICE === '' || !this.hasWorkingCamera()) {
+      this.reportProblem(Message.no_cameras[this.locale]
+        .replace('[BLOCK]', this.blockName('switch_webcam', {DEVICE: args.DEVICE || 'default'})),
+      util);
+      return;
+    }
     if (args.DEVICE !== '') {
       if (this.runtime.ioDevices.video.provider._track !== null) {
         this.runtime.ioDevices.video.provider._track.stop();
