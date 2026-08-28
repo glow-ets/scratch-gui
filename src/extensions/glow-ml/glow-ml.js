@@ -73,16 +73,16 @@ let extensionURL = new URL('static/extensions/glow-ml/glow-ml.js', location.href
 const HAT_TIMEOUT = 100;
 
 /**
- * Glow: labels a fresh project starts with, so the dropdowns are never empty.
- * The pool behaves like Scratch's broadcast messages, except that a label is
+ * Glow: categories a fresh project starts with, so the dropdowns are never empty.
+ * The pool behaves like Scratch's broadcast messages, except that a category is
  * never removed just because nothing uses it any more.
  */
-const DEFAULT_LABELS = ['label A', 'label B'];
+const DEFAULT_CATEGORIES = ['category A', 'category B'];
 
-/** Menu value meaning 'every label', used by reset, delete and counts. */
+/** Menu value meaning 'every category', used by reset, delete and counts. */
 const ALL = 'all';
 
-/** Menu value meaning 'whichever label was recognised', used by when received. */
+/** Menu value meaning 'whichever category was recognised', used by when received. */
 const ANY = 'any';
 
 /**
@@ -90,7 +90,7 @@ const ANY = 'any';
  * (glow-ets/scratch-gui#22). Stored as a real asset rather than in project.json,
  * so restore points share one copy of it instead of duplicating it per snapshot.
  */
-const ASSET_OWNER = 'glowMl';
+const ASSET_OWNER = 'glowML';
 const ASSET_NAME = 'training';
 
 /** How long to wait after the last change before writing the data again. */
@@ -129,7 +129,7 @@ const bubbleDuration = message => Math.min(
  * which serialises to roughly 7 KB, so 500 of them is about 3.5 MB - comfortably
  * inside the asset manager's 8 MB ceiling with room for other extensions.
  *
- * This is the real defence against 'forever [train label A]'. Without it the
+ * This is the real defence against 'forever [train category A]'. Without it the
  * examples grow without bound, and long before memory runs out the extension is
  * spending twenty seconds per save serialising megabytes it is then told it
  * cannot store.
@@ -140,8 +140,8 @@ const bubbleDuration = message => Math.min(
  */
 const MAX_EXAMPLES_TOTAL = 500;
 
-/** And no single label may take all of it. */
-const MAX_EXAMPLES_PER_LABEL = 200;
+/** And no single category may take all of it. */
+const MAX_EXAMPLES_PER_CATEGORY = 200;
 
 /**
  * Byte counts shown to a person. Mirrors GlowAssetManager.formatBytes, which is
@@ -164,13 +164,13 @@ const formatBytes = bytes => {
 };
 
 /**
- * Glow: labels are shown in order everywhere, so a dropdown and the reporter
- * never disagree. Numeric so that 'label 10' sorts after 'label 2', and
- * case-insensitive so that capitalisation does not scatter related labels.
- * @param {string[]} labels - labels to sort, sorted in place
+ * Glow: categories are shown in order everywhere, so a dropdown and the reporter
+ * never disagree. Numeric so that 'category 10' sorts after 'category 2', and
+ * case-insensitive so that capitalisation does not scatter related categories.
+ * @param {string[]} categories - categories to sort, sorted in place
  * @return {string[]} - the same array
  */
-const sortLabels = labels => labels.sort(
+const sortCategories = categories => categories.sort(
   (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
 );
 
@@ -181,28 +181,28 @@ const blockIconURI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYA
 
 const Message = {
   train: {
-    'ja': 'ラベル[LABEL]を学習する',
-    'ja-Hira': 'ラベル[LABEL]をがくしゅうする',
-    'en': 'train label [LABEL]',
-    'it': 'addestra etichetta [LABEL]',
-    'zh-cn': '学习标签[LABEL]',
-    'zh-tw': '學習標籤[LABEL]'
+    'ja': 'カテゴリー[CATEGORY]を学習する',
+    'ja-Hira': 'カテゴリー[CATEGORY]をがくしゅうする',
+    'en': 'train category [CATEGORY]',
+    'it': 'addestra categoria [CATEGORY]',
+    'zh-cn': '学习类别[CATEGORY]',
+    'zh-tw': '學習類別[CATEGORY]'
   },
   when_received_block: {
-    'ja': 'ラベル[LABEL]を受け取ったとき',
-    'ja-Hira': 'ラベル[LABEL]をうけとったとき',
-    'en': 'when received label [LABEL]',
-    'it': 'quando ricevo etichetta [LABEL]',
-    'zh-cn': '接收到类别[LABEL]时',
-    'zh-tw': '接收到類別[LABEL]時'
+    'ja': 'カテゴリー[CATEGORY]を受け取ったとき',
+    'ja-Hira': 'カテゴリー[CATEGORY]をうけとったとき',
+    'en': 'when received category [CATEGORY]',
+    'it': 'quando ricevo categoria [CATEGORY]',
+    'zh-cn': '接收到类别[CATEGORY]时',
+    'zh-tw': '接收到類別[CATEGORY]時'
   },
-  label_block: {
-    'ja': 'ラベル',
-    'ja-Hira': 'ラベル',
-    'en': 'label',
-    'it': 'etichetta',
-    'zh-cn': '标签',
-    'zh-tw': '標籤'
+  category_block: {
+    'ja': 'カテゴリー',
+    'ja-Hira': 'カテゴリー',
+    'en': 'category',
+    'it': 'categoria',
+    'zh-cn': '类别',
+    'zh-tw': '類別'
   },
   confidence_block: {
     'ja': '確信度',
@@ -212,21 +212,21 @@ const Message = {
     'zh-cn': '置信度',
     'zh-tw': '信心度'
   },
-  labels_and_counts_block: {
-    'ja': 'ラベルと枚数',
-    'ja-Hira': 'ラベルとまいすう',
-    'en': 'labels and counts',
-    'it': 'etichette e conteggi',
-    'zh-cn': '标签和数量',
-    'zh-tw': '標籤和數量'
+  categories_and_counts_block: {
+    'ja': 'カテゴリーと枚数',
+    'ja-Hira': 'カテゴリーとまいすう',
+    'en': 'categories and counts',
+    'it': 'categorie e conteggi',
+    'zh-cn': '类别和数量',
+    'zh-tw': '類別和數量'
   },
-  counts_label: {
-    'ja': 'ラベル[LABEL]の枚数',
-    'ja-Hira': 'ラベル[LABEL]のまいすう',
-    'en': 'count of label [LABEL]',
-    'it': 'conteggio etichetta [LABEL]',
-    'zh-cn': '标签数量[LABEL]',
-    'zh-tw': '標籤數量[LABEL]'
+  counts_category: {
+    'ja': 'カテゴリー[CATEGORY]の枚数',
+    'ja-Hira': 'カテゴリー[CATEGORY]のまいすう',
+    'en': 'count of category [CATEGORY]',
+    'it': 'conteggio categoria [CATEGORY]',
+    'zh-cn': '类别数量[CATEGORY]',
+    'zh-tw': '類別數量[CATEGORY]'
   },
   any: {
     'ja': 'のどれか',
@@ -244,53 +244,53 @@ const Message = {
     'zh-cn': '所有',
     'zh-tw': '所有量'
   },
-  new_label_button: {
-    'ja': '新しいラベルを作る',
-    'ja-Hira': 'あたらしいラベルをつくる',
-    'en': 'New label',
-    'it': 'Nuova etichetta',
-    'zh-cn': '新建标签',
-    'zh-tw': '新增標籤'
+  new_category_button: {
+    'ja': '新しいカテゴリーを作る',
+    'ja-Hira': 'あたらしいカテゴリーをつくる',
+    'en': 'New category',
+    'it': 'Nuova categoria',
+    'zh-cn': '新建类别',
+    'zh-tw': '新增類別'
   },
-  new_label_prompt: {
-    'ja': '新しいラベルの名前は？',
-    'ja-Hira': 'あたらしいラベルのなまえは？',
-    'en': 'Name of the new label?',
-    'it': 'Nome della nuova etichetta?',
-    'zh-cn': '新标签的名称？',
-    'zh-tw': '新標籤的名稱？'
+  new_category_prompt: {
+    'ja': '新しいカテゴリーの名前は？',
+    'ja-Hira': 'あたらしいカテゴリーのなまえは？',
+    'en': 'Name of the new category?',
+    'it': 'Nome della nuova categoria?',
+    'zh-cn': '新类别的名称？',
+    'zh-tw': '新類別的名稱？'
   },
-  label_exists: {
-    'ja': 'そのラベルはすでにあります。',
-    'ja-Hira': 'そのラベルはすでにあります。',
-    'en': 'That label already exists.',
-    'it': 'Questa etichetta esiste già.',
-    'zh-cn': '该标签已存在。',
-    'zh-tw': '該標籤已存在。'
+  category_exists: {
+    'ja': 'そのカテゴリーはすでにあります。',
+    'ja-Hira': 'そのカテゴリーはすでにあります。',
+    'en': 'That category already exists.',
+    'it': 'Questa categoria esiste già.',
+    'zh-cn': '该类别已存在。',
+    'zh-tw': '該類別已存在。'
   },
-  delete_label: {
-    'ja': 'ラベル[LABEL]を削除',
-    'ja-Hira': 'ラベル[LABEL]をさくじょ',
-    'en': 'delete label [LABEL]',
-    'it': 'elimina etichetta [LABEL]',
-    'zh-cn': '删除标签[LABEL]',
-    'zh-tw': '刪除標籤[LABEL]'
+  delete_category: {
+    'ja': 'カテゴリー[CATEGORY]を削除',
+    'ja-Hira': 'カテゴリー[CATEGORY]をさくじょ',
+    'en': 'delete category [CATEGORY]',
+    'it': 'elimina categoria [CATEGORY]',
+    'zh-cn': '删除类别[CATEGORY]',
+    'zh-tw': '刪除類別[CATEGORY]'
   },
   confirm_delete_all: {
-    'ja': '本当にすべてのラベルを削除してもよろしいですか？',
-    'ja-Hira': 'ほんとうにすべてのラベルをさくじょしてもよろしいですか？',
-    'en': 'Delete every label and learnt data ?',
-    'it': 'Vuoi davvero eliminare tutte le etichette e i dati imparati?',
-    'zh-cn': '确定要删除所有标签及其学习内容吗？',
-    'zh-tw': '確定要刪除所有標籤及其學習內容嗎？'
+    'ja': '本当にすべてのカテゴリーを削除してもよろしいですか？',
+    'ja-Hira': 'ほんとうにすべてのカテゴリーをさくじょしてもよろしいですか？',
+    'en': 'Delete every category and learnt data ?',
+    'it': 'Vuoi davvero eliminare tutte le categorie e i dati imparati?',
+    'zh-cn': '确定要删除所有类别及其学习内容吗？',
+    'zh-tw': '確定要刪除所有類別及其學習內容嗎？'
   },
   reset: {
-    'ja': 'ラベル[LABEL]の学習をリセット',
-    'ja-Hira': 'ラベル[LABEL]のがくしゅうをリセット',
-    'en': 'reset label [LABEL]',
-    'it': 'resetta etichetta [LABEL]',
-    'zh-cn': '重置[LABEL]',
-    'zh-tw': '重置[LABEL]'
+    'ja': 'カテゴリー[CATEGORY]の学習をリセット',
+    'ja-Hira': 'カテゴリー[CATEGORY]のがくしゅうをリセット',
+    'en': 'reset category [CATEGORY]',
+    'it': 'resetta categoria [CATEGORY]',
+    'zh-cn': '重置[CATEGORY]',
+    'zh-tw': '重置[CATEGORY]'
   },
   download_learning_data: {
     'ja': '学習データをダウンロード',
@@ -357,17 +357,17 @@ const Message = {
     'zh-tw': '您確定要重置嗎？'
   },
   toggle_classification: {
-    'ja': 'ラベル付けを[CLASSIFICATION_STATE]にする',
-    'ja-Hira': 'ラベルづけを[CLASSIFICATION_STATE]にする',
+    'ja': '分類を[CLASSIFICATION_STATE]にする',
+    'ja-Hira': 'ぶんるいを[CLASSIFICATION_STATE]にする',
     'en': 'turn classification [CLASSIFICATION_STATE]',
     'it': 'imposta classificazione [CLASSIFICATION_STATE]',
     'zh-cn': '[CLASSIFICATION_STATE]分类',
     'zh-tw': '[CLASSIFICATION_STATE]分類'
   },
   set_classification_interval: {
-    'ja': 'ラベル付けを[CLASSIFICATION_INTERVAL]秒間に1回行う',
-    'ja-Hira': 'ラベルづけを[CLASSIFICATION_INTERVAL]びょうかんに1かいおこなう',
-    'en': 'label once every [CLASSIFICATION_INTERVAL] seconds',
+    'ja': '分類を[CLASSIFICATION_INTERVAL]秒間に1回行う',
+    'ja-Hira': 'ぶんるいを[CLASSIFICATION_INTERVAL]びょうかんに1かいおこなう',
+    'en': 'classify once every [CLASSIFICATION_INTERVAL] seconds',
     'it': 'classifica una volta ogni [CLASSIFICATION_INTERVAL] secondi',
     'zh-cn': '每隔[CLASSIFICATION_INTERVAL]秒标记一次',
     'zh-tw': '每隔[CLASSIFICATION_INTERVAL]秒標記一次'
@@ -468,29 +468,29 @@ const Message = {
     'zh-cn': '[BLOCK]已停止：没有可学习的画面。请在浏览器中允许摄像头，或使用“[INPUT]”改从舞台学习。',
     'zh-tw': '[BLOCK]已停止：沒有可學習的畫面。請在瀏覽器中允許攝影機，或使用「[INPUT]」改從舞台學習。'
   },
-  max_examples_per_label: {
-    'ja': '[BLOCK]を停止しました。1つのラベルに保存できる学習例は[N]個までです。[LABEL]をリセットするか削除すると、また学習できます。',
-    'ja-Hira': '[BLOCK]をていししました。1つのラベルにほぞんできるがくしゅうれいは[N]こまでです。[LABEL]をリセットするかさくじょすると、またがくしゅうできます。',
-    'en': '[BLOCK] FAILED: a label can hold at most [N] training examples! Reset or delete [LABEL] to train it again.',
-    'it': "[BLOCK] E' FALLITO: un'etichetta può contenere al massimo [N] esempi. Resetta o elimina [LABEL] per addestrarla ancora.",
-    'zh-cn': '[BLOCK]已停止：每个标签最多保存[N]个训练样本。请重置或删除[LABEL]后再训练。',
-    'zh-tw': '[BLOCK]已停止：每個標籤最多儲存[N]個訓練範例。請重置或刪除[LABEL]後再訓練。'
+  max_examples_per_category: {
+    'ja': '[BLOCK]を停止しました。1つのカテゴリーに保存できる学習例は[N]個までです。[CATEGORY]をリセットするか削除すると、また学習できます。',
+    'ja-Hira': '[BLOCK]をていししました。1つのカテゴリーにほぞんできるがくしゅうれいは[N]こまでです。[CATEGORY]をリセットするかさくじょすると、またがくしゅうできます。',
+    'en': '[BLOCK] FAILED: a category can hold at most [N] training examples! Reset or delete [CATEGORY] to train it again.',
+    'it': "[BLOCK] E' FALLITO: una categoria può contenere al massimo [N] esempi. Resetta o elimina [CATEGORY] per addestrarla ancora.",
+    'zh-cn': '[BLOCK]已停止：每个类别最多保存[N]个训练样本。请重置或删除[CATEGORY]后再训练。',
+    'zh-tw': '[BLOCK]已停止：每個類別最多儲存[N]個訓練範例。請重置或刪除[CATEGORY]後再訓練。'
   },
   max_examples_total: {
-    'ja': '[BLOCK]を停止しました。1つのプロジェクトに保存できる学習例は全部で[N]個までです。現在は[COUNTS]です。ラベルをリセットするか削除して下さい。',
-    'ja-Hira': '[BLOCK]をていししました。1つのプロジェクトにほぞんできるがくしゅうれいはぜんぶで[N]こまでです。いまは[COUNTS]です。ラベルをリセットするかさくじょしてください。',
-    'en': '[BLOCK] FAILED: a project can hold at most [N] training examples in total! Currently [COUNTS]. Reset or delete a label to train more.',
-    'it': "[BLOCK] E' FALLITO: un progetto può contenere al massimo [N] esempi in tutto. Attualmente [COUNTS]. Resetta o elimina un'etichetta per addestrarne altri.",
-    'zh-cn': '[BLOCK]已停止：每个项目最多共保存[N]个训练样本。当前为[COUNTS]。请重置或删除某个标签后再训练。',
-    'zh-tw': '[BLOCK]已停止：每個專案最多共儲存[N]個訓練範例。目前為[COUNTS]。請重置或刪除某個標籤後再訓練。'
+    'ja': '[BLOCK]を停止しました。1つのプロジェクトに保存できる学習例は全部で[N]個までです。現在は[COUNTS]です。カテゴリーをリセットするか削除して下さい。',
+    'ja-Hira': '[BLOCK]をていししました。1つのプロジェクトにほぞんできるがくしゅうれいはぜんぶで[N]こまでです。いまは[COUNTS]です。カテゴリーをリセットするかさくじょしてください。',
+    'en': '[BLOCK] FAILED: a project can hold at most [N] training examples in total! Currently [COUNTS]. Reset or delete a category to train more.',
+    'it': "[BLOCK] E' FALLITO: un progetto può contenere al massimo [N] esempi in tutto. Attualmente [COUNTS]. Resetta o elimina una categoria per addestrarne altri.",
+    'zh-cn': '[BLOCK]已停止：每个项目最多共保存[N]个训练样本。当前为[COUNTS]。请重置或删除某个类别后再训练。',
+    'zh-tw': '[BLOCK]已停止：每個專案最多共儲存[N]個訓練範例。目前為[COUNTS]。請重置或刪除某個類別後再訓練。'
   },
   too_much_data: {
-    'ja': '学習データが大きすぎてプロジェクトに保存できません。ラベルを減らすか、学習をリセットして下さい。',
-    'ja-Hira': 'がくしゅうデータがおおきすぎてプロジェクトにほぞんできません。ラベルをへらすか、がくしゅうをリセットしてください。',
-    'en': 'Too much training data ([SIZE], the limit is [LIMIT])! Delete a label or reset some training.',
-    'it': "Ci sono troppi dati di addestramento ([SIZE], il limite è [LIMIT])! Elimina un'etichetta o resetta un po' di addestramento.",
-    'zh-cn': '训练数据太多，无法保存在项目中。请删除标签或重置部分训练。',
-    'zh-tw': '訓練資料太多，無法儲存在專案中。請刪除標籤或重置部分訓練。'
+    'ja': '学習データが大きすぎてプロジェクトに保存できません。カテゴリーを減らすか、学習をリセットして下さい。',
+    'ja-Hira': 'がくしゅうデータがおおきすぎてプロジェクトにほぞんできません。カテゴリーをへらすか、がくしゅうをリセットしてください。',
+    'en': 'Too much training data ([SIZE], the limit is [LIMIT])! Delete a category or reset some training.',
+    'it': "Ci sono troppi dati di addestramento ([SIZE], il limite è [LIMIT])! Elimina una categoria o resetta un po' di addestramento.",
+    'zh-cn': '训练数据太多，无法保存在项目中。请删除类别或重置部分训练。',
+    'zh-tw': '訓練資料太多，無法儲存在專案中。請刪除類別或重置部分訓練。'
   },
   model_broken: {
     'ja': 'MobileNetモデルを読み込めませんでした。学習と判定はできません。詳しくはコンソールを見て下さい。',
@@ -519,7 +519,7 @@ class GlowMLBlocks {
    * @return {string} - the ID of this extension.
    */
   static get EXTENSION_ID() {
-    return 'glowMl';
+    return 'glowML';
   }
 
   /**
@@ -548,7 +548,7 @@ class GlowMLBlocks {
 
     this.when_received = false;
     this.when_received_arr = Array(8).fill(false);
-    this.label = null;
+    this.category = null;
     this.confidence = 0;
     this.locale = this.setLocale();
 
@@ -699,15 +699,15 @@ class GlowMLBlocks {
       blocks: [
         {
           blockType: BlockType.BUTTON,
-          text: Message.new_label_button[this.locale],
-          func: 'createLabel'
+          text: Message.new_category_button[this.locale],
+          func: 'createCategory'
         },
         {
           opcode: 'train',
           text: Message.train[this.locale],
           blockType: BlockType.COMMAND,
           arguments: {
-            LABEL: {
+            CATEGORY: {
               type: ArgumentType.STRING,
               menu: 'train_menu'
             }
@@ -718,15 +718,15 @@ class GlowMLBlocks {
           text: Message.when_received_block[this.locale],
           blockType: BlockType.HAT,
           arguments: {
-            LABEL: {
+            CATEGORY: {
               type: ArgumentType.STRING,
               menu: 'received_menu'
             }
           }
         },        
         {
-          opcode: 'getLabel',
-          text: Message.label_block[this.locale],
+          opcode: 'getCategory',
+          text: Message.category_block[this.locale],
           blockType: BlockType.REPORTER
         },
         {
@@ -735,17 +735,17 @@ class GlowMLBlocks {
           blockType: BlockType.REPORTER
         },
         {
-          opcode: 'getLabelsAndCounts',
-          text: Message.labels_and_counts_block[this.locale],
+          opcode: 'getCategoriesAndCounts',
+          text: Message.categories_and_counts_block[this.locale],
           blockType: BlockType.REPORTER
         },
         {
-          opcode: 'getCountByLabel',
-          text: Message.counts_label[this.locale],
+          opcode: 'getCountByCategory',
+          text: Message.counts_category[this.locale],
           blockType: BlockType.REPORTER,
           disableMonitor: true,
           arguments: {
-            LABEL: {
+            CATEGORY: {
               type: ArgumentType.STRING,
               menu: 'count_menu'
             }
@@ -757,18 +757,18 @@ class GlowMLBlocks {
           blockType: BlockType.COMMAND,
           text: Message.reset[this.locale],
           arguments: {
-            LABEL: {
+            CATEGORY: {
               type: ArgumentType.STRING,
               menu: 'reset_menu'
             }
           }
         },
         {
-          opcode: 'deleteLabel',
+          opcode: 'deleteCategory',
           blockType: BlockType.COMMAND,
-          text: Message.delete_label[this.locale],
+          text: Message.delete_category[this.locale],
           arguments: {
-            LABEL: {
+            CATEGORY: {
               type: ArgumentType.STRING,
               menu: 'delete_menu'
             }
@@ -921,7 +921,7 @@ class GlowMLBlocks {
     if (this.training) {
       return;
     }
-    if (!this.checkExampleLimits(args.LABEL, util)) {
+    if (!this.checkExampleLimits(args.CATEGORY, util)) {
       return;
     }
     this.training = true;
@@ -934,14 +934,14 @@ class GlowMLBlocks {
       afterPaint(() => {
         try {
           const features = this.featureExtractor.infer(this.input);
-          this.knnClassifier.addExample(features, args.LABEL);
+          this.knnClassifier.addExample(features, args.CATEGORY);
           this.updateCounts();
           this.scheduleSave();
         } catch (error) {
           // The camera can die between the check above and here. That is not a
           // broken model, and saying so would be the old misleading message.
           if (!this.usingStageInput() && !this.hasWorkingCamera()) {
-            this.checkCamera(this.blockName('train', {LABEL: args.LABEL}), util);
+            this.checkCamera(this.blockName('train', {CATEGORY: args.CATEGORY}), util);
           } else {
             this.reportBrokenModel(error);
           }
@@ -952,13 +952,13 @@ class GlowMLBlocks {
     });
   }
 
-  getLabel() {
-    return this.label;
+  getCategory() {
+    return this.category;
   }
 
   /**
-   * Glow: how sure the classifier is about the label it is currently reporting.
-   * @return {number} - confidence of the current label, 0 to 1
+   * Glow: how sure the classifier is about the category it is currently reporting.
+   * @return {number} - confidence of the current category, 0 to 1
    */
   getConfidence() {
     // Rounded, because a k-nearest-neighbour vote share reads as
@@ -967,7 +967,7 @@ class GlowMLBlocks {
   }
 
   whenReceived(args) {
-    if (args.LABEL === ANY) {
+    if (args.CATEGORY === ANY) {
       if (this.when_received) {
         setTimeout(() => {
           this.when_received = false;
@@ -976,9 +976,9 @@ class GlowMLBlocks {
       }
       return false;
     } else {
-      if (this.when_received_arr[args.LABEL]) {
+      if (this.when_received_arr[args.CATEGORY]) {
         setTimeout(() => {
-          this.when_received_arr[args.LABEL] = false;
+          this.when_received_arr[args.CATEGORY] = false;
         }, HAT_TIMEOUT);
         return true;
       }
@@ -986,30 +986,30 @@ class GlowMLBlocks {
     }
   }
 
-  getCountByLabel(args) {
+  getCountByCategory(args) {
     if (!this.counts) {
       return 0;
     }
-    if (args.LABEL === ALL) {
+    if (args.CATEGORY === ALL) {
       return Object.values(this.counts).reduce((total, count) => total + count, 0);
     }
-    if (this.counts[args.LABEL]) {
-      return this.counts[args.LABEL];
+    if (this.counts[args.CATEGORY]) {
+      return this.counts[args.CATEGORY];
     } else {
       return 0;
     }
   }
 
   /**
-   * Glow: Scratch has no list-valued reporter, so every label and its example
-   * count go into one string, 'label:count' pairs separated by two spaces.
-   * Labels with nothing trained yet are included, so the reporter doubles as a
+   * Glow: Scratch has no list-valued reporter, so every category and its example
+   * count go into one string, 'category:count' pairs separated by two spaces.
+   * Categories with nothing trained yet are included, so the reporter doubles as a
    * view of the pool.
-   * @return {string} - e.g. 'label A:12  label B:9'
+   * @return {string} - e.g. 'category A:12  category B:9'
    */
-  getLabelsAndCounts() {
-    return this.labels
-      .map(label => `${label}:${(this.counts && this.counts[label]) || 0}`)
+  getCategoriesAndCounts() {
+    return this.categories
+      .map(category => `${category}:${(this.counts && this.counts[category]) || 0}`)
       .join('  ');
   }
 
@@ -1017,21 +1017,21 @@ class GlowMLBlocks {
     if (this.actionRepeated()) { return };
 
     setTimeout(() => {
-      if (args.LABEL == ALL) {
+      if (args.CATEGORY == ALL) {
         // Glow: only wiping everything is worth interrupting for. Resetting one
-        // label used to ask too, which trained people to click through it.
+        // category used to ask too, which trained people to click through it.
         if (!confirm(Message.confirm_reset[this.locale])) {
           return;
         }
         this.knnClassifier.clearAllLabels();
-        for (let label in this.counts) {
-          this.counts[label] = 0;
+        for (let category in this.counts) {
+          this.counts[category] = 0;
         }
       } else {
         // Glow: this.counts is null until something has been trained.
-        if (this.counts && this.counts[args.LABEL] > 0) {
-          this.knnClassifier.clearLabel(args.LABEL);
-          this.counts[args.LABEL] = 0;
+        if (this.counts && this.counts[args.CATEGORY] > 0) {
+          this.knnClassifier.clearLabel(args.CATEGORY);
+          this.counts[args.CATEGORY] = 0;
         }
       }
       this.reportedProblems.clear();
@@ -1040,31 +1040,31 @@ class GlowMLBlocks {
   }
 
   /**
-   * Glow: reset forgets what a label learned but keeps the label; delete takes
+   * Glow: reset forgets what a category learned but keeps the category; delete takes
    * it out of the pool as well, so the dropdowns stop offering it.
    * @param {object} args - the block arguments
-   * @param {string} args.LABEL - a label, or ALL
+   * @param {string} args.CATEGORY - a category, or ALL
    */
-  deleteLabel(args) {
+  deleteCategory(args) {
     if (this.actionRepeated()) { return };
 
     setTimeout(() => {
-      if (args.LABEL === ALL) {
+      if (args.CATEGORY === ALL) {
         if (!confirm(Message.confirm_delete_all[this.locale])) {
           return;
         }
         this.knnClassifier.clearAllLabels();
         this.counts = null;
-        this.labels = DEFAULT_LABELS.slice();
+        this.categories = DEFAULT_CATEGORIES.slice();
         this.reportedProblems.clear();
         this.scheduleSave();
         return;
       }
-      if (this.counts && this.counts[args.LABEL] > 0) {
-        this.knnClassifier.clearLabel(args.LABEL);
-        delete this.counts[args.LABEL];
+      if (this.counts && this.counts[args.CATEGORY] > 0) {
+        this.knnClassifier.clearLabel(args.CATEGORY);
+        delete this.counts[args.CATEGORY];
       }
-      this.labels = this.labels.filter(label => label !== args.LABEL);
+      this.categories = this.categories.filter(category => category !== args.CATEGORY);
       this.reportedProblems.clear();
       this.scheduleSave();
     }, 1000);
@@ -1200,8 +1200,8 @@ class GlowMLBlocks {
     if (!this.usingStageInput() && (!this.input || !this.hasWorkingCamera())) {
       return;
     }
-    let numLabels = this.knnClassifier.getNumLabels();
-    if (numLabels == 0) return;
+    let numCategories = this.knnClassifier.getNumLabels();
+    if (numCategories == 0) return;
 
     let features;
     try {
@@ -1214,34 +1214,34 @@ class GlowMLBlocks {
       if (err) {
         console.error(err);
       } else {
-        this.label = this.getTopConfidenceLabel(result.confidencesByLabel);
-        this.confidence = result.confidencesByLabel[this.label] || 0;
+        this.category = this.getTopConfidenceCategory(result.confidencesByLabel);
+        this.confidence = result.confidencesByLabel[this.category] || 0;
         this.when_received = true;
-        this.when_received_arr[this.label] = true
+        this.when_received_arr[this.category] = true
       }
     });
   }
 
-  getTopConfidenceLabel(confidences) {
-    let topConfidenceLabel;
+  getTopConfidenceCategory(confidences) {
+    let topConfidenceCategory;
     let topConfidence = 0;
 
-    for (let label in confidences) {
-      if (confidences[label] > topConfidence) {
+    for (let category in confidences) {
+      if (confidences[category] > topConfidence) {
         // Glow: upstream never advances topConfidence, so this returns the last
-        // label with a non-zero confidence rather than the best one.
-        topConfidence = confidences[label];
-        topConfidenceLabel = label;
+        // category with a non-zero confidence rather than the best one.
+        topConfidence = confidences[category];
+        topConfidenceCategory = category;
       }
     }
 
-    return topConfidenceLabel;
+    return topConfidenceCategory;
   }
 
   updateCounts() {
     this.counts = this.knnClassifier.getCountByLabel();
     // Glow: upstream logged the counts here on every training, which a loop turns
-    // into thousands of console lines. The 'labels and counts' reporter shows the
+    // into thousands of console lines. The 'categories and counts' reporter shows the
     // same thing on the stage.
   }
 
@@ -1258,27 +1258,27 @@ class GlowMLBlocks {
   }
 
   /**
-   * Glow: the label pool, kept in runtime.extensionStorage so that it is saved
+   * Glow: the category pool, kept in runtime.extensionStorage so that it is saved
    * into project.json and comes back with the project. Read through here rather
    * than cached, because the storage is replaced wholesale when a project loads.
-   * @return {string[]} - the labels this project knows about
+   * @return {string[]} - the categories this project knows about
    */
-  get labels() {
+  get categories() {
     const stored = this.runtime.extensionStorage[GlowMLBlocks.EXTENSION_ID];
-    if (!stored || !Array.isArray(stored.labels) || stored.labels.length === 0) {
-      // Deleting the last label brings the defaults back rather than leaving a
+    if (!stored || !Array.isArray(stored.categories) || stored.categories.length === 0) {
+      // Deleting the last category brings the defaults back rather than leaving a
       // dropdown with nothing in it.
-      return sortLabels(DEFAULT_LABELS.slice());
+      return sortCategories(DEFAULT_CATEGORIES.slice());
     }
     // Anything that has been trained belongs in the pool even if the stored
-    // list has fallen behind, so a dropdown never hides a label that exists.
+    // list has fallen behind, so a dropdown never hides a category that exists.
     const trained = this.counts ? Object.keys(this.counts) : [];
-    return sortLabels(stored.labels.concat(trained.filter(label => !stored.labels.includes(label))));
+    return sortCategories(stored.categories.concat(trained.filter(category => !stored.categories.includes(category))));
   }
 
-  set labels(labels) {
+  set categories(categories) {
     const stored = this.runtime.extensionStorage[GlowMLBlocks.EXTENSION_ID] || {};
-    stored.labels = labels;
+    stored.categories = categories;
     this.runtime.extensionStorage[GlowMLBlocks.EXTENSION_ID] = stored;
   }
 
@@ -1286,48 +1286,48 @@ class GlowMLBlocks {
    * Palette button. Scratch's own 'new message' lives inside the dropdown, but
    * scratch-blocks gives extensions no hook on dropdown selection, so this
    * follows the 'Make a Variable' pattern instead. The menus below are dynamic,
-   * so a new label shows up in all of them straight away.
+   * so a new category shows up in all of them straight away.
    */
-  createLabel() {
-    const name = prompt(Message.new_label_prompt[this.locale], '');
+  createCategory() {
+    const name = prompt(Message.new_category_prompt[this.locale], '');
     if (name === null) {
       return;
     }
-    const label = name.trim();
-    if (label === '' || label === ALL || label === ANY) {
+    const category = name.trim();
+    if (category === '' || category === ALL || category === ANY) {
       return;
     }
-    if (this.labels.includes(label)) {
-      alert(Message.label_exists[this.locale]);
+    if (this.categories.includes(category)) {
+      alert(Message.category_exists[this.locale]);
       return;
     }
-    this.labels = this.labels.concat([label]);
+    this.categories = this.categories.concat([category]);
   }
 
   /**
-   * @return {object[]} - one menu item per label
+   * @return {object[]} - one menu item per category
    */
-  getLabelItems() {
-    return this.labels.map(label => ({ text: label, value: label }));
+  getCategoryItems() {
+    return this.categories.map(category => ({ text: category, value: category }));
   }
 
   getTrainMenu() {
-    return this.getLabelItems();
+    return this.getCategoryItems();
   }
 
   getReceivedMenu() {
-    return [{ text: Message.any[this.locale], value: ANY }].concat(this.getLabelItems());
+    return [{ text: Message.any[this.locale], value: ANY }].concat(this.getCategoryItems());
   }
 
   getResetMenu() {
-    return [{ text: Message.all[this.locale], value: ALL }].concat(this.getLabelItems());
+    return [{ text: Message.all[this.locale], value: ALL }].concat(this.getCategoryItems());
   }
 
   getDeleteMenu() {
     // 'all' last here, unlike the other menus: a block dragged out of the
     // palette takes the first item as its default, and that must not be the
     // one that wipes everything.
-    return this.getLabelItems().concat([{ text: Message.all[this.locale], value: ALL }]);
+    return this.getCategoryItems().concat([{ text: Message.all[this.locale], value: ALL }]);
   }
 
   getCountMenu() {
@@ -1429,7 +1429,7 @@ class GlowMLBlocks {
    * Glow: build a block's name the way it reads in the palette, for messages
    * that need to say which block stopped.
    * @param {string} key - a key of Message holding the block's text
-   * @param {object} [values] - placeholder values, e.g. {LABEL: 'cat'}
+   * @param {object} [values] - placeholder values, e.g. {CATEGORY: 'cat'}
    * @return {string} - the block text, quoted
    */
   blockName(key, values) {
@@ -1469,40 +1469,40 @@ class GlowMLBlocks {
    * @return {boolean} - whether there is something to learn from
    */
   checkInputReady(args, util) {
-    return this.checkCamera(this.blockName('train', {LABEL: args.LABEL}), util);
+    return this.checkCamera(this.blockName('train', {CATEGORY: args.CATEGORY}), util);
   }
 
   /**
    * Glow: refuse to keep training once the caps are reached, and say why once.
    * Checked before infer() so that a 'forever [train]' loop costs nothing at all
    * from here on rather than continuing to burn a frame per iteration.
-   * @param {string} label - the label about to be trained
+   * @param {string} category - the category about to be trained
    * @return {boolean} - whether training may go ahead
    */
-  checkExampleLimits(label, util) {
+  checkExampleLimits(category, util) {
     const counts = this.counts || {};
-    const forLabel = counts[label] || 0;
+    const forCategory = counts[category] || 0;
     const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
 
     // Name the block as it reads in the palette, so the message points at the
     // script that stopped rather than at the extension in the abstract. The
-    // value keeps its brackets, or a label called 'label A' would render as
-    // "train label label A".
-    const block = `"${Message.train[this.locale].replace('[LABEL]', `[${label}]`)}"`;
+    // value keeps its brackets, or a category called 'category A' would render as
+    // "train category category A".
+    const block = `"${Message.train[this.locale].replace('[CATEGORY]', `[${category}]`)}"`;
 
-    if (forLabel >= MAX_EXAMPLES_PER_LABEL) {
-      this.reportProblem(Message.max_examples_per_label[this.locale]
+    if (forCategory >= MAX_EXAMPLES_PER_CATEGORY) {
+      this.reportProblem(Message.max_examples_per_category[this.locale]
         .replace('[BLOCK]', block)
-        .replace(/\[LABEL\]/g, label)
-        .replace('[N]', MAX_EXAMPLES_PER_LABEL), util);
+        .replace(/\[CATEGORY\]/g, category)
+        .replace('[N]', MAX_EXAMPLES_PER_CATEGORY), util);
       return false;
     }
     if (total >= MAX_EXAMPLES_TOTAL) {
       this.reportProblem(Message.max_examples_total[this.locale]
         .replace('[BLOCK]', block)
-        .replace(/\[LABEL\]/g, label)
+        .replace(/\[CATEGORY\]/g, category)
         .replace('[N]', MAX_EXAMPLES_TOTAL)
-        .replace('[COUNTS]', this.getLabelsAndCounts()), util);
+        .replace('[COUNTS]', this.getCategoriesAndCounts()), util);
       return false;
     }
     return true;
@@ -1709,7 +1709,7 @@ class GlowMLBlocks {
     if (!asset) {
       this.knnClassifier.clearAllLabels();
       this.counts = null;
-      this.label = null;
+      this.category = null;
       this.confidence = 0;
       this.reportedProblems.clear();
       this.saveRefusedAtExamples = null;

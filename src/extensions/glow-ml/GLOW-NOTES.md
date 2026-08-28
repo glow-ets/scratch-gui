@@ -3,9 +3,29 @@
 Upstream: [champierre/ml2scratch](https://github.com/champierre/ml2scratch),
 imported at commit `1747c6a793`. Tracked by glow-ets/scratch-gui#21.
 
-The extension is branded **Glow Machine Learning** (`glowMl`); the files and the
+The extension is branded **Glow Machine Learning** (`glowML`); the files and the
 class are named `glow-ml` / `GlowMLBlocks`. The ML2Scratch name is kept only
 where it credits upstream.
+
+### Vocabulary: category, not label
+
+What upstream calls a *label*, Glow calls a **category**, everywhere: block
+text in all six languages, opcodes, argument names, methods, constants, the
+stored pool, the default `category A` / `category B`. Two vocabularies stay as
+they are, because they are not ours to rename:
+
+- ml5's `knnClassifier` — `addExample`, `clearLabel`, `clearAllLabels`,
+  `getNumLabels`, `getCountByLabel`, `confidencesByLabel`, and the `label` key
+  in the saved dataset. A category is passed straight through as ml5's label.
+- the DOM — `MediaDeviceInfo.label` (a camera's name) and `aria-label`.
+
+The rename is **not backward compatible**, and neither is `glowMl` → `glowML`.
+Both the extension id and every opcode changed, so a project saved before this
+loses its Glow ML blocks entirely; its stored pool
+(`extensionStorage.glowMl.labels`) and its training asset (owner `glowMl`) are
+not read either. No migration was written because the opcode change breaks such
+a project regardless of what the storage does. This is fine while the extension
+is unreleased; once it ships, opcodes and the extension id are frozen.
 
 ## What upstream ships
 
@@ -71,46 +91,46 @@ upstream's:
 ### Block review
 
 Upstream offers most operations twice, once with a 1..10 dropdown and once with
-a free-text field. The dropdowns cap you at ten labels and teach that a label is
+a free-text field. The dropdowns cap you at ten categories and teach that a category is
 a number, so the numbered variants are gone and the free-text ones are the only
 way in:
 
 | removed | kept instead |
 | --- | --- |
-| `addExample1/2/3` — `train label 1`, `2`, `3` | `train` — `train label [▾]` |
-| `getCountByLabel1..10` — `counts of label 1..10` | `getCountByLabel` — `counts of label [▾]` |
+| `addExample1/2/3` — `train label 1`, `2`, `3` | `train` — `train category [▾]` |
+| `getCountByLabel1..10` — `counts of label 1..10` | `getCountByCategory` — `count of category [▾]` |
 | `trainAny`, `whenReceivedAny`, `resetAny` — the free-text variants | the dropdown versions |
 
-### The label pool
+### The category pool
 
-Upstream's dropdowns were a fixed 1..10. They are now driven by a pool of label
+Upstream's dropdowns were a fixed 1..10. They are now driven by a pool of category
 names that works roughly like Scratch's broadcast messages, with one deliberate
-difference: a label is **never** dropped just because no block uses it any more.
+difference: a category is **never** dropped just because no block uses it any more.
 
-- The pool starts as `label A`, `label B` (`DEFAULT_LABELS`).
-- It lives in `runtime.extensionStorage.glowMl.labels`, so it is written into
+- The pool starts as `category A`, `category B` (`DEFAULT_CATEGORIES`).
+- It lives in `runtime.extensionStorage.glowML.categories`, so it is written into
   `project.json` and comes back with the project. It is read through a getter
   rather than cached, because the runtime replaces that object wholesale when a
   project loads.
 - The getter also unions in anything present in `this.counts`, so a dropdown can
-  never hide a label that actually has training behind it.
-- Deleting the last label brings the defaults back, so no dropdown is ever
+  never hide a category that actually has training behind it.
+- Deleting the last category brings the defaults back, so no dropdown is ever
   empty.
 
-New labels are made with a **palette button**, the way `Make a Variable` works.
+New categories are made with a **palette button**, the way `Make a Variable` works.
 Scratch puts `new message` inside the dropdown itself, but that is
 scratch-blocks' own `FieldVariable` machinery: an extension menu is a plain
 `field_dropdown` and there is no hook on selection anywhere in the extension
 API. (`extensionInfo.customFieldTypes` could in principle do it, but it means
 shipping a scratch-blocks `Field` subclass from the extension — too fragile to
-be worth it here.) All five label menus are *dynamic* (`items: 'getSomeMenu'`,
+be worth it here.) All five category menus are *dynamic* (`items: 'getSomeMenu'`,
 resolved by scratch-blocks every time the dropdown opens, like upstream's
-`mediadevices` menu), so a new label appears everywhere immediately without a
+`mediadevices` menu), so a new category appears everywhere immediately without a
 `refreshBlocks()`.
 
 Menu order matters: an argument with no `defaultValue` takes the **first** item
 (`runtime.js:1688`). So `reset` and `counts of` lead with `all`, `when received`
-leads with `any` — and `delete label` puts `all` *last*, so a block dragged
+leads with `any` — and `delete category` puts `all` *last*, so a block dragged
 straight out of the palette does not default to wiping everything.
 
 ### Failing loudly
@@ -138,17 +158,17 @@ never move, and hundreds of identical console errors.
 
 ### Other behaviour changes
 
-- `counts of label [all]` returns the sum over all labels, and every count
+- `count of category [all]` returns the sum over all categories, and every count
   reporter returns 0 instead of throwing when nothing has been trained yet
   (`this.counts` is null until the first training or upload).
-- `getTopConfidenceLabel` compared each confidence against `topConfidence` but
-  never advanced it, so classification returned the *last* label with a non-zero
+- `getTopConfidenceCategory` compared each confidence against `topConfidence` but
+  never advanced it, so classification returned the *last* category with a non-zero
   confidence rather than the best one. One line, fixed here rather than left in
   place, since every classify call depends on it.
-- Every label menu and the `labels and counts` reporter are sorted the same
-  way (`sortLabels`, numeric and case-insensitive, so `label 10` follows
-  `label 2`). The special `all` / `any` items keep their fixed position.
-- `reset label` only asks for confirmation when the target is `all`. Asking
+- Every category menu and the `categories and counts` reporter are sorted the same
+  way (`sortCategories`, numeric and case-insensitive, so `category 10` follows
+  `category 2`). The special `all` / `any` items keep their fixed position.
+- `reset category` only asks for confirmation when the target is `all`. Asking
   every time trained people to click through it, which is the opposite of what
   a confirmation is for.
 - `set video transparency to [ ]` took its text from scratch-vm's videoSensing
@@ -158,30 +178,31 @@ never move, and hundreds of identical console errors.
 
 Added:
 
-- `confidence` — how sure the classifier is about the label it is reporting,
+- `confidence` — how sure the classifier is about the category it is reporting,
   captured from `result.confidencesByLabel` in `classify()`. Rounded to two
   decimals, because a k-nearest-neighbour vote share otherwise reads as
   `0.6666666666666666` on a stage monitor.
-- `labels and counts` — one reporter, `label:count` pairs separated by two
-  spaces, e.g. `label A:12  label B:0  cat:3`. Scratch 3 has no list-valued
+- `categories and counts` — one reporter, `category:count` pairs separated by two
+  spaces, e.g. `category A:12  category B:0  cat:3`. Scratch 3 has no list-valued
   reporter (`BlockType` offers only `REPORTER` and `BOOLEAN` for values, and no
   argument type picks a list), and two parallel comma-separated reporters turned
-  out to be hard to read against each other. Labels with nothing trained yet are
+  out to be hard to read against each other. Categories with nothing trained yet are
   included, so it doubles as a view of the pool.
-- `delete label [▾]` — where `reset` forgets what a label learned but keeps the
-  label, `delete` also takes it out of the pool. `all` is behind a confirm.
+- `delete category [▾]` — where `reset` forgets what a category learned but keeps the
+  category, `delete` also takes it out of the pool. `all` is behind a confirm.
 
 Blocks not mentioned above are upstream's, unchanged.
 
 ### Look
 
 Stage monitors for extension blocks are labelled from the block's raw text, so
-`counts of label [LABEL]` showed up on the stage with the placeholder intact.
-An extension cannot fix that itself — `Runtime.getLabelForOpcode`
-(`runtime.js:3317`) returns no `labelFn` — so `src/lib/monitor-adapter.js` now
-fills placeholders in from the monitor's own `params`. That is a scratch-gui
-edit, but it is the shallowest place it can be done and it fixes every
-extension monitor, not just ours.
+`count of category [CATEGORY]` shows up on the stage with the placeholder
+intact. An extension cannot fix that itself: `Runtime.getLabelForOpcode`
+(`runtime.js:3317`) returns no `labelFn`. A `src/lib/monitor-adapter.js` edit
+filling the placeholder in from the monitor's own `params` was tried and
+reverted in 17e1615 — the monitor keeps the text it was created with, so it
+goes stale as soon as the dropdown changes, which is worse than a visible
+placeholder.
 
 Block palette colours are `#f000ee` / `#c000be` / `#950094`. The block icon is
 the same artwork as the library inset icon, inlined as a data URI — upstream's
@@ -283,7 +304,7 @@ the console right above it said `[featureExtractor] Model Loaded!`.
 `checkInputReady()` now runs before `infer()` and says what is actually wrong,
 naming the block and pointing at the way out:
 
-> `"train label [...]"` stopped: there is no picture to learn from. Allow the
+> `"train category [...]"` FAILED: there is no picture to learn from! Allow the
 > camera in your browser, or use "Learn/Classify stage image" to learn from the
 > stage instead.
 
@@ -302,14 +323,14 @@ at all and the whole extension works without one.
 
 | block | with no working camera |
 | --- | --- |
-| `train label [▾]` | refuses, names itself, points at the stage alternative |
+| `train category [▾]` | refuses, names itself, points at the stage alternative |
 | `turn classification [on]` | still starts the timer, but says it will see nothing |
-| `Label once every [N] seconds` | same, since it restarts the same timer |
+| `classify once every [N] seconds` | same, since it restarts the same timer |
 | `turn video [on]` | reports after `enableVideo()` resolves — it resolves either way |
 | `Learn/Classify [webcam] image` | reports at the moment of switching, not at the next `train` |
 | `switch webcam to [▾]` | reports; with no permission the menu holds only an empty `default` and picking it did nothing at all |
-| `when received label`, all reporters | silent by design — a hat runs every frame and a reporter has a neutral value |
-| `reset`, `delete label`, `download`, `upload`, `set video transparency` | no camera needed |
+| `when received category`, all reporters | silent by design — a hat runs every frame and a reporter has a neutral value |
+| `reset`, `delete category`, `download`, `upload`, `set video transparency` | no camera needed |
 
 The block stores a camera's `deviceId`, which is 64 hex characters, so
 `switch webcam to [▾]` looks the name back up in `this.devices` through
@@ -361,7 +382,7 @@ It is replaced by feedback the block gives itself:
 
 Two routes, and they are not equivalent.
 
-**`runtime.extensionStorage.glowMl`** — what the label pool already uses. Any
+**`runtime.extensionStorage.glowML`** — what the category pool already uses. Any
 JSON-serialisable value, written into `project.json` (`sb3.js:611`, saved at
 `:730`, loaded at `:1545`), only when the extension is actually used in the
 project. Available today, from `src/extensions`, no fork. But `project.json` is
@@ -403,7 +424,7 @@ so there is no precedent to copy, but the hook points are:
   exported `.sb3` files *and* restore points.
 - **Manifest.** Nothing in `project.json` would point at the new entry, and
   `sb3.serialize` has no hook. The way around it is to split: keep the pointer
-  (filename, hash, example count) in `runtime.extensionStorage.glowMl`, which is
+  (filename, hash, example count) in `runtime.extensionStorage.glowML`, which is
   already supported and tiny, and put only the bulk in the zip entry.
 - **Load.** Wrap `vm.loadProject(input)` and pull the entry out of the zip with
   JSZip before delegating. This is the awkward half: it means opening the
@@ -431,7 +452,7 @@ answer. A generic `data` / `application/octet-stream` type would be worse, not
 for any sandbox reason but because it throws away the one bit of information
 that lets a loader refuse the wrong thing early.
 
-The security question is not really the MIME label. Loading a project means
+The security question is not really the MIME type. Loading a project means
 deserializing bytes a stranger produced, and there is no vetting layer for asset
 payloads: TurboWarp's `SecurityManager` (`src/containers/tw-security-manager.jsx`)
 gates *extensions and network access* — `canFetch`, `canOpenWindow`,
@@ -439,12 +460,12 @@ gates *extensions and network access* — `canFetch`, `canOpenWindow`,
 protection vanilla Scratch lacks, but none of it inspects a costume, a sound or
 our blob. So the vetting has to be ours, at the point we parse it:
 
-- validate the shape before handing anything to `knnClassifier.load()` — labels
+- validate the shape before handing anything to `knnClassifier.load()` — categories
   are strings, vectors are fixed-length arrays of finite numbers
 - cap the total size and the example count before allocating, so a crafted file
   cannot exhaust memory
 - build the parsed object with `Object.create(null)`, or reject `__proto__` and
-  `constructor` as label names, so label names cannot pollute a prototype
+  `constructor` as category names, so category names cannot pollute a prototype
 
 None of that is specific to being an asset; it applies just as much to the
 `upload learning data` block we already ship, which today calls `JSON.parse`
@@ -454,7 +475,7 @@ and passes the result straight to ml5.
 
 Implemented against `runtime.glowAssetManager`, the generic asset store added in
 glow-ets/scratch-vm for glow-ets/scratch-gui#22. Training data is stored under
-owner `glowMl`, name `training`, format `json` — a real entry in the `.sb3` zip
+owner `glowML`, name `training`, format `json` — a real entry in the `.sb3` zip
 rather than a blob inside `project.json`, so TurboWarp's restore points keep one
 shared copy instead of duplicating it in every snapshot.
 
@@ -466,7 +487,7 @@ shared copy instead of duplicating it in every snapshot.
   0.12.2 and cannot drift underneath us.
 - Writes are debounced by a second (`scheduleSave`), because a pupil clicking
   train repeatedly would otherwise re-serialise a megabyte of feature vectors on
-  every click. Hooked into train, reset, delete label and upload.
+  every click. Hooked into train, reset, delete category and upload.
 - `runtime.emitProjectChanged()` is called after a successful write, or the
   editor has no idea there is anything new to save.
 - `loadFromProject()` runs on `PROJECT_LOADED` and once at construction, since
@@ -478,13 +499,13 @@ shared copy instead of duplicating it in every snapshot.
 
 ### Limits, and why refusing beats rotating
 
-`forever [train label A]` was able to run to about 1550 examples, at which point
+`forever [train category A]` was able to run to about 1550 examples, at which point
 each save built an 11 MB JSON string on the main thread only to be told it could
 not be stored — one console message showed a single save blocking for
 **20 seconds**. Training carried on regardless, and Chrome eventually gave up.
 Three things now stop that:
 
-- `MAX_EXAMPLES_PER_LABEL` (200) and `MAX_EXAMPLES_TOTAL` (500), checked in
+- `MAX_EXAMPLES_PER_CATEGORY` (200) and `MAX_EXAMPLES_TOTAL` (500), checked in
   `checkExampleLimits()` *before* `infer()` runs, so a runaway loop costs
   essentially nothing once it hits the cap. 500 examples is about 3.4 MB, well
   inside the 8 MB ceiling with room for other extensions. A MobileNet feature
@@ -492,8 +513,8 @@ Three things now stop that:
   numbers come from; adjust them together if the format changes.
 - `warnAboutLimit` keeps a **Set** of everything already reported. It first kept
   only the last message, which looked right with one script but ping-ponged
-  endlessly with two: `forever [train label A]` hits the per-label cap while
-  `forever [train label C]` hits the total cap, the two messages differ, so each
+  endlessly with two: `forever [train category A]` hits the per-category cap while
+  `forever [train category C]` hits the total cap, the two messages differ, so each
   one looked new on every frame and both alerted forever.
 - Only the **first** problem opens a modal. Everything after it — including
   repeats of the same problem — goes to a speech bubble via `sayOnTarget`, the
@@ -524,13 +545,14 @@ Three things now stop that:
 - `reportProblem` is now the single route for every background problem: the
   caps, the missing camera, a model that failed to load, and training data too
   big to save. The alerts that remain are the ones a person just asked for — the
-  upload dialog, a duplicate label name.
-- Messages name the block as it reads in the palette and the label that stopped,
-  e.g. `"train label [label C]" stopped: a project holds at most 500 training
-  examples in total. Currently label A:200  label B:200  label C:100.` The
+  upload dialog, a duplicate category name.
+- Messages name the block as it reads in the palette and the category that stopped,
+  e.g. `"train category [category C]" FAILED: a project can hold at most 500
+  training examples in total! Currently category A:200  category B:200
+  category C:100.` The
   block text comes from `Message.train`, so it is always the real wording in the
-  current language, and the field keeps its brackets or a label called
-  `label A` would render as `train label label A`.
+  current language, and the field keeps its brackets or a category called
+  `category A` would render as `train category category A`.
 - `saveRefusedAtExamples` remembers the example count at which a save was
   refused and skips serialising until the data shrinks below it. This is what
   removes the repeated 20-second blocks even if the caps are ever raised.

@@ -57,8 +57,8 @@ import glowLabIconURL from './glow-lab/glow-lab.svg';
 import glowLabInsetIconURL from './glow-lab/glow-lab-small.svg';
 import glowMidiIconURL from './glow-midi/glow-midi.svg';
 import glowMidiInsetIconURL from './glow-midi/glow-midi-small.svg';
-import glowMlIconURL from './glow-ml/glow-ml.svg';
-import glowMlInsetIconURL from './glow-ml/glow-ml-small.png';
+import glowMLIconURL from './glow-ml/glow-ml.svg';
+import glowMLInsetIconURL from './glow-ml/glow-ml-small.png';
 
 export default [
     {
@@ -97,15 +97,15 @@ export default [
     },
     {
         name: 'Glow Machine Learning',
-        extensionId: 'glowMl',
+        extensionId: 'glowML',
         collaborator: 'champierre',
-        iconURL: glowMlIconURL,
-        insetIconURL: glowMlInsetIconURL,
+        iconURL: glowMLIconURL,
+        insetIconURL: glowMLInsetIconURL,
         description: (
             <FormattedMessage
                 defaultMessage="Train and recognize images from webcam or stage. Customization of original Junya Ishihara's ML2Scratch."
                 description="Description for the 'Glow Machine Learning' extension"
-                id="glow.extension.glowMl.description"
+                id="glow.extension.glowML.description"
             />
         ),
         tags: ['glow'],
