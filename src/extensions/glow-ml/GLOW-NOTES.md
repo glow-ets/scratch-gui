@@ -429,8 +429,21 @@ Three things now stop that:
   inside the 8 MB ceiling with room for other extensions. A MobileNet feature
   vector is 1024 floats and serialises to roughly 7 KB, which is where those
   numbers come from; adjust them together if the format changes.
-- One alert per distinct limit message, not one per frame (`warnAboutLimit`).
-  Reset and delete clear it, so hitting the cap again is reported again.
+- `warnAboutLimit` keeps a **Set** of everything already reported. It first kept
+  only the last message, which looked right with one script but ping-ponged
+  endlessly with two: `forever [train label A]` hits the per-label cap while
+  `forever [train label C]` hits the total cap, the two messages differ, so each
+  one looked new on every frame and both alerted forever.
+- Only the **first** limit opens a modal; the rest go to the console. A second
+  modal is not a warning any more, it is an obstacle — the scripts keep running
+  behind it and the pupil cannot reach the stop button. Reset and delete clear
+  the set, so a fresh run reports afresh.
+- Messages name the block as it reads in the palette and the label that stopped,
+  e.g. `"train label [label C]" stopped: a project holds at most 500 training
+  examples in total. Currently label A:200  label B:200  label C:100.` The
+  block text comes from `Message.train`, so it is always the real wording in the
+  current language, and the field keeps its brackets or a label called
+  `label A` would render as `train label label A`.
 - `saveRefusedAtExamples` remembers the example count at which a save was
   refused and skips serialising until the data shrinks below it. This is what
   removes the repeated 20-second blocks even if the caps are ever raised.

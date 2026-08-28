@@ -409,20 +409,20 @@ const Message = {
     'zh-tw': '舞台'
   },
   max_examples_per_label: {
-    'ja': '1つのラベルに保存できる学習例は[N]個までです。このラベルをリセットするか削除すると、また学習できます。',
-    'ja-Hira': '1つのラベルにほぞんできるがくしゅうれいは[N]こまでです。このラベルをリセットするかさくじょすると、またがくしゅうできます。',
-    'en': 'A label holds at most [N] training examples. Reset or delete this one to train it again.',
-    'it': "Un'etichetta può contenere al massimo [N] esempi. Resettala o eliminala per addestrarla ancora.",
-    'zh-cn': '每个标签最多保存[N]个训练样本。请重置或删除该标签后再训练。',
-    'zh-tw': '每個標籤最多儲存[N]個訓練範例。請重置或刪除該標籤後再訓練。'
+    'ja': '[BLOCK]を停止しました。1つのラベルに保存できる学習例は[N]個までです。[LABEL]をリセットするか削除すると、また学習できます。',
+    'ja-Hira': '[BLOCK]をていししました。1つのラベルにほぞんできるがくしゅうれいは[N]こまでです。[LABEL]をリセットするかさくじょすると、またがくしゅうできます。',
+    'en': '[BLOCK] stopped: a label holds at most [N] training examples. Reset or delete [LABEL] to train it again.',
+    'it': "[BLOCK] fermato: un'etichetta può contenere al massimo [N] esempi. Resetta o elimina [LABEL] per addestrarla ancora.",
+    'zh-cn': '[BLOCK]已停止：每个标签最多保存[N]个训练样本。请重置或删除[LABEL]后再训练。',
+    'zh-tw': '[BLOCK]已停止：每個標籤最多儲存[N]個訓練範例。請重置或刪除[LABEL]後再訓練。'
   },
   max_examples_total: {
-    'ja': '1つのプロジェクトに保存できる学習例は全部で[N]個までです。ラベルをリセットするか削除して下さい。',
-    'ja-Hira': '1つのプロジェクトにほぞんできるがくしゅうれいはぜんぶで[N]こまでです。ラベルをリセットするかさくじょしてください。',
-    'en': 'A project holds at most [N] training examples in total. Reset or delete a label to train more.',
-    'it': 'Un progetto può contenere al massimo [N] esempi in tutto. Resetta o elimina un\'etichetta per addestrarne altri.',
-    'zh-cn': '每个项目最多共保存[N]个训练样本。请重置或删除某个标签后再训练。',
-    'zh-tw': '每個專案最多共儲存[N]個訓練範例。請重置或刪除某個標籤後再訓練。'
+    'ja': '[BLOCK]を停止しました。1つのプロジェクトに保存できる学習例は全部で[N]個までです。現在は[COUNTS]です。ラベルをリセットするか削除して下さい。',
+    'ja-Hira': '[BLOCK]をていししました。1つのプロジェクトにほぞんできるがくしゅうれいはぜんぶで[N]こまでです。いまは[COUNTS]です。ラベルをリセットするかさくじょしてください。',
+    'en': '[BLOCK] stopped: a project holds at most [N] training examples in total. Currently [COUNTS]. Reset or delete a label to train more.',
+    'it': "[BLOCK] fermato: un progetto può contenere al massimo [N] esempi in tutto. Attualmente [COUNTS]. Resetta o elimina un'etichetta per addestrarne altri.",
+    'zh-cn': '[BLOCK]已停止：每个项目最多共保存[N]个训练样本。当前为[COUNTS]。请重置或删除某个标签后再训练。',
+    'zh-tw': '[BLOCK]已停止：每個專案最多共儲存[N]個訓練範例。目前為[COUNTS]。請重置或刪除某個標籤後再訓練。'
   },
   too_much_data: {
     'ja': '学習データが大きすぎてプロジェクトに保存できません。ラベルを減らすか、学習をリセットして下さい。',
@@ -533,8 +533,9 @@ class GlowMLBlocks {
     // Set to the example count at which a save was refused, so we stop paying to
     // serialise data we already know will not fit. Cleared when it shrinks.
     this.saveRefusedAtExamples = null;
-    // The limit message already shown, so it is shown once and not per frame.
-    this.limitWarning = null;
+    // Every limit message already reported. A Set, not a single slot: several
+    // scripts can be stopped by different limits at the same time.
+    this.limitWarnings = new Set();
     if (this.assetManager) {
       this.assetManager.on('warning', event => {
         console.warn(`Glow ML: the project is holding ${event.totalBytes} bytes of extension data, ` +
@@ -948,7 +949,7 @@ class GlowMLBlocks {
           this.counts[args.LABEL] = 0;
         }
       }
-      this.limitWarning = null;
+      this.limitWarnings.clear();
       this.scheduleSave();
     }, 1000);
   }
@@ -970,7 +971,7 @@ class GlowMLBlocks {
         this.knnClassifier.clearAllLabels();
         this.counts = null;
         this.labels = DEFAULT_LABELS.slice();
-        this.limitWarning = null;
+        this.limitWarnings.clear();
         this.scheduleSave();
         return;
       }
@@ -979,7 +980,7 @@ class GlowMLBlocks {
         delete this.counts[args.LABEL];
       }
       this.labels = this.labels.filter(label => label !== args.LABEL);
-      this.limitWarning = null;
+      this.limitWarnings.clear();
       this.scheduleSave();
     }, 1000);
   }
@@ -1294,29 +1295,50 @@ class GlowMLBlocks {
     const forLabel = counts[label] || 0;
     const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
 
+    // Name the block as it reads in the palette, so the message points at the
+    // script that stopped rather than at the extension in the abstract. The
+    // value keeps its brackets, or a label called 'label A' would render as
+    // "train label label A".
+    const block = `"${Message.train[this.locale].replace('[LABEL]', `[${label}]`)}"`;
+
     if (forLabel >= MAX_EXAMPLES_PER_LABEL) {
-      this.warnAboutLimit(Message.max_examples_per_label[this.locale].replace('[N]', MAX_EXAMPLES_PER_LABEL));
+      this.warnAboutLimit(Message.max_examples_per_label[this.locale]
+        .replace('[BLOCK]', block)
+        .replace(/\[LABEL\]/g, label)
+        .replace('[N]', MAX_EXAMPLES_PER_LABEL));
       return false;
     }
     if (total >= MAX_EXAMPLES_TOTAL) {
-      this.warnAboutLimit(Message.max_examples_total[this.locale].replace('[N]', MAX_EXAMPLES_TOTAL));
+      this.warnAboutLimit(Message.max_examples_total[this.locale]
+        .replace('[BLOCK]', block)
+        .replace(/\[LABEL\]/g, label)
+        .replace('[N]', MAX_EXAMPLES_TOTAL)
+        .replace('[COUNTS]', this.getLabelsAndCounts()));
       return false;
     }
     return true;
   }
 
   /**
-   * Glow: one alert, not one per frame. A 'forever' loop hits the cap thousands
-   * of times, and a modal per iteration would be worse than the original problem.
+   * Glow: a 'forever' loop hits a cap thousands of times a minute, and several
+   * loops on different labels hit *different* caps. Remembering only the last
+   * message meant two scripts alternating between two messages re-alerted on
+   * every single frame, so this keeps the set of everything already said.
+   *
+   * Only the first one opens a modal. A second modal is not a warning any more,
+   * it is an obstacle: the scripts keep running behind it and the pupil cannot
+   * get back to the stop button. The rest go to the console.
    * @param {string} message - what to say
    */
   warnAboutLimit(message) {
-    if (this.limitWarning === message) {
+    if (this.limitWarnings.has(message)) {
       return;
     }
-    this.limitWarning = message;
+    this.limitWarnings.add(message);
     console.warn(`Glow ML: ${message}`);
-    alert(message);
+    if (this.limitWarnings.size === 1) {
+      alert(message);
+    }
   }
 
   /**
@@ -1423,7 +1445,7 @@ class GlowMLBlocks {
       this.counts = null;
       this.label = null;
       this.confidence = 0;
-      this.limitWarning = null;
+      this.limitWarnings.clear();
       this.saveRefusedAtExamples = null;
       return;
     }
