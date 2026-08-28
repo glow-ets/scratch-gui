@@ -268,6 +268,29 @@ Careful: `ml5.tf` is a *different* object from the tfjs namespace the bundle
 uses internally — patching `ml5.tf.loadLayersModel` has no effect, as a probe
 confirmed. The options are the supported route.
 
+## No camera
+
+`VideoProvider._setupVideo()` catches `getUserMedia` failures, calls its own
+`onError` and **resolves `undefined`** rather than rejecting, so
+`enableVideo().then(...)` still runs and `provider.video` is `null`. There is
+nothing to `.catch()`.
+
+The extension therefore ended up with `this.input === null`, ml5 read `.elt` off
+it on the first `train`, threw, and the catch-all reported it as
+"The MobileNet model could not be loaded" — which was doubly misleading, since
+the console right above it said `[featureExtractor] Model Loaded!`.
+
+`checkInputReady()` now runs before `infer()` and says what is actually wrong,
+naming the block and pointing at the way out:
+
+> `"train label [...]"` stopped: there is no picture to learn from. Allow the
+> camera in your browser, or use "Learn/Classify stage image" to learn from the
+> stage instead.
+
+The stage suggestion is not a consolation prize: `setInput` accepts `stage`, so
+the whole extension works without a camera at all. `classify()` runs on a timer
+and stays silent when there is no input — `train` is where a person finds out.
+
 ## Training feedback instead of a warning
 
 Upstream alerted once per session on the first `train`: "the first training will
@@ -434,10 +457,16 @@ Three things now stop that:
   endlessly with two: `forever [train label A]` hits the per-label cap while
   `forever [train label C]` hits the total cap, the two messages differ, so each
   one looked new on every frame and both alerted forever.
-- Only the **first** limit opens a modal; the rest go to the console. A second
-  modal is not a warning any more, it is an obstacle — the scripts keep running
-  behind it and the pupil cannot reach the stop button. Reset and delete clear
-  the set, so a fresh run reports afresh.
+- Only the **first** problem opens a modal; every later one goes to a speech
+  bubble on the sprite whose block ran (`sayOnTarget`, the `runtime.emit('SAY', …)`
+  pattern glow-midi uses for a missing device), falling back to the editing
+  target and then the stage. A second modal is not a warning any more, it is an
+  obstacle — the scripts keep running behind it and the pupil cannot reach the
+  stop button. Reset and delete clear the set, so a fresh run reports afresh.
+- `reportProblem` is now the single route for every background problem: the
+  caps, the missing camera, a model that failed to load, and training data too
+  big to save. The alerts that remain are the ones a person just asked for — the
+  upload dialog, a duplicate label name.
 - Messages name the block as it reads in the palette and the label that stopped,
   e.g. `"train label [label C]" stopped: a project holds at most 500 training
   examples in total. Currently label A:200  label B:200  label C:100.` The

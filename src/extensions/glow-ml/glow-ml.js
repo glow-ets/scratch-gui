@@ -408,6 +408,14 @@ const Message = {
     'zh-cn': '舞台',
     'zh-tw': '舞台'
   },
+  no_input: {
+    'ja': '[BLOCK]を停止しました。カメラの映像がありません。ブラウザでカメラを許可するか、「[INPUT]」でステージから学習して下さい。',
+    'ja-Hira': '[BLOCK]をていししました。カメラのえいぞうがありません。ブラウザでカメラをきょかするか、「[INPUT]」でステージからがくしゅうしてください。',
+    'en': '[BLOCK] stopped: there is no picture to learn from. Allow the camera in your browser, or use "[INPUT]" to learn from the stage instead.',
+    'it': "[BLOCK] fermato: non c'è nessuna immagine da cui imparare. Permetti la webcam nel browser, oppure usa \"[INPUT]\" per imparare dallo stage.",
+    'zh-cn': '[BLOCK]已停止：没有可学习的画面。请在浏览器中允许摄像头，或使用“[INPUT]”改从舞台学习。',
+    'zh-tw': '[BLOCK]已停止：沒有可學習的畫面。請在瀏覽器中允許攝影機，或使用「[INPUT]」改從舞台學習。'
+  },
   max_examples_per_label: {
     'ja': '[BLOCK]を停止しました。1つのラベルに保存できる学習例は[N]個までです。[LABEL]をリセットするか削除すると、また学習できます。',
     'ja-Hira': '[BLOCK]をていししました。1つのラベルにほぞんできるがくしゅうれいは[N]こまでです。[LABEL]をリセットするかさくじょすると、またがくしゅうできます。',
@@ -522,7 +530,13 @@ class GlowMLBlocks {
 
     this.canvas = document.querySelector('canvas');
 
-    this.runtime.ioDevices.video.enableVideo().then(() => { this.input = this.runtime.ioDevices.video.provider.video });
+    // Glow: VideoProvider._setupVideo() catches getUserMedia failures, calls its
+    // own onError and resolves undefined, so there is nothing here to .catch().
+    // A refused or missing camera arrives as a null video instead, which used to
+    // surface much later as ml5 reading '.elt' of null, reported as a broken model.
+    this.runtime.ioDevices.video.enableVideo().then(() => {
+      this.input = this.runtime.ioDevices.video.provider.video;
+    });
 
     this.knnClassifier = ml5.KNNClassifier();
 
@@ -533,9 +547,9 @@ class GlowMLBlocks {
     // Set to the example count at which a save was refused, so we stop paying to
     // serialise data we already know will not fit. Cleared when it shrinks.
     this.saveRefusedAtExamples = null;
-    // Every limit message already reported. A Set, not a single slot: several
-    // scripts can be stopped by different limits at the same time.
-    this.limitWarnings = new Set();
+    // Every problem already reported. A Set, not a single slot: several scripts
+    // can be stopped by different problems at the same time.
+    this.reportedProblems = new Set();
     if (this.assetManager) {
       this.assetManager.on('warning', event => {
         console.warn(`Glow ML: the project is holding ${event.totalBytes} bytes of extension data, ` +
@@ -832,8 +846,11 @@ class GlowMLBlocks {
     return transparency;
   }
 
-  train(args) {
+  train(args, util) {
     if (!this.checkModelReady()) {
+      return;
+    }
+    if (!this.checkInputReady(util)) {
       return;
     }
     // Glow: a click arriving while the previous one is still working is dropped.
@@ -842,7 +859,7 @@ class GlowMLBlocks {
     if (this.training) {
       return;
     }
-    if (!this.checkExampleLimits(args.LABEL)) {
+    if (!this.checkExampleLimits(args.LABEL, util)) {
       return;
     }
     this.training = true;
@@ -949,7 +966,7 @@ class GlowMLBlocks {
           this.counts[args.LABEL] = 0;
         }
       }
-      this.limitWarnings.clear();
+      this.reportedProblems.clear();
       this.scheduleSave();
     }, 1000);
   }
@@ -971,7 +988,7 @@ class GlowMLBlocks {
         this.knnClassifier.clearAllLabels();
         this.counts = null;
         this.labels = DEFAULT_LABELS.slice();
-        this.limitWarnings.clear();
+        this.reportedProblems.clear();
         this.scheduleSave();
         return;
       }
@@ -980,7 +997,7 @@ class GlowMLBlocks {
         delete this.counts[args.LABEL];
       }
       this.labels = this.labels.filter(label => label !== args.LABEL);
-      this.limitWarnings.clear();
+      this.reportedProblems.clear();
       this.scheduleSave();
     }, 1000);
   }
@@ -1025,7 +1042,9 @@ class GlowMLBlocks {
     if (state === 'off') {
       this.runtime.ioDevices.video.disableVideo();
     } else {
-      this.runtime.ioDevices.video.enableVideo().then(() => { this.input = this.runtime.ioDevices.video.provider.video });
+      this.runtime.ioDevices.video.enableVideo().then(() => {
+        this.input = this.runtime.ioDevices.video.provider.video;
+      });
       this.runtime.ioDevices.video.mirror = state === "on";
     }
   }
@@ -1083,6 +1102,11 @@ class GlowMLBlocks {
 
   classify() {
     if (!this.checkModelReady()) {
+      return;
+    }
+    // Glow: no camera, nothing to classify. The timer runs every second, so this
+    // must stay silent - train() is where a person finds out.
+    if (!this.input) {
       return;
     }
     let numLabels = this.knnClassifier.getNumLabels();
@@ -1284,13 +1308,34 @@ class GlowMLBlocks {
   }
 
   /**
+   * Glow: there is no point inferring without a picture. ml5 would take the null
+   * video, read '.elt' off it and throw, and the old catch-all reported that as
+   * a broken MobileNet - which is exactly what a pupil who refused the camera
+   * used to be told.
+   * @param {object} [util] - block utility, for the speech bubble
+   * @return {boolean} - whether there is something to learn from
+   */
+  checkInputReady(util) {
+    if (this.input) {
+      return true;
+    }
+    // Covers a refused camera, a machine with no camera, and a camera that has
+    // not started yet: in all three the advice is the same, and 'Learn/Classify
+    // [stage] image' is a way to carry on without one.
+    this.reportProblem(Message.no_input[this.locale]
+      .replace('[BLOCK]', `"${Message.train[this.locale].replace('[LABEL]', '[...]')}"`)
+      .replace('[INPUT]', Message.set_input[this.locale].replace('[INPUT]', Message.stage[this.locale])), util);
+    return false;
+  }
+
+  /**
    * Glow: refuse to keep training once the caps are reached, and say why once.
    * Checked before infer() so that a 'forever [train]' loop costs nothing at all
    * from here on rather than continuing to burn a frame per iteration.
    * @param {string} label - the label about to be trained
    * @return {boolean} - whether training may go ahead
    */
-  checkExampleLimits(label) {
+  checkExampleLimits(label, util) {
     const counts = this.counts || {};
     const forLabel = counts[label] || 0;
     const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
@@ -1302,42 +1347,64 @@ class GlowMLBlocks {
     const block = `"${Message.train[this.locale].replace('[LABEL]', `[${label}]`)}"`;
 
     if (forLabel >= MAX_EXAMPLES_PER_LABEL) {
-      this.warnAboutLimit(Message.max_examples_per_label[this.locale]
+      this.reportProblem(Message.max_examples_per_label[this.locale]
         .replace('[BLOCK]', block)
         .replace(/\[LABEL\]/g, label)
-        .replace('[N]', MAX_EXAMPLES_PER_LABEL));
+        .replace('[N]', MAX_EXAMPLES_PER_LABEL), util);
       return false;
     }
     if (total >= MAX_EXAMPLES_TOTAL) {
-      this.warnAboutLimit(Message.max_examples_total[this.locale]
+      this.reportProblem(Message.max_examples_total[this.locale]
         .replace('[BLOCK]', block)
         .replace(/\[LABEL\]/g, label)
         .replace('[N]', MAX_EXAMPLES_TOTAL)
-        .replace('[COUNTS]', this.getLabelsAndCounts()));
+        .replace('[COUNTS]', this.getLabelsAndCounts()), util);
       return false;
     }
     return true;
   }
 
   /**
-   * Glow: a 'forever' loop hits a cap thousands of times a minute, and several
-   * loops on different labels hit *different* caps. Remembering only the last
-   * message meant two scripts alternating between two messages re-alerted on
-   * every single frame, so this keeps the set of everything already said.
-   *
-   * Only the first one opens a modal. A second modal is not a warning any more,
-   * it is an obstacle: the scripts keep running behind it and the pupil cannot
-   * get back to the stop button. The rest go to the console.
+   * Glow: put a message in a speech bubble, the way glow-midi reports a missing
+   * device. Prefers the sprite whose block ran, so the bubble appears where the
+   * pupil was looking.
    * @param {string} message - what to say
+   * @param {object} [util] - block utility, when a block is what raised this
    */
-  warnAboutLimit(message) {
-    if (this.limitWarnings.has(message)) {
+  sayOnTarget(message, util) {
+    const target = (util && util.target) ||
+      this.runtime.getEditingTarget() ||
+      this.runtime.getTargetForStage();
+    if (target && this.runtime.emit) {
+      this.runtime.emit('SAY', target, 'say', String(message));
+    }
+  }
+
+  /**
+   * Glow: report a problem once, however many scripts run into it.
+   *
+   * A 'forever' loop hits a limit thousands of times a minute, and several loops
+   * can hit *different* limits, so the set holds everything already said - an
+   * earlier version remembered only the last message, and two scripts alternating
+   * between two messages re-alerted on every single frame.
+   *
+   * Only the first message opens a modal. A second modal is not a warning any
+   * more, it is an obstacle: the scripts keep running behind it and the pupil
+   * cannot reach the stop button. Everything after the first goes to a speech
+   * bubble instead, which is visible without blocking anything.
+   * @param {string} message - what to report
+   * @param {object} [util] - block utility, when a block is what raised this
+   */
+  reportProblem(message, util) {
+    if (this.reportedProblems.has(message)) {
       return;
     }
-    this.limitWarnings.add(message);
+    this.reportedProblems.add(message);
     console.warn(`Glow ML: ${message}`);
-    if (this.limitWarnings.size === 1) {
+    if (this.reportedProblems.size === 1) {
       alert(message);
+    } else {
+      this.sayOnTarget(message, util);
     }
   }
 
@@ -1406,7 +1473,7 @@ class GlowMLBlocks {
       console.error('Glow ML: could not store the training data in the project.', error);
       if (!this.warnedAboutSize) {
         this.warnedAboutSize = true;
-        alert(Message.too_much_data[this.locale]
+        this.reportProblem(Message.too_much_data[this.locale]
           .replace('[SIZE]', formatBytes(error.totalBytes || encoded.length))
           .replace('[LIMIT]', formatBytes(error.maxBytes || this.assetManager.maxBytes)));
       }
@@ -1445,7 +1512,7 @@ class GlowMLBlocks {
       this.counts = null;
       this.label = null;
       this.confidence = 0;
-      this.limitWarnings.clear();
+      this.reportedProblems.clear();
       this.saveRefusedAtExamples = null;
       return;
     }
@@ -1481,18 +1548,18 @@ class GlowMLBlocks {
 
     const message = Message.model_broken[this.locale];
     if (!mobilenetOptions.mobilenetURL) {
-      alert(message);
+      this.reportProblem(message);
       return;
     }
     diagnoseModelFiles().then(problems => {
       if (problems.length === 0) {
-        alert(message);
+        this.reportProblem(message);
         return;
       }
       const detail = problems.slice(0, 5).join('\n');
       const more = problems.length > 5 ? `\n... and ${problems.length - 5} more` : '';
       console.error(`Glow ML: these vendored model files are missing or wrong:\n${detail}${more}`);
-      alert(
+      this.reportProblem(
         `${message}\n\n${detail}${more}\n\n` +
         'Run `node scripts/glow-fetch-mobilenet.mjs`, then restart the dev server ' +
         '(copy-webpack-plugin only picks up files that exist when it starts).'
