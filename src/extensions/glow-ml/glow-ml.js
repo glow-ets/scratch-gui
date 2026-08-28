@@ -104,6 +104,27 @@ const SAVE_DEBOUNCE_MS = 1000;
 const SAY_THROTTLE_MS = 200;
 
 /**
+ * How long a speech bubble stays up, as a base plus reading time per character.
+ * Both are generous on purpose: for every problem after the first the bubble is
+ * the only place the message is ever shown, and a pupil who reads slowly should
+ * not lose it before finishing the sentence. The cap stops a very long message
+ * from parking a bubble over the sprite for the rest of the lesson.
+ */
+const BUBBLE_BASE_MS = 4000;
+const BUBBLE_MS_PER_CHAR = 90;
+const BUBBLE_MAX_MS = 30000;
+
+/**
+ * How long the bubble for a message should stay up.
+ * @param {string} message - what the bubble says
+ * @returns {number} milliseconds
+ */
+const bubbleDuration = message => Math.min(
+  BUBBLE_MAX_MS,
+  BUBBLE_BASE_MS + (String(message).length * BUBBLE_MS_PER_CHAR)
+);
+
+/**
  * How many training examples to keep. A MobileNet feature vector is 1024 floats,
  * which serialises to roughly 7 KB, so 500 of them is about 3.5 MB - comfortably
  * inside the asset manager's 8 MB ceiling with room for other extensions.
@@ -415,6 +436,14 @@ const Message = {
     'zh-cn': '舞台',
     'zh-tw': '舞台'
   },
+  unnamed_camera: {
+    'ja': '選んだカメラ',
+    'ja-Hira': 'えらんだカメラ',
+    'en': 'the chosen camera',
+    'it': 'la webcam scelta',
+    'zh-cn': '所选摄像头',
+    'zh-tw': '所選攝影機'
+  },
   no_cameras: {
     'ja': '[BLOCK]は何もしませんでした。切り替えられるカメラがありません。ブラウザでカメラを許可して下さい。',
     'ja-Hira': '[BLOCK]はなにもしませんでした。きりかえられるカメラがありません。ブラウザでカメラをきょかしてください。',
@@ -567,6 +596,22 @@ class GlowMLBlocks {
     this.reportedProblems = new Set();
     // When the last speech bubble went up, so a loop cannot emit one per frame.
     this.lastSayAt = 0;
+    // The bubble we put up, and the timer that takes it down again.
+    this.sayTarget = null;
+    this.sayTimer = null;
+    // Set while we emit SAY ourselves, so the listener below can tell our own
+    // bubble apart from one the project's 'say' block put up.
+    this.emittingSay = false;
+    if (this.runtime.on) {
+      this.runtime.on('SAY', target => {
+        // The project said something on the sprite holding our bubble. That
+        // message is now the one on screen, so stop counting the bubble as ours
+        // and let their block decide when it goes away.
+        if (!this.emittingSay && target === this.sayTarget) {
+          this.forgetBubble();
+        }
+      });
+    }
     if (this.assetManager) {
       this.assetManager.on('warning', event => {
         console.warn(`Glow ML: the project is holding ${event.totalBytes} bytes of extension data, ` +
@@ -1481,9 +1526,51 @@ class GlowMLBlocks {
     ];
     const target = candidates.find(candidate => candidate && candidate.visible) ||
       this.runtime.getTargetForStage();
-    if (target && this.runtime.emit) {
-      this.runtime.emit('SAY', target, 'say', String(message));
+    if (!target || !this.runtime.emit) {
+      return;
     }
+    this.emitSay(target, String(message));
+    // Take it down again once there has been time to read it. A bubble that
+    // never expires covers the sprite and outlives the problem it describes,
+    // and a pupil who fixes the camera is left staring at a stale complaint.
+    this.sayTimer = setTimeout(() => {
+      this.sayTimer = null;
+      this.emitSay(target, '');
+    }, bubbleDuration(message));
+  }
+
+  /**
+   * Glow: put text in this target's bubble, or clear it when the text is empty,
+   * cancelling whatever timer the previous bubble had. Emitting SAY is how the
+   * looks blocks themselves do it, so scratch3_looks handles rendering and the
+   * empty string removal for us.
+   * @param {object} target - whose bubble
+   * @param {string} text - what to show, '' to clear
+   */
+  emitSay(target, text) {
+    if (this.sayTimer) {
+      clearTimeout(this.sayTimer);
+      this.sayTimer = null;
+    }
+    this.sayTarget = text === '' ? null : target;
+    this.emittingSay = true;
+    try {
+      this.runtime.emit('SAY', target, 'say', text);
+    } finally {
+      this.emittingSay = false;
+    }
+  }
+
+  /**
+   * Glow: give up ownership of the bubble without touching what is on screen,
+   * for when somebody else's message has replaced ours.
+   */
+  forgetBubble() {
+    if (this.sayTimer) {
+      clearTimeout(this.sayTimer);
+      this.sayTimer = null;
+    }
+    this.sayTarget = null;
   }
 
   /**
@@ -1708,7 +1795,7 @@ class GlowMLBlocks {
     // used to do nothing at all, silently.
     if (args.DEVICE === '' || !this.hasWorkingCamera()) {
       this.reportProblem(Message.no_cameras[this.locale]
-        .replace('[BLOCK]', this.blockName('switch_webcam', {DEVICE: args.DEVICE || 'default'})),
+        .replace('[BLOCK]', this.blockName('switch_webcam', {DEVICE: this.deviceName(args.DEVICE)})),
       util);
       return;
     }
@@ -1734,6 +1821,26 @@ class GlowMLBlocks {
 
   getDevices() {
     return this.devices;
+  }
+
+  /**
+   * Glow: the name of a camera as the dropdown shows it. The block stores the
+   * deviceId, which is 64 hex characters and means nothing to a pupil, so a
+   * message about the block has to look the name back up.
+   *
+   * The name can be missing either way round: with no camera permission
+   * enumerateDevices() reports devices with empty labels, and a project saved on
+   * another machine names a camera this one has never seen. Both get a generic
+   * phrase rather than the raw id.
+   * @param {string} value - the deviceId the block holds, '' for the default
+   * @returns {string} something readable
+   */
+  deviceName(value) {
+    const device = this.devices.find(candidate => candidate.value === value);
+    if (device && device.text) {
+      return device.text;
+    }
+    return Message.unnamed_camera[this.locale];
   }
 }
 

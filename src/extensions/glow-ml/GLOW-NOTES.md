@@ -311,6 +311,14 @@ at all and the whole extension works without one.
 | `when received label`, all reporters | silent by design — a hat runs every frame and a reporter has a neutral value |
 | `reset`, `delete label`, `download`, `upload`, `set video transparency` | no camera needed |
 
+The block stores a camera's `deviceId`, which is 64 hex characters, so
+`switch webcam to [▾]` looks the name back up in `this.devices` through
+`deviceName()` before naming itself in a message — otherwise the bubble reads
+`"switch webcam to [6a11be62…]"`. The name is missing in both directions: with
+no permission `enumerateDevices()` returns devices with empty labels, and a
+project saved on another machine names a camera this one has never seen. Both
+fall back to `Message.unnamed_camera` rather than showing the id.
+
 `classify()` runs on a timer and stays silent, but it checks the camera rather
 than just `this.input` — a revoked permission leaves the video element in place
 and dead, and the old truthiness check let it through to ml5, which threw.
@@ -500,6 +508,19 @@ Three things now stop that:
   (`if (!target.visible || text === '')`), so it tries the sprite that ran the
   block, then the editing target, then the stage — which is visible by default
   and takes bubbles fine.
+- Bubbles **expire**. `BUBBLE_BASE_MS` (4 s) plus `BUBBLE_MS_PER_CHAR` (90 ms),
+  capped at 30 s, is deliberately slow: for every problem after the first the
+  bubble is the only place the message is shown, so it is sized for a pupil who
+  reads slowly rather than for one who skims. A permanent bubble covers the
+  sprite and outlives the problem it describes — fix the camera and you are
+  still staring at the complaint about it. Clearing is the same `SAY` event with
+  an empty string, which is how `looks_sayforsecs` does it.
+- The extension only ever clears **its own** bubble. `emitSay` records the
+  target it put a message on, and a `runtime.on('SAY', …)` listener drops that
+  ownership the moment somebody else's `say` block writes to the same sprite, so
+  the timer never wipes a message the project put there. `emittingSay` is what
+  tells our own emit apart from theirs. A newer Glow message restarts the clock
+  rather than stacking timers.
 - `reportProblem` is now the single route for every background problem: the
   caps, the missing camera, a model that failed to load, and training data too
   big to save. The alerts that remain are the ones a person just asked for — the
