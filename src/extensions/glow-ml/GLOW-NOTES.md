@@ -415,6 +415,33 @@ shared copy instead of duplicating it in every snapshot.
 - Over the manager's ceiling, `set()` throws: the data stays usable for the
   session, the user is told once, and the project simply saves without it.
 
+### Limits, and why refusing beats rotating
+
+`forever [train label A]` was able to run to about 1550 examples, at which point
+each save built an 11 MB JSON string on the main thread only to be told it could
+not be stored — one console message showed a single save blocking for
+**20 seconds**. Training carried on regardless, and Chrome eventually gave up.
+Three things now stop that:
+
+- `MAX_EXAMPLES_PER_LABEL` (200) and `MAX_EXAMPLES_TOTAL` (500), checked in
+  `checkExampleLimits()` *before* `infer()` runs, so a runaway loop costs
+  essentially nothing once it hits the cap. 500 examples is about 3.4 MB, well
+  inside the 8 MB ceiling with room for other extensions. A MobileNet feature
+  vector is 1024 floats and serialises to roughly 7 KB, which is where those
+  numbers come from; adjust them together if the format changes.
+- One alert per distinct limit message, not one per frame (`warnAboutLimit`).
+  Reset and delete clear it, so hitting the cap again is reported again.
+- `saveRefusedAtExamples` remembers the example count at which a save was
+  refused and skips serialising until the data shrinks below it. This is what
+  removes the repeated 20-second blocks even if the caps are ever raised.
+
+Refusing rather than rotating is deliberate. Rotation would let the same forever
+loop run at full cost indefinitely, and would silently discard a pupil's earlier
+examples. Refusing makes the loop cheap and the situation legible.
+
+`updateCounts()` no longer logs on every training, which a loop turned into
+thousands of console lines.
+
 **If the VM has no `glowAssetManager`** — which is the case against upstream
 `TurboWarp/scratch-vm`, what `package.json` still points at — the extension logs
 one warning and everything else works as before.

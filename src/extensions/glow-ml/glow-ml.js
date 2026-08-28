@@ -97,6 +97,45 @@ const ASSET_NAME = 'training';
 const SAVE_DEBOUNCE_MS = 1000;
 
 /**
+ * How many training examples to keep. A MobileNet feature vector is 1024 floats,
+ * which serialises to roughly 7 KB, so 500 of them is about 3.5 MB - comfortably
+ * inside the asset manager's 8 MB ceiling with room for other extensions.
+ *
+ * This is the real defence against 'forever [train label A]'. Without it the
+ * examples grow without bound, and long before memory runs out the extension is
+ * spending twenty seconds per save serialising megabytes it is then told it
+ * cannot store.
+ *
+ * Refusing rather than rotating is deliberate: rotation would let that same
+ * forever loop run at full cost indefinitely, and would quietly throw away a
+ * pupil's earlier examples.
+ */
+const MAX_EXAMPLES_TOTAL = 500;
+
+/** And no single label may take all of it. */
+const MAX_EXAMPLES_PER_LABEL = 200;
+
+/**
+ * Byte counts shown to a person. Mirrors GlowAssetManager.formatBytes, which is
+ * not reachable from here because the extension is loaded as a plain script.
+ * @param {number} bytes - a byte count
+ * @return {string} the same count, readable
+ */
+const formatBytes = bytes => {
+  if (bytes < 1024) {
+    return `${bytes} bytes`;
+  }
+  const units = ['KB', 'MB', 'GB'];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return `${Math.round(value * 10) / 10} ${units[unit]}`;
+};
+
+/**
  * Glow: labels are shown in order everywhere, so a dropdown and the reporter
  * never disagree. Numeric so that 'label 10' sorts after 'label 2', and
  * case-insensitive so that capitalisation does not scatter related labels.
@@ -369,10 +408,26 @@ const Message = {
     'zh-cn': '舞台',
     'zh-tw': '舞台'
   },
+  max_examples_per_label: {
+    'ja': '1つのラベルに保存できる学習例は[N]個までです。このラベルをリセットするか削除すると、また学習できます。',
+    'ja-Hira': '1つのラベルにほぞんできるがくしゅうれいは[N]こまでです。このラベルをリセットするかさくじょすると、またがくしゅうできます。',
+    'en': 'A label holds at most [N] training examples. Reset or delete this one to train it again.',
+    'it': "Un'etichetta può contenere al massimo [N] esempi. Resettala o eliminala per addestrarla ancora.",
+    'zh-cn': '每个标签最多保存[N]个训练样本。请重置或删除该标签后再训练。',
+    'zh-tw': '每個標籤最多儲存[N]個訓練範例。請重置或刪除該標籤後再訓練。'
+  },
+  max_examples_total: {
+    'ja': '1つのプロジェクトに保存できる学習例は全部で[N]個までです。ラベルをリセットするか削除して下さい。',
+    'ja-Hira': '1つのプロジェクトにほぞんできるがくしゅうれいはぜんぶで[N]こまでです。ラベルをリセットするかさくじょしてください。',
+    'en': 'A project holds at most [N] training examples in total. Reset or delete a label to train more.',
+    'it': 'Un progetto può contenere al massimo [N] esempi in tutto. Resetta o elimina un\'etichetta per addestrarne altri.',
+    'zh-cn': '每个项目最多共保存[N]个训练样本。请重置或删除某个标签后再训练。',
+    'zh-tw': '每個專案最多共儲存[N]個訓練範例。請重置或刪除某個標籤後再訓練。'
+  },
   too_much_data: {
     'ja': '学習データが大きすぎてプロジェクトに保存できません。ラベルを減らすか、学習をリセットして下さい。',
     'ja-Hira': 'がくしゅうデータがおおきすぎてプロジェクトにほぞんできません。ラベルをへらすか、がくしゅうをリセットしてください。',
-    'en': 'There is too much training data to save inside the project. Delete a label or reset some training.',
+    'en': 'There is too much training data to save inside the project ([SIZE], the limit is [LIMIT]). Delete a label or reset some training.',
     'it': "Ci sono troppi dati di addestramento per salvarli dentro al progetto. Elimina un'etichetta o resetta un po' di addestramento.",
     'zh-cn': '训练数据太多，无法保存在项目中。请删除标签或重置部分训练。',
     'zh-tw': '訓練資料太多，無法儲存在專案中。請刪除標籤或重置部分訓練。'
@@ -475,6 +530,11 @@ class GlowMLBlocks {
     this.assetManager = runtime.glowAssetManager || null;
     this.saveTimer = null;
     this.warnedAboutSize = false;
+    // Set to the example count at which a save was refused, so we stop paying to
+    // serialise data we already know will not fit. Cleared when it shrinks.
+    this.saveRefusedAtExamples = null;
+    // The limit message already shown, so it is shown once and not per frame.
+    this.limitWarning = null;
     if (this.assetManager) {
       this.assetManager.on('warning', event => {
         console.warn(`Glow ML: the project is holding ${event.totalBytes} bytes of extension data, ` +
@@ -781,6 +841,9 @@ class GlowMLBlocks {
     if (this.training) {
       return;
     }
+    if (!this.checkExampleLimits(args.LABEL)) {
+      return;
+    }
     this.training = true;
 
     // Returning a promise puts the thread in STATUS_PROMISE_WAIT
@@ -885,6 +948,7 @@ class GlowMLBlocks {
           this.counts[args.LABEL] = 0;
         }
       }
+      this.limitWarning = null;
       this.scheduleSave();
     }, 1000);
   }
@@ -906,6 +970,7 @@ class GlowMLBlocks {
         this.knnClassifier.clearAllLabels();
         this.counts = null;
         this.labels = DEFAULT_LABELS.slice();
+        this.limitWarning = null;
         this.scheduleSave();
         return;
       }
@@ -914,6 +979,7 @@ class GlowMLBlocks {
         delete this.counts[args.LABEL];
       }
       this.labels = this.labels.filter(label => label !== args.LABEL);
+      this.limitWarning = null;
       this.scheduleSave();
     }, 1000);
   }
@@ -1058,7 +1124,9 @@ class GlowMLBlocks {
 
   updateCounts() {
     this.counts = this.knnClassifier.getCountByLabel();
-    console.debug(this.counts);
+    // Glow: upstream logged the counts here on every training, which a loop turns
+    // into thousands of console lines. The 'labels and counts' reporter shows the
+    // same thing on the stage.
   }
 
   actionRepeated() {
@@ -1215,6 +1283,43 @@ class GlowMLBlocks {
   }
 
   /**
+   * Glow: refuse to keep training once the caps are reached, and say why once.
+   * Checked before infer() so that a 'forever [train]' loop costs nothing at all
+   * from here on rather than continuing to burn a frame per iteration.
+   * @param {string} label - the label about to be trained
+   * @return {boolean} - whether training may go ahead
+   */
+  checkExampleLimits(label) {
+    const counts = this.counts || {};
+    const forLabel = counts[label] || 0;
+    const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+
+    if (forLabel >= MAX_EXAMPLES_PER_LABEL) {
+      this.warnAboutLimit(Message.max_examples_per_label[this.locale].replace('[N]', MAX_EXAMPLES_PER_LABEL));
+      return false;
+    }
+    if (total >= MAX_EXAMPLES_TOTAL) {
+      this.warnAboutLimit(Message.max_examples_total[this.locale].replace('[N]', MAX_EXAMPLES_TOTAL));
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Glow: one alert, not one per frame. A 'forever' loop hits the cap thousands
+   * of times, and a modal per iteration would be worse than the original problem.
+   * @param {string} message - what to say
+   */
+  warnAboutLimit(message) {
+    if (this.limitWarning === message) {
+      return;
+    }
+    this.limitWarning = message;
+    console.warn(`Glow ML: ${message}`);
+    alert(message);
+  }
+
+  /**
    * Glow: ml5's save() serialises the classifier and downloads it in one step,
    * so this repeats only the serialising half. The shape is identical to the
    * file the download block produces, which keeps the two interchangeable, and
@@ -1249,6 +1354,13 @@ class GlowMLBlocks {
     if (!this.assetManager) {
       return;
     }
+    const exampleCount = Object.values(this.counts || {}).reduce((sum, count) => sum + count, 0);
+    if (this.saveRefusedAtExamples !== null && exampleCount >= this.saveRefusedAtExamples) {
+      // A previous save was refused at this size. Serialising again would build
+      // megabytes of JSON only to be told the same thing, which is what made a
+      // runaway loop lock the tab up for twenty seconds at a time.
+      return;
+    }
     const json = this.serializeTrainingData();
     if (json === null) {
       // Nothing trained: take the entry out rather than storing an empty one.
@@ -1257,18 +1369,24 @@ class GlowMLBlocks {
       }
       return;
     }
+    const encoded = new TextEncoder().encode(json);
     try {
-      this.assetManager.set(ASSET_OWNER, ASSET_NAME, 'json', new TextEncoder().encode(json));
+      this.assetManager.set(ASSET_OWNER, ASSET_NAME, 'json', encoded);
       // Otherwise the editor has no idea there is anything new to save.
       this.runtime.emitProjectChanged();
       this.warnedAboutSize = false;
+      this.saveRefusedAtExamples = null;
     } catch (error) {
       // Over the manager's ceiling. The data stays in memory and still works for
-      // this session; it just will not be saved with the project.
+      // this session; it just will not be saved with the project. Remember the
+      // size so we do not pay to serialise it again until something is removed.
+      this.saveRefusedAtExamples = exampleCount;
       console.error('Glow ML: could not store the training data in the project.', error);
       if (!this.warnedAboutSize) {
         this.warnedAboutSize = true;
-        alert(Message.too_much_data[this.locale]);
+        alert(Message.too_much_data[this.locale]
+          .replace('[SIZE]', formatBytes(error.totalBytes || encoded.length))
+          .replace('[LIMIT]', formatBytes(error.maxBytes || this.assetManager.maxBytes)));
       }
     }
   }
@@ -1305,6 +1423,8 @@ class GlowMLBlocks {
       this.counts = null;
       this.label = null;
       this.confidence = 0;
+      this.limitWarning = null;
+      this.saveRefusedAtExamples = null;
       return;
     }
     try {
