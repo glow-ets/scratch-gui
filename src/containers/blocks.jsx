@@ -9,6 +9,7 @@ import VMScratchBlocks from '../lib/blocks';
 import VM from 'scratch-vm';
 
 import log from '../lib/log.js';
+import glowSafely from '../lib/glow-safely.js';
 import Prompt from './prompt.jsx';
 import BlocksComponent from '../components/blocks/blocks.jsx';
 import ExtensionLibrary from './extension-library.jsx';
@@ -422,19 +423,21 @@ class Blocks extends React.Component {
         }
     }
     onScriptGlowOn (data) {
-        this.workspace.glowStack(data.id, true);
+        glowSafely(data.id, () => this.workspace.glowStack(data.id, true));
     }
     onScriptGlowOff (data) {
-        this.workspace.glowStack(data.id, false);
+        glowSafely(data.id, () => this.workspace.glowStack(data.id, false));
     }
     onBlockGlowOn (data) {
-        this.workspace.glowBlock(data.id, true);
+        glowSafely(data.id, () => this.workspace.glowBlock(data.id, true));
     }
     onBlockGlowOff (data) {
-        this.workspace.glowBlock(data.id, false);
+        glowSafely(data.id, () => this.workspace.glowBlock(data.id, false));
     }
     onVisualReport (data) {
-        this.workspace.reportValue(data.id, data.value);
+        // Same hazard as the glows above: reportValue throws for a block the
+        // workspace no longer has, and this too runs inside runtime._step().
+        glowSafely(data.id, () => this.workspace.reportValue(data.id, data.value));
     }
     getToolboxXML () {
         // Use try/catch because this requires digging pretty deep into the VM
