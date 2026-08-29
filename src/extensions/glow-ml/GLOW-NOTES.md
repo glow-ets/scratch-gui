@@ -350,6 +350,21 @@ model. That misattribution is what made a refused camera say
 "The MobileNet model could not be loaded" directly under a console line reading
 `[featureExtractor] Model Loaded!`.
 
+## Known upstream problems
+
+Two bugs found with this extension are not this extension's, and are tracked
+separately with their own branch and evidence:
+
+- glow-ets/scratch-gui#23 — a script dragged out of its hat while running
+  cannot be stopped by clicking it, and blocks the hat from ever firing again,
+  so `when received category` goes quiet until the Stop button is pressed.
+- glow-ets/scratch-gui#24 — a glow for a deleted block throws inside
+  `runtime._step()`, which stops the stage being repainted.
+
+Both are reachable from any project; this extension makes them easy to hit
+because its hat refires on every classification tick, so a script under it is
+glowing nearly all the time.
+
 ## Training feedback instead of a warning
 
 Upstream alerted once per session on the first `train`: "the first training will
