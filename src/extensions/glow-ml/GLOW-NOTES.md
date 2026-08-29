@@ -204,38 +204,6 @@ reverted in 17e1615 — the monitor keeps the text it was created with, so it
 goes stale as soon as the dropdown changes, which is worse than a visible
 placeholder.
 
-### Editing a script while it is glowing
-
-Deleting a block from a running script could take the whole editor down: the
-stage went white and the console filled with `Tried to glow stack on block that
-does not exist.` The fix is in `src/containers/blocks.jsx`, not here, but this
-extension is what makes it easy to hit.
-
-`Runtime._updateGlows()` remembers the ids it made glow last frame
-(`_scriptGlowsPreviousFrame`) and un-glows the ones no longer wanted. It has one
-defence against an id the editor has since deleted: `Runtime.quietGlow`, called
-from `blocks.js` when a **top-level** block is deleted. An id can outlive that
-guard, and scratch-blocks' `glowStack` then throws a bare string for it.
-
-What made that fatal rather than cosmetic is where it throws. The glow handlers
-run synchronously inside `runtime._step()`, so the exception unwinds through
-`_updateGlows()` and skips the rest of the step, including `renderer.draw()`
-(`runtime.js:2565`) — the stage stops being redrawn, which is the white screen.
-It also skips `_scriptGlowsPreviousFrame = finalScriptGlows`
-(`runtime.js:3014`), so the dead id is still there on the next frame; and the
-step loop is a `setInterval` (`tw-frame-loop.js:97`), which keeps calling a
-callback that keeps throwing. The editor never recovers on its own.
-
-`safeGlow` in `blocks.jsx` wraps the four glow handlers and `onVisualReport`,
-which throws the same way for the same reason. A stale glow is now a warning in
-the console and nothing else.
-
-Why this extension: `when received category` is an edge-activated hat that
-refires on every classification tick, so with a long-running block under it —
-`say for 10 seconds`, `forever` — the script is glowing almost continuously.
-Deleting a *glowing* script is the precondition for the crash, and here it is
-the normal case rather than a rare coincidence.
-
 Block palette colours are `#f000ee` / `#c000be` / `#950094`. The block icon is
 the same artwork as the library inset icon, inlined as a data URI — upstream's
 is ML2Scratch green, which clashed badly with the pink blocks.

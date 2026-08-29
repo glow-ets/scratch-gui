@@ -421,48 +421,20 @@ class Blocks extends React.Component {
             }, 0);
         }
     }
-    /**
-     * Glow: scratch-blocks throws when asked to glow a block the workspace does
-     * not have, and the VM can ask for exactly that: a glow is requested for a
-     * block id captured on an earlier frame, and the editor may have deleted
-     * that block since. Runtime.quietGlow (called from blocks.js when a
-     * top-level block is deleted) covers the common case, but a glowing id can
-     * outlive it - for instance when the id belonged to a script that was
-     * dropped back onto another one before being deleted.
-     *
-     * Letting the throw through is far worse than the stale glow. These
-     * handlers run synchronously inside runtime._step(), so the exception
-     * unwinds through _updateGlows() and aborts the rest of the step before
-     * renderer.draw(), which leaves the stage frozen. It also aborts before
-     * _scriptGlowsPreviousFrame is reassigned, so the same dead id is retried
-     * on the next frame, and the next: the editor never recovers.
-     * @param {string} id - the block scratch-blocks may or may not have
-     * @param {Function} glow - what to do with it
-     */
-    safeGlow (id, glow) {
-        try {
-            glow();
-        } catch (e) {
-            // scratch-blocks throws a bare string here, not an Error.
-            log.warn(`ignoring a glow for block ${id}, which the workspace does not have`, e);
-        }
-    }
     onScriptGlowOn (data) {
-        this.safeGlow(data.id, () => this.workspace.glowStack(data.id, true));
+        this.workspace.glowStack(data.id, true);
     }
     onScriptGlowOff (data) {
-        this.safeGlow(data.id, () => this.workspace.glowStack(data.id, false));
+        this.workspace.glowStack(data.id, false);
     }
     onBlockGlowOn (data) {
-        this.safeGlow(data.id, () => this.workspace.glowBlock(data.id, true));
+        this.workspace.glowBlock(data.id, true);
     }
     onBlockGlowOff (data) {
-        this.safeGlow(data.id, () => this.workspace.glowBlock(data.id, false));
+        this.workspace.glowBlock(data.id, false);
     }
     onVisualReport (data) {
-        // Same hazard as the glows above: reportValue throws for a block the
-        // workspace no longer has, and this too runs inside runtime._step().
-        this.safeGlow(data.id, () => this.workspace.reportValue(data.id, data.value));
+        this.workspace.reportValue(data.id, data.value);
     }
     getToolboxXML () {
         // Use try/catch because this requires digging pretty deep into the VM
