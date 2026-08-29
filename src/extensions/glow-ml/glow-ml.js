@@ -86,6 +86,20 @@ const ALL = 'all';
 const ANY = 'any';
 
 /**
+ * Glow: what the runtime calls the 'when received category' block, and the name
+ * of the dropdown field inside it. Extension opcodes are prefixed with the
+ * extension id, and a dropdown argument's field is named after its *menu*
+ * rather than after the argument (runtime.js, _buildMenuForScratchBlocks), so
+ * this is 'received_menu' and not 'CATEGORY'.
+ *
+ * Both are needed to fire the hat the way 'broadcast' fires 'when I receive':
+ * runtime.startHats(opcode, {field: value}) starts only the scripts whose
+ * dropdown holds that value.
+ */
+const RECEIVED_HAT = 'glowML_whenReceived';
+const RECEIVED_HAT_FIELD = 'received_menu';
+
+/**
  * Where the training data lives inside the project, via the VM's asset manager
  * (glow-ets/scratch-gui#22). Stored as a real asset rather than in project.json,
  * so restore points share one copy of it instead of duplicating it per snapshot.
@@ -717,6 +731,15 @@ class GlowMLBlocks {
           opcode: 'whenReceived',
           text: Message.when_received_block[this.locale],
           blockType: BlockType.HAT,
+          // Glow: 'when received category' is an event, like 'when I receive',
+          // so it is fired by classify() rather than polled every frame, and it
+          // restarts a script that is still running from the previous
+          // classification. The extension API's defaults are the opposite of
+          // both (isEdgeActivated true, shouldRestartExistingThreads absent),
+          // which is what stock 'when [timer] > 0' uses - a sensor, not an
+          // event. See GLOW-NOTES.md, "The hat is an event, not a sensor".
+          isEdgeActivated: false,
+          shouldRestartExistingThreads: true,
           arguments: {
             CATEGORY: {
               type: ArgumentType.STRING,
@@ -1218,8 +1241,33 @@ class GlowMLBlocks {
         this.confidence = result.confidencesByLabel[this.category] || 0;
         this.when_received = true;
         this.when_received_arr[this.category] = true
+        this.fireReceivedHats(this.category);
       }
     });
+  }
+
+  /**
+   * Glow: fire 'when received category', the way 'broadcast' fires
+   * 'when I receive'. Upstream left the hat edge activated, so the runtime
+   * polled it once a frame instead; see GLOW-NOTES.md for why that is the wrong
+   * shape for this block.
+   *
+   * Two calls, not one, and each names the dropdown value it is firing for.
+   * They select disjoint sets of scripts - the ones for this category, and the
+   * ones set to 'any' - so no script is started or restarted twice, and a
+   * script waiting on a *different* category is left alone. Firing once with no
+   * field would restart every 'when received' script in the project on every
+   * classification, killing the ones whose category was not the one recognised.
+   * @param {string} category - the category just recognised
+   */
+  fireReceivedHats(category) {
+    if (!category || !this.runtime.startHats) {
+      return;
+    }
+    // startHats upper-cases the values it is given, in place, so it gets its own
+    // object each time rather than a shared one.
+    this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: String(category)});
+    this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: ANY});
   }
 
   getTopConfidenceCategory(confidences) {

@@ -350,20 +350,70 @@ model. That misattribution is what made a refused camera say
 "The MobileNet model could not be loaded" directly under a console line reading
 `[featureExtractor] Model Loaded!`.
 
+## The hat is an event, not a sensor
+
+`when received category` is fired by `classify()` through `runtime.startHats`,
+the same way `broadcast` fires `when I receive`:
+
+```js
+isEdgeActivated: false,
+shouldRestartExistingThreads: true,
+```
+
+Both differ from the extension API's defaults, and upstream ML2Scratch took the
+defaults. `isEdgeActivated` defaults to **true** for an extension hat
+(`runtime.js:1423`) and `shouldRestartExistingThreads` has no default, so the
+block was configured exactly like stock `when [loudness] > 10`: a **sensor**
+that the runtime evaluates once a frame and that never restarts a script
+already running under it.
+
+That is the wrong shape for this block, and it shows in an ordinary classroom
+gesture. Take a script running under the hat and drag its body out of the hat.
+The thread does not stop — a thread keeps running wherever it is, whatever the
+editor does to the blocks around it. What normally rescues you is the next
+event: `_restartThread` builds a new thread on the script's **top block**
+(`runtime.js`), so on the next broadcast the thread goes back to the hat, finds
+nothing under it any more, and ends. With `restartExistingThreads: false` that
+never happens: the detached blocks run forever, clicking them starts a *second*
+thread instead of stopping the first (`toggleScript` matches on the top block a
+thread *started* with, which is still the hat), and `startHats` then refuses to
+fire the hat at all because a thread with that top block is still alive. The
+hat goes silent until the Stop button. Stock `when [timer] > 0` behaves exactly
+the same way — glow-ets/scratch-gui#23 — which is why the fix is here and not
+there.
+
+**Two `startHats` calls, each naming a dropdown value**, not one call with no
+filter:
+
+```js
+this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: String(category)});
+this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: ANY});
+```
+
+They select disjoint sets of scripts, so nothing is started twice, and a script
+waiting on a *different* category is left alone. One unfiltered call would
+restart **every** `when received` script on every classification and then retire
+the ones whose category did not match — killing them mid-run. The field is
+called `received_menu`, not `CATEGORY`: a dropdown argument's field is named
+after its menu (`runtime.js`, `_buildMenuForScratchBlocks`). Both sides are
+compared upper-cased by the VM, so two categories differing only in case would
+trigger each other.
+
+The consequence to know about: while a category keeps being recognised, the
+script under its hat is **restarted on every classification**, exactly as it
+would be under a `forever [broadcast]`. A script that takes longer than the
+classification interval never reaches its end. `classify once every [N]
+seconds` is the knob.
+
 ## Known upstream problems
 
-Two bugs found with this extension are not this extension's, and are tracked
-separately with their own branch and evidence:
-
 - glow-ets/scratch-gui#23 — a script dragged out of its hat while running
-  cannot be stopped by clicking it, and blocks the hat from ever firing again,
-  so `when received category` goes quiet until the Stop button is pressed.
+  cannot be stopped by clicking it, and blocks the hat from ever firing again.
+  This no longer bites us, since the hat above restarts; it still bites stock
+  `when [timer] > 0`.
 - glow-ets/scratch-gui#24 — a glow for a deleted block throws inside
-  `runtime._step()`, which stops the stage being repainted.
-
-Both are reachable from any project; this extension makes them easy to hit
-because its hat refires on every classification tick, so a script under it is
-glowing nearly all the time.
+  `runtime._step()`, which stops the stage being repainted. Tracked with its own
+  branch and evidence; the trigger is not yet pinned down.
 
 ## Training feedback instead of a warning
 
