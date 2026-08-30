@@ -378,6 +378,15 @@ stock `when [loudness] > 10` — a **sensor**, evaluated once a frame by the
 runtime rather than fired by anything. Both properties are now stated in the
 block, rather than left to a default that means something else.
 
+A sensor hat has a visible cost, and it is worth knowing because it is the same
+cost that shapes everything below. `_step` calls `startHats` for every
+edge-activated hat on every frame, which pushes a thread per script and retires
+it when the predicate is false — and a retired thread is still counted as the
+project running. So in stock Scratch, merely *having* a `when [loudness] > 10`
+block in a script puts the green flag into its pressed state and keeps it there
+until the block is removed. Upstream's configuration would have done the same to
+every Glow ML project.
+
 `fireReceivedHats` names the dropdown value it fires for, twice — once for the
 category recognised, once for `any`:
 
@@ -405,6 +414,16 @@ it does (`runtime.js`, `_convertPlaceholders`). Ours does not, so it is the
 first. Getting this wrong is not a mismatch but a crash: `startHats` reads
 `hatFields[matchField].value` with no guard, so an unknown name throws out of the
 middle of its loop and *no* hat fires — which is exactly how it failed once.
+
+A hat with **nothing under it** is not fired at all. It would still cost a
+thread — `startHats` starts one, the hat says yes, and it finishes in the same
+frame having run nothing — and that thread is counted, so the flag would flash
+once per classification for a script that does nothing. Once a second, that is a
+steady flicker, and a bare `when received category [any]` sitting on the canvas
+is a normal thing for a pupil to have while building. `hasScriptToRun` checks
+for a `next` block before firing. A hat *with* blocks under it is fired, and the
+flag does light while its script runs: that is correct, and it is what stock
+Scratch does for `when key pressed`.
 
 One consequence to keep in mind: the runtime compares dropdown values
 **upper-cased** (`blocks-runtime-cache.js` upper-cases the cached field, and

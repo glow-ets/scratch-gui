@@ -1284,8 +1284,47 @@ class GlowMLBlocks {
     }
     // startHats upper-cases the values it is handed, in place, so each call
     // gets an object of its own rather than a shared one.
-    this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: String(category)});
-    this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: ANY});
+    if (this.hasScriptToRun(category)) {
+      this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: String(category)});
+    }
+    if (this.hasScriptToRun(ANY)) {
+      this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: ANY});
+    }
+  }
+
+  /**
+   * Glow: does any 'when received category' block set to this value have
+   * something under it to run?
+   *
+   * A hat on its own still costs a thread: startHats starts one, the hat block
+   * says yes, and the thread finishes in the same frame having run nothing. That
+   * thread is counted as the project running - _emitProjectRunStatus adds
+   * doneThreads on purpose - so the green flag flashes once per classification
+   * for a script that does nothing. Firing once a second makes that a steady
+   * flicker, which is what a pupil sees while a bare hat sits on the canvas.
+   *
+   * A hat with blocks under it is a different matter: the flag lights because a
+   * script really is running, which is right and is what stock Scratch does.
+   * @param {string} value - a category name, or ANY
+   * @returns {boolean} true if firing for it would run something
+   */
+  hasScriptToRun(value) {
+    const wanted = receivedKey(value);
+    return this.runtime.targets.some(target => {
+      const blocks = target.blocks;
+      if (!blocks || !blocks.getScripts) {
+        return false;
+      }
+      return blocks.getScripts().some(id => {
+        const block = blocks.getBlock(id);
+        if (!block || blocks.getOpcode(block) !== RECEIVED_HAT || !blocks.getNextBlock(id)) {
+          return false;
+        }
+        const fields = blocks.getFields(block);
+        const field = fields && fields[RECEIVED_HAT_FIELD];
+        return Boolean(field) && receivedKey(field.value) === wanted;
+      });
+    });
   }
 
   getTopConfidenceCategory(confidences) {
