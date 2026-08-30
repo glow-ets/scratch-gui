@@ -86,33 +86,6 @@ const ALL = 'all';
 const ANY = 'any';
 
 /**
- * Glow: what the runtime calls the 'when received category' block, and the name
- * of its dropdown, for firing the hat with runtime.startHats.
- *
- * Extension opcodes are prefixed with the extension id. The dropdown is a field
- * on the block itself, named after the *argument*, because its menu does not
- * accept reporters; a menu that does accept them gets a shadow block whose
- * field is named after the *menu* instead (runtime.js, _convertPlaceholders).
- * So this is 'CATEGORY' and not 'received_menu'. Getting it wrong is not a
- * mismatch but a crash: startHats reads hatFields[name].value unguarded.
- */
-const RECEIVED_HAT = 'glowML_whenReceived';
-const RECEIVED_HAT_FIELD = 'CATEGORY';
-
-/**
- * Glow: how a category is keyed in when_received_arr.
- *
- * Upper-cased, because that is how the runtime compares a hat's dropdown
- * against the value startHats is given, and the two gates must agree. If they
- * did not, the runtime would start a script whose block then vetoed it - which
- * is what a project holding both 'cat' and 'CAT' used to do. createCategory
- * refuses such a pair for the same reason.
- * @param {string} category - a category name
- * @returns {string} its key
- */
-const receivedKey = category => String(category).toUpperCase();
-
-/**
  * Where the training data lives inside the project, via the VM's asset manager
  * (glow-ets/scratch-gui#22). Stored as a real asset rather than in project.json,
  * so restore points share one copy of it instead of duplicating it per snapshot.
@@ -744,15 +717,6 @@ class GlowMLBlocks {
           opcode: 'whenReceived',
           text: Message.when_received_block[this.locale],
           blockType: BlockType.HAT,
-          // Glow: this is 'when key pressed', not 'when I receive'. It is an
-          // event, fired by classify() rather than polled once a frame, and a
-          // firing is *ignored* while the script it would start is still
-          // running. Stated rather than left to the extension API's default,
-          // which is the opposite (isEdgeActivated true) and gives the block
-          // the shape of a sensor like 'when [timer] > 0'.
-          // See GLOW-NOTES.md, "The hat is an event, not a sensor".
-          isEdgeActivated: false,
-          shouldRestartExistingThreads: false,
           arguments: {
             CATEGORY: {
               type: ArgumentType.STRING,
@@ -1012,9 +976,9 @@ class GlowMLBlocks {
       }
       return false;
     } else {
-      if (this.when_received_arr[receivedKey(args.CATEGORY)]) {
+      if (this.when_received_arr[args.CATEGORY]) {
         setTimeout(() => {
-          this.when_received_arr[receivedKey(args.CATEGORY)] = false;
+          this.when_received_arr[args.CATEGORY] = false;
         }, HAT_TIMEOUT);
         return true;
       }
@@ -1253,77 +1217,8 @@ class GlowMLBlocks {
         this.category = this.getTopConfidenceCategory(result.confidencesByLabel);
         this.confidence = result.confidencesByLabel[this.category] || 0;
         this.when_received = true;
-        this.when_received_arr[receivedKey(this.category)] = true
-        this.fireReceivedHats(this.category);
+        this.when_received_arr[this.category] = true
       }
-    });
-  }
-
-  /**
-   * Glow: fire 'when received category', the way the keyboard fires
-   * 'when key pressed'. Upstream left the hat edge activated, so the runtime
-   * polled it once a frame instead; see GLOW-NOTES.md for why that is the wrong
-   * shape for this block.
-   *
-   * Each call names the dropdown value it is firing for, so a thread is started
-   * only for a script that should actually run. Letting the block's own
-   * predicate do the choosing instead would start a thread for every
-   * 'when received' script in the project on every classification and retire
-   * the ones that did not match a moment later - and a thread that starts and
-   * finishes inside one frame still counts as the project running
-   * (runtime.js, _emitProjectRunStatus counts doneThreads on purpose), so the
-   * green flag would flicker once a second in a project where nothing runs.
-   *
-   * Two calls because 'any' is a value like the others: they select disjoint
-   * sets of scripts, so nothing is started twice.
-   * @param {string} category - the category just recognised
-   */
-  fireReceivedHats(category) {
-    if (!category || !this.runtime.startHats) {
-      return;
-    }
-    // startHats upper-cases the values it is handed, in place, so each call
-    // gets an object of its own rather than a shared one.
-    if (this.hasScriptToRun(category)) {
-      this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: String(category)});
-    }
-    if (this.hasScriptToRun(ANY)) {
-      this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: ANY});
-    }
-  }
-
-  /**
-   * Glow: does any 'when received category' block set to this value have
-   * something under it to run?
-   *
-   * A hat on its own still costs a thread: startHats starts one, the hat block
-   * says yes, and the thread finishes in the same frame having run nothing. That
-   * thread is counted as the project running - _emitProjectRunStatus adds
-   * doneThreads on purpose - so the green flag flashes once per classification
-   * for a script that does nothing. Firing once a second makes that a steady
-   * flicker, which is what a pupil sees while a bare hat sits on the canvas.
-   *
-   * A hat with blocks under it is a different matter: the flag lights because a
-   * script really is running, which is right and is what stock Scratch does.
-   * @param {string} value - a category name, or ANY
-   * @returns {boolean} true if firing for it would run something
-   */
-  hasScriptToRun(value) {
-    const wanted = receivedKey(value);
-    return this.runtime.targets.some(target => {
-      const blocks = target.blocks;
-      if (!blocks || !blocks.getScripts) {
-        return false;
-      }
-      return blocks.getScripts().some(id => {
-        const block = blocks.getBlock(id);
-        if (!block || blocks.getOpcode(block) !== RECEIVED_HAT || !blocks.getNextBlock(id)) {
-          return false;
-        }
-        const fields = blocks.getFields(block);
-        const field = fields && fields[RECEIVED_HAT_FIELD];
-        return Boolean(field) && receivedKey(field.value) === wanted;
-      });
     });
   }
 
@@ -1402,9 +1297,7 @@ class GlowMLBlocks {
     if (category === '' || category === ALL || category === ANY) {
       return;
     }
-    // Not just includes(): the runtime matches a hat's dropdown against the
-    // category upper-cased, so 'cat' and 'CAT' would fire each other's scripts.
-    if (this.categories.some(existing => existing.toUpperCase() === category.toUpperCase())) {
+    if (this.categories.includes(category)) {
       alert(Message.category_exists[this.locale]);
       return;
     }

@@ -350,98 +350,37 @@ model. That misattribution is what made a refused camera say
 "The MobileNet model could not be loaded" directly under a console line reading
 `[featureExtractor] Model Loaded!`.
 
-## The hat is an event, not a sensor
+## The green flag stays pressed, and that is fine
 
-`when received category` is fired by `classify()` through `runtime.startHats`,
-and configured like stock `when key pressed`:
+`when received category` is upstream ML2Scratch's hat, unchanged: a plain
+`BlockType.HAT` taking the extension API's defaults, which make it
+**edge activated** (`runtime.js:1423`) with no thread restarting. The runtime
+therefore evaluates it once a frame, exactly like stock `when [loudness] > 10`.
 
-```js
-isEdgeActivated: false,
-shouldRestartExistingThreads: false,
-```
+The visible consequence is that the green flag sits in its pressed state for as
+long as a `when received category` block is in a script. That is not ours and
+not a bug: `_step` starts a thread per script for every edge-activated hat on
+every frame and retires the ones whose predicate is false, and a retired thread
+still counts as the project running (`_emitProjectRunStatus` adds `doneThreads`
+on purpose). Stock Scratch does the same for `when [loudness] > 10`.
 
-Scratch offers two modalities for hats that can fire again while their script is
-still running, and they are a deliberate choice, not an accident:
-
-| | `when I receive` | `when key pressed` |
-| --- | --- | --- |
-| `restartExistingThreads` | `true` | `false` |
-| a firing while the script runs | restarts it from the top | is ignored |
-
-We take the **keystroke** one. Recognising the same category twice a second
-should not cut a script off in the middle; it should wait its turn.
-
-Upstream ML2Scratch took neither, because it took the extension API's defaults:
-`isEdgeActivated` defaults to **true** for an extension hat
-(`runtime.js:1423`) and `shouldRestartExistingThreads` has no default. That is
-stock `when [loudness] > 10` — a **sensor**, evaluated once a frame by the
-runtime rather than fired by anything. Both properties are now stated in the
-block, rather than left to a default that means something else.
-
-A sensor hat has a visible cost, and it is worth knowing because it is the same
-cost that shapes everything below. `_step` calls `startHats` for every
-edge-activated hat on every frame, which pushes a thread per script and retires
-it when the predicate is false — and a retired thread is still counted as the
-project running. So in stock Scratch, merely *having* a `when [loudness] > 10`
-block in a script puts the green flag into its pressed state and keeps it there
-until the block is removed. Upstream's configuration would have done the same to
-every Glow ML project.
-
-`fireReceivedHats` names the dropdown value it fires for, twice — once for the
-category recognised, once for `any`:
-
-```js
-this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: String(category)});
-this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: ANY});
-```
-
-The two select disjoint sets of scripts, so nothing is started twice, and **only
-a script that should actually run gets a thread**. That last part is the point.
-The obvious alternative — one unfiltered `startHats`, letting each block's own
-predicate decide — works, but it starts a thread for every `when received`
-script in the project on every classification and retires the ones that did not
-match a moment later. A thread that starts and finishes inside a single frame
-still counts as the project running: `_emitProjectRunStatus` adds `doneThreads`
-to the count deliberately, commented in `runtime.js` as *"so that even if a
-thread finishes within 1 frame, the green flag will still indicate that a script
-ran"*. A project where nothing should be happening would light the flag once a
-second.
-
-The field is called `CATEGORY`, not `received_menu`. A dropdown argument becomes
-a plain `field_dropdown` **on the block, named after the argument** when its menu
-does not `acceptReporters`, and a shadow menu block **named after the menu** when
-it does (`runtime.js`, `_convertPlaceholders`). Ours does not, so it is the
-first. Getting this wrong is not a mismatch but a crash: `startHats` reads
-`hatFields[matchField].value` with no guard, so an unknown name throws out of the
-middle of its loop and *no* hat fires — which is exactly how it failed once.
-
-A hat with **nothing under it** is not fired at all. It would still cost a
-thread — `startHats` starts one, the hat says yes, and it finishes in the same
-frame having run nothing — and that thread is counted, so the flag would flash
-once per classification for a script that does nothing. Once a second, that is a
-steady flicker, and a bare `when received category [any]` sitting on the canvas
-is a normal thing for a pupil to have while building. `hasScriptToRun` checks
-for a `next` block before firing. A hat *with* blocks under it is fired, and the
-flag does light while its script runs: that is correct, and it is what stock
-Scratch does for `when key pressed`.
-
-One consequence to keep in mind: the runtime compares dropdown values
-**upper-cased** (`blocks-runtime-cache.js` upper-cases the cached field, and
-`startHats` upper-cases what it is given). So `when_received_arr` is keyed
-through `receivedKey`, which upper-cases too — otherwise the runtime would start
-a script and the block's own predicate would then veto it — and `createCategory`
-refuses a new category that differs from an existing one only in case.
+**This has been chased and is settled: leave it alone.** Firing the hat
+ourselves through `runtime.startHats` instead — as `broadcast` and the keyboard
+do — was tried in several shapes and every one cost more than the flag does. A
+thread that starts and finishes inside one frame is counted too, so an event
+fired once a second flickers the flag rather than holding it steady, which reads
+worse; and the block then needs to know internals that are easy to get wrong
+(the dropdown's field is named after the argument, not the menu, and `startHats`
+reads it unguarded, so a wrong guess crashes rather than mismatching). Upstream's
+hat works. Revisit only if a real project misbehaves, not to tidy the indicator.
 
 ## Known upstream problems
 
-- glow-ets/scratch-gui#23 — a script dragged out of its hat while running
-  cannot be stopped by clicking it, and blocks the hat from ever firing again.
-  We share this with stock `when key pressed`, deliberately: the keystroke
-  modality is what we want, and detaching a running script is rare enough, and
-  cheap enough to recover from with the Stop button, that diverging from Scratch
-  to paper over it would cost more than it is worth.
+- glow-ets/scratch-gui#23 — a script dragged out of its hat while running cannot
+  be stopped by clicking it, and blocks that hat from firing again until Stop.
+  Reproducible in vanilla Scratch with `when key pressed`; closed as won't-fix.
 - glow-ets/scratch-gui#24 — a glow for a deleted block throws inside
-  `runtime._step()`, which stops the stage being repainted. Tracked with its own
+  `runtime._step()`, which stops the stage being repainted. Open, with its own
   branch and evidence; the trigger is not yet pinned down.
 
 ## Training feedback instead of a warning
