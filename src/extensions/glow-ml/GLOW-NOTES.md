@@ -378,27 +378,40 @@ stock `when [loudness] > 10` — a **sensor**, evaluated once a frame by the
 runtime rather than fired by anything. Both properties are now stated in the
 block, rather than left to a default that means something else.
 
-`fireReceivedHats` passes **no match fields**:
+`fireReceivedHats` names the dropdown value it fires for, twice — once for the
+category recognised, once for `any`:
 
 ```js
-this.runtime.startHats(RECEIVED_HAT);
+this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: String(category)});
+this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: ANY});
 ```
 
-`broadcast` filters by field, we do not. `startHats` starts a thread for every
-`when received` script that is not already running, and each script's own hat
-block then decides for itself: `whenReceived()` returns false when the dropdown
-does not name the category that was recognised, and `execute()` retires a
-non-edge hat whose predicate came back false (`execute.js`). So the choosing
-stays in the block, where `any` and the category names already live.
+The two select disjoint sets of scripts, so nothing is started twice, and **only
+a script that should actually run gets a thread**. That last part is the point.
+The obvious alternative — one unfiltered `startHats`, letting each block's own
+predicate decide — works, but it starts a thread for every `when received`
+script in the project on every classification and retires the ones that did not
+match a moment later. A thread that starts and finishes inside a single frame
+still counts as the project running: `_emitProjectRunStatus` adds `doneThreads`
+to the count deliberately, commented in `runtime.js` as *"so that even if a
+thread finishes within 1 frame, the green flag will still indicate that a script
+ran"*. A project where nothing should be happening would light the flag once a
+second.
 
-The alternative — `startHats(opcode, {field: value})` — needs the name of a
-field the runtime generated, and that name is not obvious. A dropdown argument
-becomes a plain `field_dropdown` **on the block, named after the argument**
-when its menu does not `acceptReporters`, and a shadow menu block **named after
-the menu** when it does (`runtime.js`, `_convertPlaceholders`). Getting it wrong
-is not a mismatch, it is a crash: `startHats` reads `hatFields[matchField].value`
-with no guard, so an unknown field name throws out of the middle of the loop and
-no hat fires at all.
+The field is called `CATEGORY`, not `received_menu`. A dropdown argument becomes
+a plain `field_dropdown` **on the block, named after the argument** when its menu
+does not `acceptReporters`, and a shadow menu block **named after the menu** when
+it does (`runtime.js`, `_convertPlaceholders`). Ours does not, so it is the
+first. Getting this wrong is not a mismatch but a crash: `startHats` reads
+`hatFields[matchField].value` with no guard, so an unknown name throws out of the
+middle of its loop and *no* hat fires — which is exactly how it failed once.
+
+One consequence to keep in mind: the runtime compares dropdown values
+**upper-cased** (`blocks-runtime-cache.js` upper-cases the cached field, and
+`startHats` upper-cases what it is given). So `when_received_arr` is keyed
+through `receivedKey`, which upper-cases too — otherwise the runtime would start
+a script and the block's own predicate would then veto it — and `createCategory`
+refuses a new category that differs from an existing one only in case.
 
 ## Known upstream problems
 
