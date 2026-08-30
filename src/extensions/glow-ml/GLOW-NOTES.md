@@ -353,64 +353,61 @@ model. That misattribution is what made a refused camera say
 ## The hat is an event, not a sensor
 
 `when received category` is fired by `classify()` through `runtime.startHats`,
-the same way `broadcast` fires `when I receive`:
+and configured like stock `when key pressed`:
 
 ```js
 isEdgeActivated: false,
-shouldRestartExistingThreads: true,
+shouldRestartExistingThreads: false,
 ```
 
-Both differ from the extension API's defaults, and upstream ML2Scratch took the
-defaults. `isEdgeActivated` defaults to **true** for an extension hat
-(`runtime.js:1423`) and `shouldRestartExistingThreads` has no default, so the
-block was configured exactly like stock `when [loudness] > 10`: a **sensor**
-that the runtime evaluates once a frame and that never restarts a script
-already running under it.
+Scratch offers two modalities for hats that can fire again while their script is
+still running, and they are a deliberate choice, not an accident:
 
-That is the wrong shape for this block, and it shows in an ordinary classroom
-gesture. Take a script running under the hat and drag its body out of the hat.
-The thread does not stop — a thread keeps running wherever it is, whatever the
-editor does to the blocks around it. What normally rescues you is the next
-event: `_restartThread` builds a new thread on the script's **top block**
-(`runtime.js`), so on the next broadcast the thread goes back to the hat, finds
-nothing under it any more, and ends. With `restartExistingThreads: false` that
-never happens: the detached blocks run forever, clicking them starts a *second*
-thread instead of stopping the first (`toggleScript` matches on the top block a
-thread *started* with, which is still the hat), and `startHats` then refuses to
-fire the hat at all because a thread with that top block is still alive. The
-hat goes silent until the Stop button. Stock `when [timer] > 0` behaves exactly
-the same way — glow-ets/scratch-gui#23 — which is why the fix is here and not
-there.
+| | `when I receive` | `when key pressed` |
+| --- | --- | --- |
+| `restartExistingThreads` | `true` | `false` |
+| a firing while the script runs | restarts it from the top | is ignored |
 
-**Two `startHats` calls, each naming a dropdown value**, not one call with no
-filter:
+We take the **keystroke** one. Recognising the same category twice a second
+should not cut a script off in the middle; it should wait its turn.
+
+Upstream ML2Scratch took neither, because it took the extension API's defaults:
+`isEdgeActivated` defaults to **true** for an extension hat
+(`runtime.js:1423`) and `shouldRestartExistingThreads` has no default. That is
+stock `when [loudness] > 10` — a **sensor**, evaluated once a frame by the
+runtime rather than fired by anything. Both properties are now stated in the
+block, rather than left to a default that means something else.
+
+`fireReceivedHats` passes **no match fields**:
 
 ```js
-this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: String(category)});
-this.runtime.startHats(RECEIVED_HAT, {[RECEIVED_HAT_FIELD]: ANY});
+this.runtime.startHats(RECEIVED_HAT);
 ```
 
-They select disjoint sets of scripts, so nothing is started twice, and a script
-waiting on a *different* category is left alone. One unfiltered call would
-restart **every** `when received` script on every classification and then retire
-the ones whose category did not match — killing them mid-run. The field is
-called `received_menu`, not `CATEGORY`: a dropdown argument's field is named
-after its menu (`runtime.js`, `_buildMenuForScratchBlocks`). Both sides are
-compared upper-cased by the VM, so two categories differing only in case would
-trigger each other.
+`broadcast` filters by field, we do not. `startHats` starts a thread for every
+`when received` script that is not already running, and each script's own hat
+block then decides for itself: `whenReceived()` returns false when the dropdown
+does not name the category that was recognised, and `execute()` retires a
+non-edge hat whose predicate came back false (`execute.js`). So the choosing
+stays in the block, where `any` and the category names already live.
 
-The consequence to know about: while a category keeps being recognised, the
-script under its hat is **restarted on every classification**, exactly as it
-would be under a `forever [broadcast]`. A script that takes longer than the
-classification interval never reaches its end. `classify once every [N]
-seconds` is the knob.
+The alternative — `startHats(opcode, {field: value})` — needs the name of a
+field the runtime generated, and that name is not obvious. A dropdown argument
+becomes a plain `field_dropdown` **on the block, named after the argument**
+when its menu does not `acceptReporters`, and a shadow menu block **named after
+the menu** when it does (`runtime.js`, `_convertPlaceholders`). Getting it wrong
+is not a mismatch, it is a crash: `startHats` reads `hatFields[matchField].value`
+with no guard, so an unknown field name throws out of the middle of the loop and
+no hat fires at all.
 
 ## Known upstream problems
 
 - glow-ets/scratch-gui#23 — a script dragged out of its hat while running
   cannot be stopped by clicking it, and blocks the hat from ever firing again.
-  This no longer bites us, since the hat above restarts; it still bites stock
-  `when [timer] > 0`.
+  We share this with stock `when key pressed`, deliberately: the keystroke
+  modality is what we want, and detaching a running script is rare enough, and
+  cheap enough to recover from with the Stop button, that diverging from Scratch
+  to paper over it would cost more than it is worth.
 - glow-ets/scratch-gui#24 — a glow for a deleted block throws inside
   `runtime._step()`, which stops the stage being repainted. Tracked with its own
   branch and evidence; the trigger is not yet pinned down.
