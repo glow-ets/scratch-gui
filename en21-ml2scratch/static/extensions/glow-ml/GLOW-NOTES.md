@@ -401,7 +401,13 @@ request. Both load paths also refuse anything above `MAX_TRAINING_BYTES` before 
   three places without being cleared first, so pressing `turn classification on` while
   MobileNet was still loading — the exact window an impatient child clicks in — left an
   interval running that nothing held the handle to.
-- **`ensureCamera()`** is one shared retry with a cooldown. The provider does not give up on
+- **`ensureCamera()`** is one shared retry with a cooldown. **It does not work yet**,
+  through no fault of its own — see glow-ets/scratch-gui#25. `src/lib/video/camera.js`
+  caches the *first* `getUserMedia` promise in a module-level stack and hands it to every
+  later caller, including when it rejected, and nothing pops a rejected entry: the
+  provider clears its own `_singleSetup` in the failure path, and `disableVideo()` only
+  tears down while `_singleSetup` is still set. So a camera refused once stays refused
+  until the page is reloaded, whatever this asks for. The provider does not give up on
   its own: `_setupVideo()` nulls its cached promise on failure, so `enableVideo()` really
   does retry `getUserMedia`; nothing here ever asked again, which is why a camera held by a
   second tab stayed broken after that tab closed. The awkward case is a camera that *did*
@@ -411,22 +417,27 @@ request. Both load paths also refuse anything above `MAX_TRAINING_BYTES` before 
 - **`this.training`** is still a single flag, so a `forever [train]` in one sprite starves a
   `train` in another. Noted below.
 
+## Clicking, queueing and dialogs
+
+- **`confirmOnce`** never lets a second question queue behind the first. `confirm()`
+  blocks the main thread, so a script reaching one on a loop piles the rest up to fire
+  in a burst the moment the first is dismissed. The one-second delay that used to sit
+  in front of both questions is gone as well: a child who clicked and saw nothing
+  happen clicked again and got two dialogs.
+- **`actionRepeated(block)`** is keyed by block. One shared timestamp meant clicking
+  `download` and then `reset` within 250 ms silently dropped the `reset`.
+- **`trainQueue`** makes training take turns instead of dropping. `infer()` is
+  synchronous and GPU-bound so one at a time is right, but upstream dropped the second
+  call outright, and a `forever [train A]` in one sprite starved a `train B` in another
+  indefinitely and silently. Depth is bounded by the number of scripts, since each one
+  waits on its own promise.
+- **The upload dialog is held by reference**, not looked up by id, so two instances of
+  the extension cannot bind to each other's buttons. Its markup no longer nests
+  `<html><body>` inside a `<dialog>` or close a `<div>` with `</p>`, and the file input
+  now has an `accept` filter, so the obvious thing to try is no longer "any file at all".
+
 ## Known, and deliberately left alone
 
-Recorded so nobody has to rediscover them, and so this pass stayed finite:
-
-- `reset` and `deleteCategory` wait a second before their `confirm()`, so a child who
-  sees nothing happen clicks again and gets two dialogs, and a `forever` can queue a
-  modal storm. `reportProblem` has a rule against exactly this; `confirm()` does not.
-- `actionRepeated()` shares one `blockClickedAt` across `reset`, `delete`, `download` and
-  `upload`, so clicking two of them within 250 ms silently drops the second.
-- `this.training` is global rather than per-target: one sprite's `forever [train]` starves
-  another sprite's `train` indefinitely, and the dropped call returns `undefined` rather
-  than a promise, so the thread carries on with no feedback.
-- The upload dialog's HTML is malformed (nested `html`/`body`, a stray `</p>`), and both
-  `upload()` and the button handlers use `document.getElementById`, so a second instance of
-  the extension would bind to the first one's button.
-- `download` names the file `Date.now()`, which is indistinguishable across 24 children.
 - A zip bomb is inflated before the asset manager's ceiling rejects it; that exposure is
   shared with every costume and sound in scratch-vm.
 
