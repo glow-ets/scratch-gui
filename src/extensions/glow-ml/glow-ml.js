@@ -77,7 +77,7 @@ const HAT_TIMEOUT = 100;
  * The pool behaves like Scratch's broadcast messages, except that a category is
  * never removed just because nothing uses it any more.
  */
-const DEFAULT_CATEGORIES = ['category A', 'category B'];
+const DEFAULT_CATEGORIES = ['Category A', 'Category B'];
 
 /** Menu value meaning 'every category', used by reset, delete and counts. */
 const ALL = 'all';
@@ -183,18 +183,18 @@ const Message = {
   train: {
     'ja': 'カテゴリー[CATEGORY]を学習する',
     'ja-Hira': 'カテゴリー[CATEGORY]をがくしゅうする',
-    'en': 'train category [CATEGORY]',
-    'it': 'addestra categoria [CATEGORY]',
+    'en': 'train [CATEGORY]',
+    'it': 'addestra [CATEGORY]',
     'zh-cn': '学习类别[CATEGORY]',
     'zh-tw': '學習類別[CATEGORY]'
   },
   when_received_block: {
-    'ja': 'カテゴリー[CATEGORY]を受け取ったとき',
-    'ja-Hira': 'カテゴリー[CATEGORY]をうけとったとき',
-    'en': 'when received category [CATEGORY]',
-    'it': 'quando ricevo categoria [CATEGORY]',
-    'zh-cn': '接收到类别[CATEGORY]时',
-    'zh-tw': '接收到類別[CATEGORY]時'
+    'ja': 'カテゴリー[CATEGORY]を認識したとき',
+    'ja-Hira': 'カテゴリー[CATEGORY]をにんしきしたとき',
+    'en': 'when I recognize [CATEGORY]',
+    'it': 'quando riconosco [CATEGORY]',
+    'zh-cn': '识别到类别[CATEGORY]时',
+    'zh-tw': '辨識到類別[CATEGORY]時'
   },
   category_block: {
     'ja': 'カテゴリー',
@@ -223,24 +223,24 @@ const Message = {
   counts_category: {
     'ja': 'カテゴリー[CATEGORY]の枚数',
     'ja-Hira': 'カテゴリー[CATEGORY]のまいすう',
-    'en': 'count of category [CATEGORY]',
-    'it': 'conteggio categoria [CATEGORY]',
+    'en': 'count of [CATEGORY]',
+    'it': 'conteggio di [CATEGORY]',
     'zh-cn': '类别数量[CATEGORY]',
     'zh-tw': '類別數量[CATEGORY]'
   },
   any: {
     'ja': 'のどれか',
     'ja-Hira': 'のどれか',
-    'en': 'any',
-    'it': 'qualunque',
+    'en': 'anything',
+    'it': 'qualcosa',
     'zh-cn': '任何',
-    'zh-tw': '任何'
+    'zh-tw': '任何'  
   },
   all: {
     'ja': 'の全て',
     'ja-Hira': 'のすべて',
-    'en': 'all',
-    'it': 'tutte',
+    'en': 'all categories',
+    'it': 'tutte le categorie',
     'zh-cn': '所有',
     'zh-tw': '所有量'
   },
@@ -255,8 +255,8 @@ const Message = {
   new_category_prompt: {
     'ja': '新しいカテゴリーの名前は？',
     'ja-Hira': 'あたらしいカテゴリーのなまえは？',
-    'en': 'Name of the new category?',
-    'it': 'Nome della nuova categoria?',
+    'en': 'New category name:',
+    'it': 'Nome della nuova categoria:',
     'zh-cn': '新类别的名称？',
     'zh-tw': '新類別的名稱？'
   },
@@ -271,15 +271,15 @@ const Message = {
   delete_category: {
     'ja': 'カテゴリー[CATEGORY]を削除',
     'ja-Hira': 'カテゴリー[CATEGORY]をさくじょ',
-    'en': 'delete category [CATEGORY]',
-    'it': 'elimina categoria [CATEGORY]',
+    'en': 'delete [CATEGORY]',
+    'it': 'elimina [CATEGORY]',
     'zh-cn': '删除类别[CATEGORY]',
     'zh-tw': '刪除類別[CATEGORY]'
   },
   confirm_delete_all: {
     'ja': '本当にすべてのカテゴリーを削除してもよろしいですか？',
     'ja-Hira': 'ほんとうにすべてのカテゴリーをさくじょしてもよろしいですか？',
-    'en': 'Delete every category and learnt data ?',
+    'en': 'Delete every category and learned data?',
     'it': 'Vuoi davvero eliminare tutte le categorie e i dati imparati?',
     'zh-cn': '确定要删除所有类别及其学习内容吗？',
     'zh-tw': '確定要刪除所有類別及其學習內容嗎？'
@@ -287,8 +287,8 @@ const Message = {
   reset: {
     'ja': 'カテゴリー[CATEGORY]の学習をリセット',
     'ja-Hira': 'カテゴリー[CATEGORY]のがくしゅうをリセット',
-    'en': 'reset category [CATEGORY]',
-    'it': 'resetta categoria [CATEGORY]',
+    'en': 'reset [CATEGORY]',
+    'it': 'resetta [CATEGORY]',
     'zh-cn': '重置[CATEGORY]',
     'zh-tw': '重置[CATEGORY]'
   },
@@ -336,7 +336,7 @@ const Message = {
     'ja': 'アップロードが完了しました。',
     'ja-Hira': 'アップロードがかんりょうしました。',
     'en': 'The upload is complete.',
-    'it': 'Il caricamento è completo',
+    'it': 'Il caricamento è completo.',
     'zh-cn': '上传完成。',
     'zh-tw': '上傳完成。'
   },
@@ -344,14 +344,14 @@ const Message = {
     'ja': 'ファイルを選び、アップロードボタンをクリックして下さい。',
     'ja-Hira': 'ファイルをえらび、アップロードボタンをクリックしてください。',
     'en': 'Select a file and click the upload button.',
-    'it': 'Seleziona un file e clicca il bottone di caricamento',  
+    'it': 'Seleziona un file e clicca il bottone di caricamento.',  
     'zh-cn': '选择一个文件，然后单击上传按钮。',
-    'zh-tw': '選擇一個檔案，然後點擊上傳按鈕'
+    'zh-tw': '選擇一個檔案，然後點擊上傳按鈕。'
   },
   confirm_reset: {
     'ja': '本当にリセットしてもよろしいですか？',
     'ja-Hira': 'ほんとうにリセットしてもよろしいですか？',
-    'en': 'Are you sure to reset?',
+    'en': 'Are you sure you want to reset?',
     'it': 'Sei sicuro di voler resettare i dati?',
     'zh-cn': '你确定要重置吗？',
     'zh-tw': '您確定要重置嗎？'
@@ -360,23 +360,23 @@ const Message = {
     'ja': '分類を[CLASSIFICATION_STATE]にする',
     'ja-Hira': 'ぶんるいを[CLASSIFICATION_STATE]にする',
     'en': 'turn classification [CLASSIFICATION_STATE]',
-    'it': 'imposta classificazione [CLASSIFICATION_STATE]',
+    'it': '[CLASSIFICATION_STATE] classificazione',
     'zh-cn': '[CLASSIFICATION_STATE]分类',
     'zh-tw': '[CLASSIFICATION_STATE]分類'
   },
   set_classification_interval: {
     'ja': '分類を[CLASSIFICATION_INTERVAL]秒間に1回行う',
     'ja-Hira': 'ぶんるいを[CLASSIFICATION_INTERVAL]びょうかんに1かいおこなう',
-    'en': 'classify once every [CLASSIFICATION_INTERVAL] seconds',
-    'it': 'classifica una volta ogni [CLASSIFICATION_INTERVAL] secondi',
+    'en': 'Recognize once every [CLASSIFICATION_INTERVAL] seconds',
+    'it': 'Riconosci una volta ogni [CLASSIFICATION_INTERVAL] secondi',
     'zh-cn': '每隔[CLASSIFICATION_INTERVAL]秒标记一次',
     'zh-tw': '每隔[CLASSIFICATION_INTERVAL]秒標記一次'
   },
-  video_toggle: {
+  toggle_video: {   // matches Scratch's webcam motion
     'ja': 'ビデオを[VIDEO_STATE]にする',
     'ja-Hira': 'ビデオを[VIDEO_STATE]にする',
     'en': 'turn video [VIDEO_STATE]',
-    'it': 'imposta video [VIDEO_STATE]',
+    'it': '[VIDEO_STATE] il video della webcam',
     'zh-cn': '[VIDEO_STATE]摄像头',
     'zh-tw': '視訊設為[VIDEO_STATE]'
   },
@@ -391,8 +391,8 @@ const Message = {
   set_input: {
     'ja': '[INPUT]の画像を学習/判定する',
     'ja-Hira': '[INPUT]のがぞうをがくしゅう/はんていする',
-    'en': 'learn/classify [INPUT] image',
-    'it': 'addestra / classifica immagine da [INPUT]',
+    'en': 'learn / recognize from [INPUT]',
+    'it': 'addestra / riconosci da [INPUT]',
     'zh-cn': '学习/分类[INPUT]图像',
     'zh-tw': '學習/分類[INPUT]影像'
   },
@@ -408,7 +408,7 @@ const Message = {
     'ja': '入',
     'ja-Hira': 'いり',
     'en': 'on',
-    'it': 'accesa',
+    'it': 'accendi',
     'zh-cn': '开启',
     'zh-tw': '開啟'
   },
@@ -416,7 +416,7 @@ const Message = {
     'ja': '切',
     'ja-Hira': 'きり',
     'en': 'off',
-    'it': 'spenta',
+    'it': 'spegni',
     'zh-cn': '关闭',
     'zh-tw': '關閉'
   },
@@ -456,7 +456,7 @@ const Message = {
     'ja': '[BLOCK]は何もしませんでした。切り替えられるカメラがありません。ブラウザでカメラを許可して下さい。',
     'ja-Hira': '[BLOCK]はなにもしませんでした。きりかえられるカメラがありません。ブラウザでカメラをきょかしてください。',
     'en': "[BLOCK] FAILED: can't find cameras! Allow the camera in your browser.",
-    'it': "[BLOCK] E' FALLITO: non ci sono webcam a cui passare! Permetti la webcam nel browser.",
+    'it': "[BLOCK] È FALLITO: non ci sono webcam a cui passare! Permetti la webcam nel browser.",
     'zh-cn': '[BLOCK]没有任何作用：没有可切换的摄像头。请在浏览器中允许摄像头。',
     'zh-tw': '[BLOCK]沒有任何作用：沒有可切換的攝影機。請在瀏覽器中允許攝影機。'
   },
@@ -464,7 +464,7 @@ const Message = {
     'ja': '[BLOCK]を停止しました。カメラの映像がありません。ブラウザでカメラを許可するか、「[INPUT]」でステージから学習して下さい。',
     'ja-Hira': '[BLOCK]をていししました。カメラのえいぞうがありません。ブラウザでカメラをきょかするか、「[INPUT]」でステージからがくしゅうしてください。',
     'en': '[BLOCK] FAILED: there is no picture to learn from! Allow the camera in your browser, or use "[INPUT]" instead.',
-    'it': "[BLOCK] E' FALLITO: non c'è nessuna immagine da cui imparare! Permetti la webcam nel browser, oppure usa \"[INPUT]\".",
+    'it': "[BLOCK] È FALLITO: non c'è nessuna immagine da cui imparare! Permetti la webcam nel browser, oppure usa \"[INPUT]\".",
     'zh-cn': '[BLOCK]已停止：没有可学习的画面。请在浏览器中允许摄像头，或使用“[INPUT]”改从舞台学习。',
     'zh-tw': '[BLOCK]已停止：沒有可學習的畫面。請在瀏覽器中允許攝影機，或使用「[INPUT]」改從舞台學習。'
   },
@@ -472,7 +472,7 @@ const Message = {
     'ja': '[BLOCK]を停止しました。1つのカテゴリーに保存できる学習例は[N]個までです。[CATEGORY]をリセットするか削除すると、また学習できます。',
     'ja-Hira': '[BLOCK]をていししました。1つのカテゴリーにほぞんできるがくしゅうれいは[N]こまでです。[CATEGORY]をリセットするかさくじょすると、またがくしゅうできます。',
     'en': '[BLOCK] FAILED: a category can hold at most [N] training examples! Reset or delete [CATEGORY] to train it again.',
-    'it': "[BLOCK] E' FALLITO: una categoria può contenere al massimo [N] esempi. Resetta o elimina [CATEGORY] per addestrarla ancora.",
+    'it': "[BLOCK] È FALLITO: una categoria può contenere al massimo [N] esempi. Resetta o elimina [CATEGORY] per addestrarla ancora.",
     'zh-cn': '[BLOCK]已停止：每个类别最多保存[N]个训练样本。请重置或删除[CATEGORY]后再训练。',
     'zh-tw': '[BLOCK]已停止：每個類別最多儲存[N]個訓練範例。請重置或刪除[CATEGORY]後再訓練。'
   },
@@ -480,7 +480,7 @@ const Message = {
     'ja': '[BLOCK]を停止しました。1つのプロジェクトに保存できる学習例は全部で[N]個までです。現在は[COUNTS]です。カテゴリーをリセットするか削除して下さい。',
     'ja-Hira': '[BLOCK]をていししました。1つのプロジェクトにほぞんできるがくしゅうれいはぜんぶで[N]こまでです。いまは[COUNTS]です。カテゴリーをリセットするかさくじょしてください。',
     'en': '[BLOCK] FAILED: a project can hold at most [N] training examples in total! Currently [COUNTS]. Reset or delete a category to train more.',
-    'it': "[BLOCK] E' FALLITO: un progetto può contenere al massimo [N] esempi in tutto. Attualmente [COUNTS]. Resetta o elimina una categoria per addestrarne altri.",
+    'it': "[BLOCK] È FALLITO: un progetto può contenere al massimo [N] esempi in tutto. Attualmente [COUNTS]. Resetta o elimina una categoria per addestrarne altri.",
     'zh-cn': '[BLOCK]已停止：每个项目最多共保存[N]个训练样本。当前为[COUNTS]。请重置或删除某个类别后再训练。',
     'zh-tw': '[BLOCK]已停止：每個專案最多共儲存[N]個訓練範例。目前為[COUNTS]。請重置或刪除某個類別後再訓練。'
   },
@@ -844,8 +844,8 @@ class GlowMLBlocks {
           }
         },
         {
-          opcode: 'videoToggle',
-          text: Message.video_toggle[this.locale],
+          opcode: 'toggleVideo',
+          text: Message.toggle_video[this.locale],
           blockType: BlockType.COMMAND,
           arguments: {
             VIDEO_STATE: {
@@ -1113,12 +1113,12 @@ class GlowMLBlocks {
     }, this.interval);
   }
 
-  videoToggle(args, util) {
+  toggleVideo(args, util) {
     let state = args.VIDEO_STATE;
     if (state === 'off') {
       this.runtime.ioDevices.video.disableVideo();
     } else {
-      const block = this.blockName('video_toggle', {VIDEO_STATE: state});
+      const block = this.blockName('toggle_video', {VIDEO_STATE: state});
       this.runtime.ioDevices.video.enableVideo().then(() => {
         this.input = this.runtime.ioDevices.video.provider.video;
         // Glow: enableVideo() resolves whether or not permission was given, so
