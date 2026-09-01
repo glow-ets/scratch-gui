@@ -782,13 +782,8 @@ class GlowMLBlocks {
     this.confidence = 0;
     this.locale = this.setLocale();
 
-    this.blockClickedAt = null;
 
     this.counts = null;
-
-    // Glow: set while train() is working, so repeated clicks are dropped
-    // instead of stacking identical frames into the training set.
-    this.training = false;
 
     // Glow: the model loads asynchronously and can fail (missing or truncated
     // weight shards, for one). Until it is known good, nothing that calls
@@ -837,6 +832,11 @@ class GlowMLBlocks {
     // The in-flight camera retry, and when the last one started.
     this.cameraRetry = null;
     this.cameraRetriedAt = 0;
+    // When each block was last clicked, and whether a question is already on screen.
+    this.blockClickedAt = new Map();
+    this.confirming = false;
+    // Training runs one at a time; this is the tail of the queue.
+    this.trainQueue = Promise.resolve();
     this.refreshingDevices = false;
     // The bubble we put up, and the timer that takes it down again.
     this.sayTarget = null;
@@ -889,23 +889,37 @@ class GlowMLBlocks {
 
     this.devices = [{ text: 'default', value: '' }];
 
-    const dialog = document.createElement("DIALOG");
-    dialog.id = "upload-dialog";
+    // Glow: upstream's markup nested <html><body> inside the dialog, closed a <div>
+    // with </p> and ended with a second <body>. Browsers throw the stray tags away on
+    // innerHTML so it worked, but it is not markup anyone should copy. The pieces are
+    // also held on `this` and wired by reference rather than looked up by id: two
+    // instances of the extension would otherwise both answer to '#upload-button',
+    // and the second one's handler would be attached to the first one's dialog.
+    const dialog = document.createElement('dialog');
     dialog.innerHTML = `
-      <html><body>
-      <div>${Message.upload_instruction[this.locale]}</p><input type="file" id="upload-files"><input type="button" value="${Message.upload[this.locale]}" id="upload-button"></div>
-      <div style="margin-top:10px;display:flex;justify-content:flex-end;"><button id="close" aria-label="${Message.close[this.locale]}" formnovalidate>${Message.close[this.locale]}</button></div>
-      </body><body>
+      <div>${Message.upload_instruction[this.locale]}</div>
+      <div style="margin-top:10px;"><input type="file" accept="application/json,.json"></div>
+      <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button"></button>
+        <button type="button" formnovalidate></button>
+      </div>
     `;
+    const [uploadButton, closeButton] = dialog.querySelectorAll('button');
+    uploadButton.textContent = Message.upload[this.locale];
+    closeButton.textContent = Message.close[this.locale];
+    closeButton.setAttribute('aria-label', Message.close[this.locale]);
+
     this.uploadDialog = dialog;
+    // Glow: accept only JSON in the picker. Upstream's input had no filter, so the
+    // obvious thing to try was any file at all.
+    this.uploadInput = dialog.querySelector('input[type=file]');
     document.body.appendChild(dialog);
 
-
-    document.getElementById("upload-button").onclick = () =>{
+    uploadButton.onclick = () => {
       this.uploadButtonClicked();
     }
 
-    document.getElementById("close").onclick = () =>{
+    closeButton.onclick = () => {
       dialog.close();
     }
 
@@ -1147,27 +1161,30 @@ class GlowMLBlocks {
     if (!this.checkModelReady(util)) {
       return;
     }
-    // Glow: a click arriving while the previous one is still working is dropped.
-    // Upstream relied on a one-off alert telling people not to click again; the
-    // block now shows that it is busy, and ignores the extra clicks either way.
-    if (this.training) {
-      return;
-    }
-    if (!this.checkExampleLimits(args.CATEGORY, util)) {
-      return;
-    }
-    this.training = true;
-
-    // Glow: ask for the camera again before giving up on it. This is the block a
-    // child presses after closing the other tab that was holding the webcam, so it
-    // is the one that has to notice the camera came back.
-    return this.ensureCamera().then(() => {
-      if (!this.checkInputReady(args, util)) {
-        this.training = false;
-        return undefined;
-      }
-      return this.trainNow(args, util);
-    });
+    // Glow: one at a time - infer() is synchronous and GPU-bound, so two at once
+    // would contend rather than overlap. Upstream dropped the second call outright,
+    // which meant a 'forever [train A]' in one sprite starved a 'train B' in another
+    // indefinitely and silently. Queueing instead makes them take turns; the depth is
+    // bounded by the number of scripts, since each one waits for its own promise.
+    this.trainQueue = this.trainQueue
+      .then(() => {
+        if (!this.checkExampleLimits(args.CATEGORY, util)) {
+          return undefined;
+        }
+        // Glow: ask for the camera again before giving up on it. This is the block a
+        // child presses after closing the other tab that was holding the webcam, so
+        // it is the one that has to notice the camera came back.
+        return this.ensureCamera().then(() => {
+          if (!this.checkInputReady(args, util)) {
+            return undefined;
+          }
+          return this.trainNow(args, util);
+        });
+      })
+      .catch(error => {
+        console.error('Glow ML: training failed.', error);
+      });
+    return this.trainQueue;
   }
 
   /**
@@ -1198,7 +1215,6 @@ class GlowMLBlocks {
             this.reportBrokenModel(error);
           }
         }
-        this.training = false;
         resolve();
       });
     });
@@ -1266,31 +1282,31 @@ class GlowMLBlocks {
   }
 
   reset(args) {
-    if (this.actionRepeated()) { return };
+    if (this.actionRepeated('reset')) { return };
 
-    setTimeout(() => {
-      if (args.CATEGORY == ALL) {
-        // Glow: only wiping everything is worth interrupting for. Resetting one
-        // category used to ask too, which trained people to click through it.
-        if (!confirm(Message.confirm_reset[this.locale])) {
-          return;
-        }
-        this.knnClassifier.clearAllLabels();
-        // Glow: delete rather than zero. The categories getter unions in
-        // Object.keys(this.counts), so a key left behind at zero puts the category
-        // straight back into every dropdown - and after one 'reset all' nothing
-        // could be deleted again.
-        this.counts = null;
-      } else {
-        // Glow: this.counts is null until something has been trained.
-        if (this.counts && this.counts[args.CATEGORY] > 0) {
-          this.knnClassifier.clearLabel(args.CATEGORY);
-          delete this.counts[args.CATEGORY];
-        }
+    // Glow: upstream deferred all of this by a second, so a child who clicked and
+    // saw nothing happen clicked again and got a second dialog behind the first.
+    if (args.CATEGORY == ALL) {
+      // Glow: only wiping everything is worth interrupting for. Resetting one
+      // category used to ask too, which trained people to click through it.
+      if (!this.confirmOnce(Message.confirm_reset[this.locale])) {
+        return;
       }
-      this.reportedProblems.clear();
-      this.scheduleSave();
-    }, 1000);
+      this.knnClassifier.clearAllLabels();
+      // Glow: delete rather than zero. The categories getter unions in
+      // Object.keys(this.counts), so a key left behind at zero puts the category
+      // straight back into every dropdown - and after one 'reset all' nothing
+      // could be deleted again.
+      this.counts = null;
+    } else {
+      // Glow: this.counts is null until something has been trained.
+      if (this.counts && this.counts[args.CATEGORY] > 0) {
+        this.knnClassifier.clearLabel(args.CATEGORY);
+        delete this.counts[args.CATEGORY];
+      }
+    }
+    this.reportedProblems.clear();
+    this.scheduleSave();
   }
 
   /**
@@ -1300,40 +1316,43 @@ class GlowMLBlocks {
    * @param {string} args.CATEGORY - a category, or ALL
    */
   deleteCategory(args) {
-    if (this.actionRepeated()) { return };
+    if (this.actionRepeated('delete')) { return };
 
-    setTimeout(() => {
-      if (args.CATEGORY === ALL) {
-        if (!confirm(Message.confirm_delete_all[this.locale])) {
-          return;
-        }
-        this.knnClassifier.clearAllLabels();
-        this.counts = null;
-        this.categories = DEFAULT_CATEGORIES.slice();
-        this.reportedProblems.clear();
-        this.scheduleSave();
+    if (args.CATEGORY === ALL) {
+      if (!this.confirmOnce(Message.confirm_delete_all[this.locale])) {
         return;
       }
-      if (this.counts && this.counts[args.CATEGORY] > 0) {
-        this.knnClassifier.clearLabel(args.CATEGORY);
-        delete this.counts[args.CATEGORY];
-      }
-      this.categories = this.categories.filter(category => category !== args.CATEGORY);
+      this.knnClassifier.clearAllLabels();
+      this.counts = null;
+      this.categories = DEFAULT_CATEGORIES.slice();
       this.reportedProblems.clear();
       this.scheduleSave();
-    }, 1000);
+      return;
+    }
+    if (this.counts && this.counts[args.CATEGORY] > 0) {
+      this.knnClassifier.clearLabel(args.CATEGORY);
+      delete this.counts[args.CATEGORY];
+    }
+    this.categories = this.categories.filter(category => category !== args.CATEGORY);
+    this.reportedProblems.clear();
+    this.scheduleSave();
   }
 
   download() {
-    if (this.actionRepeated()) { return };
-    let fileName = String(Date.now());
-    this.knnClassifier.save(fileName);
+    if (this.actionRepeated('download')) { return };
+    // Glow: upstream named the file after Date.now(), which is indistinguishable
+    // across 24 children on a shared account. Lead with the project title where
+    // there is one.
+    const title = (this.runtime.getTargetForStage() && this.runtime.emitProjectChanged) ?
+      (document.title || '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') : '';
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    this.knnClassifier.save(`glow-ml-${title ? `${title}-` : ''}${stamp}`);
   }
 
   upload() {
-    if (this.actionRepeated()) { return };
+    if (this.actionRepeated('upload')) { return };
 
-    document.getElementById('upload-dialog').showModal();
+    this.uploadDialog.showModal();
   }
 
   toggleClassification(args, util) {
@@ -1450,7 +1469,7 @@ class GlowMLBlocks {
   }
 
   uploadButtonClicked() {
-    let files = document.getElementById('upload-files').files;
+    let files = this.uploadInput.files;
 
     if (files.length <= 0) {
       alert(Message.select_file[this.locale]);
@@ -1488,7 +1507,7 @@ class GlowMLBlocks {
     }
 
     fr.onloadend = (e) => {
-      document.getElementById('upload-files').value = "";
+      this.uploadInput.value = "";
     }
 
     fr.readAsText(file);
@@ -1619,15 +1638,42 @@ class GlowMLBlocks {
     // same thing on the stage.
   }
 
-  actionRepeated() {
-    let currentTime = Date.now();
-    if (this.blockClickedAt && (this.blockClickedAt + 250) > currentTime) {
-      console.log('Please do not repeat trigerring this block.');
-      this.blockClickedAt = currentTime;
+  actionRepeated(block) {
+    // Glow: keyed by block. Upstream shared one timestamp across reset, delete,
+    // download and upload, so clicking download and then reset within a quarter of
+    // a second silently dropped the reset.
+    const key = block || 'any';
+    const currentTime = Date.now();
+    const last = this.blockClickedAt.get(key);
+    this.blockClickedAt.set(key, currentTime);
+    if (last && last + 250 > currentTime) {
+      console.log(`Glow ML: ignoring a repeated click on ${key}.`);
       return true;
-    } else {
-      this.blockClickedAt = currentTime;
+    }
+    return false;
+  }
+
+  /**
+   * Glow: ask a yes/no question, and never let a second one queue up behind it.
+   *
+   * confirm() blocks the main thread, so a script that reaches one on a loop piles
+   * the rest up to fire in a burst the moment the first is dismissed. Upstream also
+   * deferred the question by a whole second, which meant a child who clicked and saw
+   * nothing happen clicked again and got two dialogs. GLOW-NOTES already argues that
+   * a second modal is an obstacle rather than a warning; this applies the same rule
+   * to the ones that ask a question.
+   * @param {string} message - the question
+   * @returns {boolean} whether it was answered yes
+   */
+  confirmOnce(message) {
+    if (this.confirming) {
       return false;
+    }
+    this.confirming = true;
+    try {
+      return confirm(message);
+    } finally {
+      this.confirming = false;
     }
   }
 
@@ -2235,7 +2281,6 @@ class GlowMLBlocks {
     // diagnosis below runs.
     this.modelBroken = true;
     this.modelReady = false;
-    this.training = false;
     this.stopClassifying();
     console.error('Glow ML: MobileNet failed to load.', error);
 
