@@ -469,6 +469,14 @@ const Message = {
     'zh-cn': '类别名称只能使用字母、数字、空格、-、_ 和表情符号。',
     'zh-tw': '類別名稱只能使用字母、數字、空格、-、_ 和表情符號。'
   },
+  video_is_off: {
+    'ja': '[BLOCK]を停止しました。ビデオが切になっています。[TURN_ON]で入にして下さい。',
+    'ja-Hira': '[BLOCK]をていししました。ビデオがきりになっています。[TURN_ON]でいりにしてください。',
+    'en': '[BLOCK] FAILED: the video is off! Use [TURN_ON] to turn it back on.',
+    'it': "[BLOCK] E' FALLITO: il video è spento! Usa [TURN_ON] per riaccenderlo.",
+    'zh-cn': '[BLOCK]已停止：摄像头已关闭。请使用[TURN_ON]重新开启。',
+    'zh-tw': '[BLOCK]已停止：攝影機已關閉。請使用[TURN_ON]重新開啟。'
+  },
   bad_interval: {
     'ja': '[BLOCK]は[MIN]秒から[MAX]秒までにして下さい。',
     'ja-Hira': '[BLOCK]は[MIN]びょうから[MAX]びょうまでにしてください。',
@@ -1425,6 +1433,17 @@ class GlowMLBlocks {
     let state = args.VIDEO_STATE;
     if (state === 'off') {
       this.runtime.ioDevices.video.disableVideo();
+      // Glow: and stop reporting on a picture that is no longer arriving. The
+      // classifier keeps its training - this is not a reset - but the last thing it
+      // recognised is not an answer about now, so the reporters go quiet and the
+      // hats stop firing rather than repeating a stale category.
+      if (!this.usingStageInput()) {
+        this.input = null;
+        this.category = null;
+        this.confidence = 0;
+        this.when_received = false;
+        this.whenReceivedFlags.clear();
+      }
     } else {
       const block = this.blockName('toggle_video', {VIDEO_STATE: state});
       this.runtime.ioDevices.video.enableVideo().then(() => {
@@ -1865,6 +1884,14 @@ class GlowMLBlocks {
     if (!video || !video.provider) {
       return Promise.resolve(false);
     }
+    // Glow: 'turn video off' means off. provider.enabled is the difference between
+    // a camera somebody switched off and one that was refused - disableVideo() sets
+    // it false, enableVideo() sets it true before it even asks for a stream. Without
+    // this check the classify timer called ensureCamera a second later and switched
+    // the camera straight back on.
+    if (!video.provider.enabled) {
+      return Promise.resolve(false);
+    }
     // One attempt at a time, shared by every block and by the classify timer, so
     // that a 'forever' loop cannot turn into a stream of getUserMedia requests.
     if (this.cameraRetry) {
@@ -1968,6 +1995,17 @@ class GlowMLBlocks {
     }
     if (this.hasWorkingCamera() && this.input) {
       return true;
+    }
+    // Glow: a camera that was switched off is not a camera that was refused, and
+    // "allow the camera in your browser" is the wrong thing to tell a child who
+    // turned it off a moment ago. Say which block turns it back on instead.
+    const video = this.runtime.ioDevices.video;
+    if (video && video.provider && !video.provider.enabled) {
+      this.reportProblem(Message.video_is_off[this.locale]
+        .replace('[BLOCK]', block)
+        .replace('[TURN_ON]', this.blockName('toggle_video', {VIDEO_STATE: Message.on[this.locale]})),
+      util);
+      return false;
     }
     this.reportProblem(Message.no_input[this.locale]
       .replace('[BLOCK]', block)

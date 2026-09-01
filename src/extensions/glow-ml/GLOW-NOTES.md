@@ -401,6 +401,15 @@ request. Both load paths also refuse anything above `MAX_TRAINING_BYTES` before 
   three places without being cleared first, so pressing `turn classification on` while
   MobileNet was still loading — the exact window an impatient child clicks in — left an
   interval running that nothing held the handle to.
+- **`ensureCamera()`** refuses to act when `provider.enabled` is false. That flag is
+  the difference between a camera somebody switched off and one that was refused:
+  `disableVideo()` clears it, `enableVideo()` sets it before it even asks for a
+  stream. Without the check the classify timer called `ensureCamera` a second after
+  `turn video off` and switched the camera straight back on — `turn video off` means
+  off, whatever blocks the project contains. Turning it off also clears the last
+  recognised category and the armed hats, so nothing keeps answering questions about
+  a picture that is no longer arriving, and `checkCamera` then says which block turns
+  the video back on rather than offering the advice for a refused camera.
 - **`ensureCamera()`** is one shared retry with a cooldown. **It does not work yet**,
   through no fault of its own — see glow-ets/scratch-gui#25. `src/lib/video/camera.js`
   caches the *first* `getUserMedia` promise in a module-level stack and hands it to every
