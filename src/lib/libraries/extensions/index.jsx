@@ -57,6 +57,8 @@ import glowLabIconURL from './glow-lab/glow-lab.svg';
 import glowLabInsetIconURL from './glow-lab/glow-lab-small.svg';
 import glowMidiIconURL from './glow-midi/glow-midi.svg';
 import glowMidiInsetIconURL from './glow-midi/glow-midi-small.svg';
+import glowMLIconURL from './glow-ml/glow-ml.svg';
+import glowMLInsetIconURL from './glow-ml/glow-ml-small.png';
 
 export default [
     {
@@ -92,6 +94,26 @@ export default [
         featured: true,
         incompatibleWithScratch: true,
         extensionURL: new URL('static/extensions/glow-midi/glow-midi.js', location.href).href
+    },
+    {
+        name: 'Glow Machine Learning',
+        extensionId: 'glowML',
+        collaborator: 'champierre',
+        iconURL: glowMLIconURL,
+        insetIconURL: glowMLInsetIconURL,
+        description: (
+            <FormattedMessage
+                defaultMessage="Train and recognize images from webcam or stage. Customization of original Junya Ishihara's ML2Scratch."
+                description="Description for the 'Glow Machine Learning' extension"
+                id="glow.extension.glowML.description"
+            />
+        ),
+        tags: ['glow'],
+        featured: true,
+        incompatibleWithScratch: true,
+        internetConnectionRequired: true,
+        bluetoothRequired: false,
+        extensionURL: new URL('static/extensions/glow-ml/glow-ml.js', location.href).href
     },
     {
         name: (

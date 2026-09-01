@@ -1,7 +1,7 @@
 {
   "name": "scratch-gui",
   "version": "3.2.37",
-  "glow_version": "0.2.0",
+  "glow_version": "0.2.5",
   "description": "Graphical User Interface for creating and running Scratch 3.0 projects",
   "author": "Massachusetts Institute of Technology",
   "license": "GPL-3.0",
@@ -25,7 +25,7 @@
     "test:lint": "eslint . --ext .js,.jsx",
     "test:lint:glow": "echo 'Glow-specific lint: glow files currently in eslintignored dirs (src/examples, test). Will activate when glow code moves under src/ proper.'",
     "test:unit": "jest test[\\\\/]unit[\\\\/]addons",
-    "test:unit:glow": "jest test[\\\\/]unit[\\\\/]util[\\\\/]glow",
+    "test:unit:glow": "jest test[\\\\/]unit[\\\\/]util[\\\\/]glow test[\\\\/]unit[\\\\/]extensions[\\\\/]glow",
     "test:smoke": "jest --runInBand test[\\\\/]smoke",
     "test:smoke:glow": "jest --runInBand test[\\\\/]smoke[\\\\/]glow-smoke",
     "watch": "webpack --colors --watch"
@@ -96,7 +96,7 @@
     "scratch-blocks": "github:TurboWarp/scratch-blocks#develop-builds",
     "scratch-paint": "github:TurboWarp/scratch-paint#develop",
     "scratch-render": "github:TurboWarp/scratch-render#develop",
-    "scratch-vm": "github:TurboWarp/scratch-vm#develop",
+    "scratch-vm": "github:glow-ets/scratch-vm#main",
     "style-loader": "^0.23.0",
     "text-encoding": "0.7.0",
     "to-style": "1.3.3",
