@@ -350,6 +350,86 @@ model. That misattribution is what made a refused camera say
 "The MobileNet model could not be loaded" directly under a console line reading
 `[featureExtractor] Model Loaded!`.
 
+## Untrusted input
+
+A `.sb3` can be corrupt, hand-edited, or passed between pupils, and a category name is
+whatever a child typed. Three ingresses reach the same dropdowns, the same reporter and
+the same ml5 labels, so all three go through the same two pure functions.
+
+**`validateCategoryName(raw, existing)`** — 20 code points (so an emoji costs one),
+Unicode letters and digits in any alphabet, space, hyphen, underscore, emoji. Everything
+else is refused, and each exclusion earned its place:
+
+- control characters and newlines break the single-line reporter and the alert layout;
+- zero-width characters make a name that looks empty, or one that looks exactly like
+  another;
+- a bidi override reverses the rendering of everything after it, and `categories and
+  counts` joins every name into one string, so one such name garbles the whole reporter;
+- `:` is the separator in that reporter, so a name may not forge two entries;
+- `all` and `any` are the menu sentinels — a real category named `all` shares a dropdown
+  *value* with the item that wipes everything;
+- `__proto__`, `constructor`, `prototype`, `toString`, `length` are read back off
+  `Object.prototype`. `count of [constructor]` used to report a **function**, and
+  `reset`/`delete` silently did nothing for those names because `Function > 0` is false.
+
+Names are NFC-composed first, so an accented letter typed as two code points is the same
+name as the same letter typed as one. Duplicates are checked case-insensitively because
+`sortCategories` compares that way; `cat` and `CAT` were otherwise two categories the sort
+considered equal, so their order flipped between renders.
+
+**`vetTrainingData(parsed)`** — the shape `serializeTrainingData()` writes and ml5 0.12.2
+consumes. Every label must pass the name check, every shape must be two whole non-negative
+numbers, every value must be finite, the value count must match the shape, and both example
+caps apply. A file that fails leaves the classifier **empty**: on a corrupt project a child
+gets a message and a clean start, not a half-loaded model.
+
+`loadTrainingData()` is the only way data reaches the classifier. It exists because
+`knnClassifier.load()` is **async with no validation of its own**, so the old `try/catch`
+around `JSON.parse` caught nothing that mattered — a malformed file became an unhandled
+rejection over a half-replaced classifier. And ml5 treats a value that is not an object as a
+**URL and fetches it**, so a one-line JSON file could make the browser issue a cross-origin
+request. Both load paths also refuse anything above `MAX_TRAINING_BYTES` before parsing it.
+
+## Two things happening at once
+
+- **`loadGeneration`** is bumped whenever a project is opened. The debounced save and the
+  `classify()` callback both capture it and drop their work if it has moved on. Without it,
+  training from project A landed in project B's asset slot — the 1 s save timer was not
+  cancelled on load — and a classification that arrived after a project change wrote a
+  category from the previous model.
+- **`startClassifying()` / `stopClassifying()`** own the timer. It used to be assigned in
+  three places without being cleared first, so pressing `turn classification on` while
+  MobileNet was still loading — the exact window an impatient child clicks in — left an
+  interval running that nothing held the handle to.
+- **`ensureCamera()`** is one shared retry with a cooldown. The provider does not give up on
+  its own: `_setupVideo()` nulls its cached promise on failure, so `enableVideo()` really
+  does retry `getUserMedia`; nothing here ever asked again, which is why a camera held by a
+  second tab stayed broken after that tab closed. The awkward case is a camera that *did*
+  work and was taken away: the cached promise is resolved, so it has to be torn down first,
+  and `disableVideo()`'s teardown runs in a `.then` gated on `enabled` still being false —
+  so the two cannot be called in the same tick.
+- **`this.training`** is still a single flag, so a `forever [train]` in one sprite starves a
+  `train` in another. Noted below.
+
+## Known, and deliberately left alone
+
+Recorded so nobody has to rediscover them, and so this pass stayed finite:
+
+- `reset` and `deleteCategory` wait a second before their `confirm()`, so a child who
+  sees nothing happen clicks again and gets two dialogs, and a `forever` can queue a
+  modal storm. `reportProblem` has a rule against exactly this; `confirm()` does not.
+- `actionRepeated()` shares one `blockClickedAt` across `reset`, `delete`, `download` and
+  `upload`, so clicking two of them within 250 ms silently drops the second.
+- `this.training` is global rather than per-target: one sprite's `forever [train]` starves
+  another sprite's `train` indefinitely, and the dropped call returns `undefined` rather
+  than a promise, so the thread carries on with no feedback.
+- The upload dialog's HTML is malformed (nested `html`/`body`, a stray `</p>`), and both
+  `upload()` and the button handlers use `document.getElementById`, so a second instance of
+  the extension would bind to the first one's button.
+- `download` names the file `Date.now()`, which is indistinguishable across 24 children.
+- A zip bomb is inflated before the asset manager's ceiling rejects it; that exposure is
+  shared with every costume and sound in scratch-vm.
+
 ## The green flag stays pressed, and that is fine
 
 `when received category` is upstream ML2Scratch's hat, unchanged: a plain

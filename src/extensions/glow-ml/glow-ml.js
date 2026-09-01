@@ -11,9 +11,16 @@
 
 /* global Scratch */
 
-const ArgumentType = Scratch.ArgumentType;
-const BlockType = Scratch.BlockType;
-const Cast = Scratch.Cast;
+// Glow: these come from the unsandboxed extension API, which only exists in the
+// editor. Read through a stand-in so that requiring this file from a test runner
+// defines the class and the pure helpers instead of throwing on line one; the block
+// definitions that use them are never evaluated there. See
+// test/unit/extensions/glow-ml.test.js.
+const ScratchAPI = typeof Scratch === 'undefined' ? {} : Scratch;
+
+const ArgumentType = ScratchAPI.ArgumentType;
+const BlockType = ScratchAPI.BlockType;
+const Cast = ScratchAPI.Cast;
 const log = console;
 
 /**
@@ -26,12 +33,27 @@ const log = console;
 let ml5 = null;
 
 /**
+ * Glow: resolve a path against the page this extension was served from.
+ *
+ * Wrapped rather than inlined so that the module body touches no browser global.
+ * Nothing else here needs a DOM at load time, so with this in place the file can be
+ * required from Node and its pure helpers unit tested - see
+ * test/unit/extensions/glow-ml.test.js. In a browser this is exactly
+ * `new URL(path, location.href).href` as before.
+ * @param {string} path - a path relative to the served page
+ * @returns {string} an absolute URL, or the path unchanged when there is no page
+ */
+const servedFrom = path => (
+  typeof location === 'undefined' ? path : new URL(path, location.href).href
+);
+
+/**
  * Where ml5 is loaded from. The self-hosted copy is preferred; drop
  * ml5.min.js next to this file and webpack ships it to static/extensions/.
  * The CDN is only a fallback for a checkout that has not vendored it yet.
  * See GLOW-NOTES.md.
  */
-const ML5_LOCAL_URL = new URL('static/extensions/glow-ml/ml5.min.js', location.href).href;
+const ML5_LOCAL_URL = servedFrom('static/extensions/glow-ml/ml5.min.js');
 const ML5_CDN_URL = 'https://unpkg.com/ml5@0.12.2/dist/ml5.min.js';
 
 /**
@@ -42,8 +64,8 @@ const ML5_CDN_URL = 'https://unpkg.com/ml5@0.12.2/dist/ml5.min.js';
  * vendored copies and nothing leaves the origin. See GLOW-NOTES.md for what to
  * download.
  */
-const MOBILENET_LOCAL_URL = new URL('static/extensions/glow-ml/mobilenet/model.json', location.href).href;
-const MOBILENET_GRAPH_LOCAL_URL = new URL('static/extensions/glow-ml/mobilenet-graph/model.json', location.href).href;
+const MOBILENET_LOCAL_URL = servedFrom('static/extensions/glow-ml/mobilenet/model.json');
+const MOBILENET_GRAPH_LOCAL_URL = servedFrom('static/extensions/glow-ml/mobilenet-graph/model.json');
 
 /**
  * Options handed to featureExtractor. Empty means 'use ml5's own remote URLs',
@@ -68,9 +90,22 @@ formatMessage.setup = () => ({locale: Scratch.vm.getLocale()});
  * When it was loaded as a module, 'extensionURL' will be replaced a URL which is retrieved from.
  * @type {string}
  */
-let extensionURL = new URL('static/extensions/glow-ml/glow-ml.js', location.href).href;
+let extensionURL = servedFrom('static/extensions/glow-ml/glow-ml.js');
 
 const HAT_TIMEOUT = 100;
+
+/**
+ * Glow: how often the extension may ask the browser for the camera again after being
+ * refused. Every block that needs the camera goes through one shared attempt, so that
+ * a 'forever' loop cannot turn a missing camera into a stream of permission requests.
+ */
+const CAMERA_RETRY_MS = 3000;
+
+/**
+ * Glow: how many categories a project may carry. A hand-edited project.json with
+ * thousands of them would build that many dropdown items, five menus over.
+ */
+const MAX_CATEGORIES = 100;
 
 /**
  * Glow: categories a fresh project starts with, so the dropdowns are never empty.
@@ -144,12 +179,34 @@ const MAX_EXAMPLES_TOTAL = 500;
 const MAX_EXAMPLES_PER_CATEGORY = 200;
 
 /**
+ * Glow: how often 'recognize once every [N] seconds' may be asked to run. The floor
+ * matters most: each tick is a synchronous forward pass through MobileNet, so a
+ * fraction of a second is a locked tab on a school laptop.
+ */
+const MIN_INTERVAL_SECONDS = 0.2;
+const MAX_INTERVAL_SECONDS = 3600;
+
+/**
+ * Glow: the largest serialised training data we will read, whether it arrives from
+ * the upload block or from a project. MAX_EXAMPLES_TOTAL examples come to roughly
+ * 3.4 MB, so this is generous; the point is that a file is refused before it is
+ * turned into megabytes of string and parsed objects on the main thread.
+ */
+const MAX_TRAINING_BYTES = 8 * 1024 * 1024;
+
+/**
  * Byte counts shown to a person. Mirrors GlowAssetManager.formatBytes, which is
  * not reachable from here because the extension is loaded as a plain script.
  * @param {number} bytes - a byte count
  * @return {string} the same count, readable
  */
 const formatBytes = bytes => {
+  // Glow: this ends up in messages a child reads, and it is called on values that
+  // came out of a thrown error, where the property may simply not be there. It used
+  // to answer 'NaN KB'.
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return '?';
+  }
   if (bytes < 1024) {
     return `${bytes} bytes`;
   }
@@ -161,6 +218,142 @@ const formatBytes = bytes => {
     unit++;
   }
   return `${Math.round(value * 10) / 10} ${units[unit]}`;
+};
+
+/**
+ * Glow: how long a category name may be, counted in code points so that an emoji
+ * costs one and not two.
+ */
+const MAX_CATEGORY_NAME_LENGTH = 20;
+
+/**
+ * Glow: what a category name may contain. Letters and digits in any alphabet, so
+ * Italian accents and any language a classroom uses are fine; space, hyphen and
+ * underscore; and emoji, including the zero-width joiner and variation selector
+ * that hold a multi-part emoji together.
+ *
+ * Everything else is out, which is the point. Control characters and newlines break
+ * the single-line reporter and the alert layout. Zero-width characters make a name
+ * that looks empty, or one that looks exactly like another. A bidi override reverses
+ * the rendering of everything after it, and since 'categories and counts' joins every
+ * name into one string, a single such name garbles the whole reporter. And ':' is the
+ * separator in that reporter, so allowing it would let a name forge two entries.
+ * @type {RegExp}
+ */
+const CATEGORY_NAME_REGEX = /^[\p{L}\p{N} _\-\p{Extended_Pictographic}‍️]+$/u;
+
+/**
+ * Glow: names the extension must not accept because it indexes plain objects and an
+ * array by them, so reading one back returns something off the prototype rather than
+ * a count. 'count of [constructor]' used to report a function.
+ * @type {string[]}
+ */
+const RESERVED_CATEGORY_NAMES = ['__proto__', 'constructor', 'prototype', 'toString', 'length'];
+
+/**
+ * Glow: vet a category name, wherever it came from - the 'New category' prompt, an
+ * uploaded file, or a project's stored pool. All three reach the same dropdowns, the
+ * same reporter and the same ml5 labels, so all three are checked the same way.
+ * @param {*} raw - a candidate name
+ * @param {string[]} [existing] - names already in the pool, for the duplicate check
+ * @returns {{ok: boolean, name: string, reason: string}} the trimmed name when ok
+ */
+const validateCategoryName = (raw, existing) => {
+  if (typeof raw !== 'string') {
+    return {ok: false, name: '', reason: 'type'};
+  }
+  // Compose first, so that an accented letter typed as two code points is the same
+  // name as the same letter typed as one, rather than a second identical-looking entry.
+  const name = raw.normalize('NFC').trim();
+  if (name === '') {
+    return {ok: false, name, reason: 'empty'};
+  }
+  if (Array.from(name).length > MAX_CATEGORY_NAME_LENGTH) {
+    return {ok: false, name, reason: 'long'};
+  }
+  if (!CATEGORY_NAME_REGEX.test(name)) {
+    return {ok: false, name, reason: 'characters'};
+  }
+  if (name === ALL || name === ANY || RESERVED_CATEGORY_NAMES.includes(name)) {
+    return {ok: false, name, reason: 'reserved'};
+  }
+  // Case-insensitively, because sortCategories compares that way: 'cat' and 'CAT'
+  // would sit in an unspecified order and look like a duplicate that will not go away.
+  if (existing && existing.some(other => other.toUpperCase() === name.toUpperCase())) {
+    return {ok: false, name, reason: 'duplicate'};
+  }
+  return {ok: true, name, reason: ''};
+};
+
+/**
+ * Glow: check training data before ml5 is allowed near it.
+ *
+ * knnClassifier.load() validates nothing and is async, so a malformed file does not
+ * throw where it can be caught - it leaves a half-replaced classifier and an unhandled
+ * rejection. Worse, ml5 treats a value that is not an object as a URL and fetches it,
+ * so a one-line JSON file can make the browser issue a cross-origin request.
+ *
+ * The shape is the one serializeTrainingData() writes and ml5 0.12.2 consumes:
+ * {dataset: {"0": {label, shape: [rows, cols], dtype}}, tensors: [{0: n, 1: n, ...}]}.
+ * @param {*} parsed - whatever JSON.parse returned
+ * @returns {{ok: boolean, reason: string, examples: number}} why not, when not ok
+ */
+const vetTrainingData = parsed => {
+  const no = reason => ({ok: false, reason, examples: 0});
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return no('shape');
+  }
+  const {dataset, tensors} = parsed;
+  if (!dataset || typeof dataset !== 'object' || Array.isArray(dataset) || !Array.isArray(tensors)) {
+    return no('shape');
+  }
+  const keys = Object.keys(dataset);
+  if (keys.length !== tensors.length) {
+    return no('shape');
+  }
+
+  let examples = 0;
+  for (let i = 0; i < keys.length; i++) {
+    const entry = dataset[keys[i]];
+    if (!entry || typeof entry !== 'object') {
+      return no('shape');
+    }
+    const shape = entry.shape;
+    if (!Array.isArray(shape) || shape.length !== 2) {
+      return no('shape');
+    }
+    const [rows, cols] = shape;
+    if (!Number.isSafeInteger(rows) || !Number.isSafeInteger(cols) || rows < 0 || cols <= 0) {
+      return no('shape');
+    }
+    // ml5 reads the label as the category name; an unnamed class is invisible to the
+    // counts, which is what used to let a loaded file walk straight past both caps.
+    if (!validateCategoryName(entry.label).ok) {
+      return no('name');
+    }
+    if (rows > MAX_EXAMPLES_PER_CATEGORY) {
+      return no('per-category');
+    }
+    const values = tensors[i];
+    if (!values || typeof values !== 'object') {
+      return no('shape');
+    }
+    const valueKeys = Object.keys(values);
+    if (valueKeys.length !== rows * cols) {
+      return no('shape');
+    }
+    for (const key of valueKeys) {
+      if (!Number.isFinite(values[key])) {
+        return no('shape');
+      }
+    }
+    examples += rows;
+  }
+
+  if (examples > MAX_EXAMPLES_TOTAL) {
+    return {ok: false, reason: 'total', examples};
+  }
+  return {ok: true, reason: '', examples};
 };
 
 /**
@@ -259,6 +452,38 @@ const Message = {
     'it': 'Nome della nuova categoria:',
     'zh-cn': '新类别的名称？',
     'zh-tw': '新類別的名稱？'
+  },
+  category_too_long: {
+    'ja': 'カテゴリー名は[N]文字までです。',
+    'ja-Hira': 'カテゴリーめいは[N]もじまでです。',
+    'en': 'A category name can be at most [N] characters long.',
+    'it': 'Il nome di una categoria può essere lungo al massimo [N] caratteri.',
+    'zh-cn': '类别名称最多[N]个字符。',
+    'zh-tw': '類別名稱最多[N]個字元。'
+  },
+  category_bad_name: {
+    'ja': 'カテゴリー名には文字、数字、スペース、-、_、絵文字だけが使えます。',
+    'ja-Hira': 'カテゴリーめいには もじ、すうじ、スペース、-、_、えもじ だけがつかえます。',
+    'en': 'A category name can only use letters, numbers, spaces, - , _ and emoji.',
+    'it': "Il nome di una categoria può contenere solo lettere, numeri, spazi, - , _ ed emoji.",
+    'zh-cn': '类别名称只能使用字母、数字、空格、-、_ 和表情符号。',
+    'zh-tw': '類別名稱只能使用字母、數字、空格、-、_ 和表情符號。'
+  },
+  bad_interval: {
+    'ja': '[BLOCK]は[MIN]秒から[MAX]秒までにして下さい。',
+    'ja-Hira': '[BLOCK]は[MIN]びょうから[MAX]びょうまでにしてください。',
+    'en': '[BLOCK] needs a number of seconds between [MIN] and [MAX].',
+    'it': '[BLOCK] richiede un numero di secondi tra [MIN] e [MAX].',
+    'zh-cn': '[BLOCK]需要一个介于[MIN]和[MAX]之间的秒数。',
+    'zh-tw': '[BLOCK]需要一個介於[MIN]和[MAX]之間的秒數。'
+  },
+  bad_training_data: {
+    'ja': '学習データを読み込めませんでした。壊れているか、大きすぎます。',
+    'ja-Hira': 'がくしゅうデータをよみこめませんでした。こわれているか、おおきすぎます。',
+    'en': 'That training data could not be loaded: it is damaged, or too big. Nothing was changed.',
+    'it': "Non è stato possibile caricare i dati di addestramento: sono danneggiati o troppo grandi. Non è stato cambiato nulla.",
+    'zh-cn': '无法加载该训练数据：它已损坏或过大。未做任何更改。',
+    'zh-tw': '無法載入該訓練資料：它已損壞或過大。未做任何變更。'
   },
   category_exists: {
     'ja': 'そのカテゴリーはすでにあります。',
@@ -547,7 +772,12 @@ class GlowMLBlocks {
     }
 
     this.when_received = false;
-    this.when_received_arr = Array(8).fill(false);
+    // Glow: upstream used Array(8) - a leftover from the fixed 1..8 labels - and then
+    // indexed it by category name. Reading arr['__proto__'] returns Array.prototype,
+    // which is truthy, so 'when I recognize [__proto__]' fired on every evaluation
+    // for ever and the reset that should have stopped it was a silent no-op. A Map
+    // has no prototype keys to fall through to.
+    this.whenReceivedFlags = new Map();
     this.category = null;
     this.confidence = 0;
     this.locale = this.setLocale();
@@ -572,7 +802,11 @@ class GlowMLBlocks {
       TRANSPARENCY: this.globalVideoTransparency
     });
 
-    this.canvas = document.querySelector('canvas');
+    // Glow: not cached. document.querySelector('canvas') returns the first canvas in
+    // the document, and React remounts the stage on the small/large toggle and on
+    // fullscreen, so a reference taken here goes stale and detached. Training then
+    // ran silently against a blank node, with a green glow and no error.
+    this.canvas = null;
 
     // Glow: VideoProvider._setupVideo() catches getUserMedia failures, calls its
     // own onError and resolves undefined, so there is nothing here to .catch().
@@ -587,6 +821,10 @@ class GlowMLBlocks {
     // Glow: the VM's asset manager, when running against a VM that has one.
     this.assetManager = runtime.glowAssetManager || null;
     this.saveTimer = null;
+    // Bumped every time a project is opened. A debounced save and a classification
+    // callback both carry the generation they started under, so work belonging to the
+    // project that was just closed cannot land on the one that replaced it.
+    this.loadGeneration = 0;
     this.warnedAboutSize = false;
     // Set to the example count at which a save was refused, so we stop paying to
     // serialise data we already know will not fit. Cleared when it shrinks.
@@ -596,6 +834,10 @@ class GlowMLBlocks {
     this.reportedProblems = new Set();
     // When the last speech bubble went up, so a loop cannot emit one per frame.
     this.lastSayAt = 0;
+    // The in-flight camera retry, and when the last one started.
+    this.cameraRetry = null;
+    this.cameraRetriedAt = 0;
+    this.refreshingDevices = false;
     // The bubble we put up, and the timer that takes it down again.
     this.sayTarget = null;
     this.sayTimer = null;
@@ -636,9 +878,7 @@ class GlowMLBlocks {
       }
       console.log('[featureExtractor] Model Loaded!');
       this.modelReady = true;
-      this.timer = setInterval(() => {
-        this.classify();
-      }, this.interval);
+      this.startClassifying();
     });
 
     // The callback above has been seen to fire before a later stage of the load
@@ -669,19 +909,14 @@ class GlowMLBlocks {
       dialog.close();
     }
 
-    try {
-      navigator.mediaDevices.enumerateDevices().then(media => {
-        for (const device of media) {
-          if (device.kind === 'videoinput') {
-            this.devices.push({
-              text: device.label,
-              value: device.deviceId
-            });
-          }
-        }
-      });
-    } catch (e) {
-      console.error("failed to load media devices!");
+    // Glow: upstream enumerated once here, concurrently with the first permission
+    // request, and never again - so for anyone who granted the camera afterwards the
+    // list held only entries with no label and no id, and the 'switch webcam'
+    // dropdown was useless for the rest of the session. refreshDevices() is called
+    // here, whenever the dropdown is opened, and whenever a camera is plugged in.
+    this.refreshDevices();
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', () => this.refreshDevices());
     }
   }
 
@@ -909,10 +1144,7 @@ class GlowMLBlocks {
   }
 
   train(args, util) {
-    if (!this.checkModelReady()) {
-      return;
-    }
-    if (!this.checkInputReady(args, util)) {
+    if (!this.checkModelReady(util)) {
       return;
     }
     // Glow: a click arriving while the previous one is still working is dropped.
@@ -926,6 +1158,26 @@ class GlowMLBlocks {
     }
     this.training = true;
 
+    // Glow: ask for the camera again before giving up on it. This is the block a
+    // child presses after closing the other tab that was holding the webcam, so it
+    // is the one that has to notice the camera came back.
+    return this.ensureCamera().then(() => {
+      if (!this.checkInputReady(args, util)) {
+        this.training = false;
+        return undefined;
+      }
+      return this.trainNow(args, util);
+    });
+  }
+
+  /**
+   * Glow: the training itself, once the model, the camera and the caps have all been
+   * checked. Split out so that train() can await the camera retry first.
+   * @param {object} args - the block arguments
+   * @param {object} util - block utility
+   * @returns {Promise} settles when the example has been added
+   */
+  trainNow(args, util) {
     // Returning a promise puts the thread in STATUS_PROMISE_WAIT
     // (scratch-vm execute.js), which keeps the block glowing until it settles.
     // infer() blocks, and the first call also compiles the WebGL shaders, so
@@ -976,9 +1228,9 @@ class GlowMLBlocks {
       }
       return false;
     } else {
-      if (this.when_received_arr[args.CATEGORY]) {
+      if (this.whenReceivedFlags.get(args.CATEGORY)) {
         setTimeout(() => {
-          this.when_received_arr[args.CATEGORY] = false;
+          this.whenReceivedFlags.set(args.CATEGORY, false);
         }, HAT_TIMEOUT);
         return true;
       }
@@ -1024,14 +1276,16 @@ class GlowMLBlocks {
           return;
         }
         this.knnClassifier.clearAllLabels();
-        for (let category in this.counts) {
-          this.counts[category] = 0;
-        }
+        // Glow: delete rather than zero. The categories getter unions in
+        // Object.keys(this.counts), so a key left behind at zero puts the category
+        // straight back into every dropdown - and after one 'reset all' nothing
+        // could be deleted again.
+        this.counts = null;
       } else {
         // Glow: this.counts is null until something has been trained.
         if (this.counts && this.counts[args.CATEGORY] > 0) {
           this.knnClassifier.clearLabel(args.CATEGORY);
-          this.counts[args.CATEGORY] = 0;
+          delete this.counts[args.CATEGORY];
         }
       }
       this.reportedProblems.clear();
@@ -1084,22 +1338,59 @@ class GlowMLBlocks {
 
   toggleClassification(args, util) {
     let state = args.CLASSIFICATION_STATE;
-    if (this.timer) {
-      clearTimeout(this.timer);
+    this.stopClassifying();
+    if (state !== 'on') {
+      return undefined;
     }
-    if (state === 'on') {
-      // Glow: classify() is on a timer and has to stay silent, so turning it on
-      // is the moment to say that it will not see anything.
+    // Glow: classify() is on a timer and has to stay silent, so turning it on is the
+    // moment to say that it will not see anything - and the moment to ask for the
+    // camera once more, in case it has come back.
+    return this.ensureCamera().then(() => {
       this.checkCamera(this.blockName('toggle_classification', {CLASSIFICATION_STATE: state}), util);
-      this.timer = setInterval(() => {
-        this.classify();
-      }, this.interval);
+      this.startClassifying();
+    });
+  }
+
+  /**
+   * Glow: start the classify loop, replacing any loop already running.
+   *
+   * Upstream assigned this.timer in three places without clearing it first, so a
+   * child who pressed 'turn classification on' while MobileNet was still loading -
+   * the exact window an impatient child clicks in - left the first interval running
+   * with nobody holding its handle. Nothing could stop it afterwards, and classify()
+   * ran twice a period for the rest of the session.
+   */
+  startClassifying() {
+    this.stopClassifying();
+    this.timer = setInterval(() => {
+      this.classify();
+    }, this.interval);
+  }
+
+  /**
+   * Glow: stop the classify loop, if one is running.
+   */
+  stopClassifying() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
     }
   }
 
   setClassificationInterval(args, util) {
-    if (this.timer) {
-      clearTimeout(this.timer);
+    // Glow: the menu accepts reporters, so this is whatever a variable happens to
+    // hold. Upstream multiplied it by 1000 and handed it to setInterval: text gave
+    // NaN, which setInterval reads as 0, and a huge number overflowed the timer and
+    // also fired every tick. Either way the result was a loop of synchronous GPU
+    // inference as fast as the browser allows, which locks the tab.
+    const seconds = Cast.toNumber(args.CLASSIFICATION_INTERVAL);
+    if (!Number.isFinite(seconds) || seconds < MIN_INTERVAL_SECONDS || seconds > MAX_INTERVAL_SECONDS) {
+      this.reportProblem(Message.bad_interval[this.locale]
+        .replace('[BLOCK]', this.blockName('set_classification_interval',
+          {CLASSIFICATION_INTERVAL: args.CLASSIFICATION_INTERVAL}))
+        .replace('[MIN]', MIN_INTERVAL_SECONDS)
+        .replace('[MAX]', MAX_INTERVAL_SECONDS), util);
+      return;
     }
 
     // Glow: this restarts the classify timer, so it has the same blind spot.
@@ -1107,10 +1398,8 @@ class GlowMLBlocks {
       this.blockName('set_classification_interval', {CLASSIFICATION_INTERVAL: args.CLASSIFICATION_INTERVAL}),
       util
     );
-    this.interval = args.CLASSIFICATION_INTERVAL * 1000;
-    this.timer = setInterval(() => {
-      this.classify();
-    }, this.interval);
+    this.interval = seconds * 1000;
+    this.startClassifying();
   }
 
   toggleVideo(args, util) {
@@ -1153,7 +1442,7 @@ class GlowMLBlocks {
       // than leaving the next train block to fail.
       this.checkCamera(this.blockName('set_input', {INPUT: Message.webcam[this.locale]}), util);
     } else {
-      this.input = this.canvas;
+      this.input = this.stageCanvas();
       if (!this.input) {
         console.warn('Glow ML: no stage canvas found, so the stage cannot be used as input');
       }
@@ -1168,25 +1457,86 @@ class GlowMLBlocks {
       return false;
     }
 
+    const file = files.item(0);
+    // Glow: refuse before reading. Upstream read whatever was picked - there is no
+    // accept filter on the input - and a large file is megabytes of string and parsed
+    // objects on the main thread before anything looks at it.
+    if (file.size > MAX_TRAINING_BYTES) {
+      this.reportProblem(Message.bad_training_data[this.locale]);
+      this.uploadDialog.close();
+      return false;
+    }
+
     let fr = new FileReader();
 
     fr.onload = (e) => {
-      let data = JSON.parse(e.target.result);
-      this.knnClassifier.load(data, () => {
-        console.log('uploaded!');
-
-        this.updateCounts();
-        this.scheduleSave();
-        alert(Message.uploaded[this.locale]);
+      // Glow: upstream parsed and loaded straight from here. JSON.parse was
+      // unwrapped, so a file that is not JSON threw inside this callback with the
+      // dialog already closed and nothing shown; and knnClassifier.load() is async
+      // with its promise discarded, so every malformed shape became an unhandled
+      // rejection over a half-replaced classifier.
+      this.loadTrainingData(e.target.result).then(loaded => {
+        if (loaded) {
+          this.scheduleSave();
+          alert(Message.uploaded[this.locale]);
+        }
       });
+    }
+
+    fr.onerror = () => {
+      this.reportProblem(Message.bad_training_data[this.locale]);
     }
 
     fr.onloadend = (e) => {
       document.getElementById('upload-files').value = "";
     }
 
-    fr.readAsText(files.item(0));
+    fr.readAsText(file);
     this.uploadDialog.close();
+  }
+
+  /**
+   * Glow: the single way training data enters the classifier, used by both the upload
+   * block and the project loader.
+   *
+   * Everything is checked before ml5 sees it, and a failure leaves the classifier
+   * exactly as it was rather than half replaced. ml5 treats a value that is not an
+   * object as a URL and fetches it, so a one-line JSON file could otherwise make the
+   * browser issue a cross-origin request.
+   * @param {string} text - the serialised data
+   * @returns {Promise<boolean>} whether it was loaded
+   */
+  loadTrainingData(text) {
+    let parsed = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      this.reportProblem(Message.bad_training_data[this.locale]);
+      return Promise.resolve(false);
+    }
+
+    const verdict = vetTrainingData(parsed);
+    if (!verdict.ok) {
+      console.warn(`Glow ML: refusing training data (${verdict.reason})`);
+      this.reportProblem(Message.bad_training_data[this.locale]);
+      return Promise.resolve(false);
+    }
+
+    return new Promise(resolve => {
+      // load() is async and its rejection is otherwise unhandled; the callback only
+      // runs on success.
+      Promise.resolve(this.knnClassifier.load(parsed, () => {
+        this.updateCounts();
+        this.saveRefusedAtExamples = null;
+        resolve(true);
+      })).catch(error => {
+        console.error('Glow ML: ml5 could not load the training data.', error);
+        this.knnClassifier.clearAllLabels();
+        this.counts = null;
+        this.reportProblem(Message.bad_training_data[this.locale]);
+        resolve(false);
+      });
+    });
   }
 
   classify() {
@@ -1198,6 +1548,10 @@ class GlowMLBlocks {
     // element in place but dead. Silent: the timer runs every second, and
     // train() or 'turn classification on' is where a person finds out.
     if (!this.usingStageInput() && (!this.input || !this.hasWorkingCamera())) {
+      // Glow: the loop is the 'when I recognize' path, so it has to notice a camera
+      // that has come back. ensureCamera's cooldown keeps this to one attempt every
+      // few seconds however fast the loop runs.
+      this.ensureCamera();
       return;
     }
     let numCategories = this.knnClassifier.getNumLabels();
@@ -1207,18 +1561,38 @@ class GlowMLBlocks {
     try {
       features = this.featureExtractor.infer(this.input);
     } catch (error) {
+      // Glow: the same distinction train() makes. A camera that died between the
+      // check above and here is not a broken model, and declaring the model broken
+      // is permanent - one transient throw from a background timer used to kill
+      // training and recognising for the rest of the session.
+      if (!this.usingStageInput() && !this.hasWorkingCamera()) {
+        this.ensureCamera();
+        return;
+      }
       this.reportBrokenModel(error);
       return;
     }
-    this.knnClassifier.classify(features, (err, result) => {
+    const generation = this.loadGeneration;
+    // Glow: classify() is async. Between here and the callback a project can be
+    // opened, or reset/delete can wipe the classifier, so the result may describe a
+    // model that is no longer loaded.
+    Promise.resolve(this.knnClassifier.classify(features, (err, result) => {
       if (err) {
         console.error(err);
-      } else {
-        this.category = this.getTopConfidenceCategory(result.confidencesByLabel);
-        this.confidence = result.confidencesByLabel[this.category] || 0;
-        this.when_received = true;
-        this.when_received_arr[this.category] = true
+        return;
       }
+      if (generation !== this.loadGeneration || !result || !result.confidencesByLabel) {
+        return;
+      }
+      this.category = this.getTopConfidenceCategory(result.confidencesByLabel);
+      this.confidence = result.confidencesByLabel[this.category] || 0;
+      this.when_received = true;
+      if (this.category) {
+        this.whenReceivedFlags.set(this.category, true);
+      }
+    })).catch(error => {
+      // ml5 rejects when the classifier was emptied while it was working.
+      console.warn('Glow ML: a classification was dropped.', error);
     });
   }
 
@@ -1264,16 +1638,25 @@ class GlowMLBlocks {
    * @return {string[]} - the categories this project knows about
    */
   get categories() {
-    const stored = this.runtime.extensionStorage[GlowMLBlocks.EXTENSION_ID];
-    if (!stored || !Array.isArray(stored.categories) || stored.categories.length === 0) {
+    const storage = this.runtime.extensionStorage || {};
+    const stored = storage[GlowMLBlocks.EXTENSION_ID];
+    // Glow: the elements come out of project.json, so they are whatever that file
+    // says. One number or null among them used to throw inside sortCategories'
+    // comparator, which took out every menu and every block in the palette.
+    const named = (stored && Array.isArray(stored.categories) ? stored.categories : [])
+      .filter(category => validateCategoryName(category).ok)
+      .slice(0, MAX_CATEGORIES);
+    if (named.length === 0) {
       // Deleting the last category brings the defaults back rather than leaving a
       // dropdown with nothing in it.
       return sortCategories(DEFAULT_CATEGORIES.slice());
     }
     // Anything that has been trained belongs in the pool even if the stored
     // list has fallen behind, so a dropdown never hides a category that exists.
-    const trained = this.counts ? Object.keys(this.counts) : [];
-    return sortCategories(stored.categories.concat(trained.filter(category => !stored.categories.includes(category))));
+    const trained = this.counts ? Object.keys(this.counts).filter(
+      category => validateCategoryName(category).ok
+    ) : [];
+    return sortCategories(named.concat(trained.filter(category => !named.includes(category))));
   }
 
   set categories(categories) {
@@ -1293,15 +1676,21 @@ class GlowMLBlocks {
     if (name === null) {
       return;
     }
-    const category = name.trim();
-    if (category === '' || category === ALL || category === ANY) {
+    // Glow: the same check the load paths use, so a name that could not be typed
+    // cannot arrive through a file either.
+    const verdict = validateCategoryName(name, this.categories);
+    if (!verdict.ok) {
+      if (verdict.reason === 'long') {
+        alert(Message.category_too_long[this.locale].replace('[N]', MAX_CATEGORY_NAME_LENGTH));
+      } else if (verdict.reason === 'duplicate') {
+        alert(Message.category_exists[this.locale]);
+      } else if (verdict.reason === 'characters' || verdict.reason === 'reserved') {
+        alert(Message.category_bad_name[this.locale]);
+      }
+      // 'empty' says nothing: an empty prompt is a cancel by another name.
       return;
     }
-    if (this.categories.includes(category)) {
-      alert(Message.category_exists[this.locale]);
-      return;
-    }
-    this.categories = this.categories.concat([category]);
+    this.categories = this.categories.concat([verdict.name]);
   }
 
   /**
@@ -1407,6 +1796,82 @@ class GlowMLBlocks {
    * so readyState is the only reliable signal for that.
    * @return {boolean} - whether the camera is usable
    */
+  /**
+   * Glow: ask for the camera again, once, and say whether it is usable now.
+   *
+   * The provider does not give up on its own: _setupVideo() nulls its cached promise
+   * in the failure path, so a fresh enableVideo() really does retry getUserMedia.
+   * Nothing here ever asked again, which is why a camera held by a second tab stayed
+   * "broken" long after that tab was closed.
+   *
+   * The awkward case is a camera that *did* work and has since been taken away. The
+   * cached promise is then resolved, so enableVideo() hands it straight back without
+   * retrying; the track has to be torn down first. disableVideo()'s teardown runs in
+   * a .then and refuses to do anything unless enabled is still false, so the two
+   * cannot be called in the same tick - hence the await between them.
+   * @returns {Promise<boolean>} whether the camera can be used now
+   */
+  ensureCamera() {
+    if (this.hasWorkingCamera()) {
+      return Promise.resolve(true);
+    }
+    const video = this.runtime.ioDevices.video;
+    if (!video || !video.provider) {
+      return Promise.resolve(false);
+    }
+    // One attempt at a time, shared by every block and by the classify timer, so
+    // that a 'forever' loop cannot turn into a stream of getUserMedia requests.
+    if (this.cameraRetry) {
+      return this.cameraRetry;
+    }
+    const now = Date.now();
+    if (this.cameraRetriedAt && now - this.cameraRetriedAt < CAMERA_RETRY_MS) {
+      return Promise.resolve(false);
+    }
+    this.cameraRetriedAt = now;
+
+    const provider = video.provider;
+    const track = provider._track;
+    const stale = Boolean(track && track.readyState === 'ended');
+
+    this.cameraRetry = Promise.resolve()
+      .then(() => {
+        if (!stale) {
+          return null;
+        }
+        video.disableVideo();
+        // Let the teardown's .then run before asking again.
+        return new Promise(resolve => setTimeout(resolve, 0));
+      })
+      .then(() => video.enableVideo())
+      // enableVideo resolves even when getUserMedia was refused - the provider
+      // swallows the error into onError - so the answer is whether it works now,
+      // not whether this settled.
+      .catch(() => null)
+      .then(() => {
+        this.cameraRetry = null;
+        const working = this.hasWorkingCamera();
+        if (working) {
+          // Let the problem be reported again if it comes back.
+          this.reportedProblems.clear();
+        }
+        return working;
+      });
+    return this.cameraRetry;
+  }
+
+  /**
+   * Glow: the stage canvas, looked up each time it is needed.
+   * @returns {?HTMLCanvasElement} the canvas, or null before the stage has rendered
+   */
+  stageCanvas() {
+    if (this.canvas && this.canvas.isConnected) {
+      return this.canvas;
+    }
+    this.canvas = document.querySelector('canvas');
+    return this.canvas;
+  }
+
   hasWorkingCamera() {
     const video = this.runtime.ioDevices.video;
     if (!video || !video.provider || !video.videoReady) {
@@ -1422,7 +1887,8 @@ class GlowMLBlocks {
    * @return {boolean} - whether the stage is the current input
    */
   usingStageInput() {
-    return Boolean(this.canvas) && this.input === this.canvas;
+    const canvas = this.stageCanvas();
+    return Boolean(canvas) && this.input === canvas;
   }
 
   /**
@@ -1435,7 +1901,10 @@ class GlowMLBlocks {
   blockName(key, values) {
     let text = Message[key][this.locale];
     for (const placeholder of Object.keys(values || {})) {
-      text = text.replace(`[${placeholder}]`, `[${values[placeholder]}]`);
+      // Glow: a function replacer, because a replacement *string* expands $&, $` and
+      // $', so a category called '$&' used to splice the surrounding message into
+      // itself. The value is a category name, i.e. whatever a child typed.
+      text = text.replace(`[${placeholder}]`, () => `[${values[placeholder]}]`);
     }
     return `"${text}"`;
   }
@@ -1691,8 +2160,12 @@ class GlowMLBlocks {
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
     }
+    const generation = this.loadGeneration;
     this.saveTimer = setTimeout(() => {
       this.saveTimer = null;
+      if (generation !== this.loadGeneration) {
+        return;
+      }
       this.saveToProject();
     }, SAVE_DEBOUNCE_MS);
   }
@@ -1705,24 +2178,48 @@ class GlowMLBlocks {
     if (!this.assetManager) {
       return;
     }
+    this.loadGeneration++;
+    // Glow: a save armed by the project that is being closed must not fire against
+    // the one being opened, which is how project A's training data used to end up in
+    // project B's asset slot.
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    // Whatever happens below, this project starts from nothing rather than from
+    // whatever the previous one left in the classifier.
+    this.knnClassifier.clearAllLabels();
+    this.counts = null;
+    this.category = null;
+    this.confidence = 0;
+    this.whenReceivedFlags.clear();
+    this.reportedProblems.clear();
+    this.saveRefusedAtExamples = null;
+    // A model declared broken by a transient failure under the previous project
+    // should not follow the pupil into this one.
+    this.modelBroken = false;
+
     const asset = this.assetManager.get(ASSET_OWNER, ASSET_NAME);
     if (!asset) {
-      this.knnClassifier.clearAllLabels();
-      this.counts = null;
-      this.category = null;
-      this.confidence = 0;
-      this.reportedProblems.clear();
-      this.saveRefusedAtExamples = null;
       return;
     }
+    if (asset.data.byteLength > MAX_TRAINING_BYTES) {
+      console.warn(`Glow ML: this project holds ${formatBytes(asset.data.byteLength)} of ` +
+        `training data, more than the ${formatBytes(MAX_TRAINING_BYTES)} allowed.`);
+      this.reportProblem(Message.bad_training_data[this.locale]);
+      return;
+    }
+    let text = null;
     try {
-      const data = JSON.parse(new TextDecoder().decode(asset.data));
-      this.knnClassifier.load(data, () => {
-        this.updateCounts();
-      });
+      text = new TextDecoder().decode(asset.data);
     } catch (error) {
       console.error('Glow ML: the training data stored in this project could not be read.', error);
+      this.reportProblem(Message.bad_training_data[this.locale]);
+      return;
     }
+    // Glow: same door as the upload block. A project that fails the check is opened
+    // with an empty classifier rather than a half-loaded one, and says so.
+    this.loadTrainingData(text);
   }
 
   /**
@@ -1739,10 +2236,7 @@ class GlowMLBlocks {
     this.modelBroken = true;
     this.modelReady = false;
     this.training = false;
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
+    this.stopClassifying();
     console.error('Glow ML: MobileNet failed to load.', error);
 
     const message = Message.model_broken[this.locale];
@@ -1769,7 +2263,7 @@ class GlowMLBlocks {
   /**
    * @return {boolean} - whether infer() can be called
    */
-  checkModelReady() {
+  checkModelReady(util) {
     if (this.modelReady) {
       return true;
     }
@@ -1777,6 +2271,10 @@ class GlowMLBlocks {
       // Still loading. Say nothing: the block was pressed early, that is all.
       return false;
     }
+    // Glow: this used to return false here too, so once the model was declared
+    // broken every block did nothing and said nothing for the rest of the session.
+    // The one message the child got was at load time and they clicked through it.
+    this.reportProblem(Message.model_broken[this.locale], util);
     return false;
   }
 
@@ -1803,7 +2301,7 @@ class GlowMLBlocks {
       if (this.runtime.ioDevices.video.provider._track !== null) {
         this.runtime.ioDevices.video.provider._track.stop();
         const deviceId = args.DEVICE;
-        navigator.mediaDevices.getUserMedia({ audio: false, video: { deviceId } }).then(
+        return navigator.mediaDevices.getUserMedia({ audio: false, video: { deviceId } }).then(
           stream => {
             try {
               this.runtime.ioDevices.video.provider._video.srcObject = stream;
@@ -1814,13 +2312,66 @@ class GlowMLBlocks {
             this.runtime.ioDevices.video.provider._video.play();
             this.runtime.ioDevices.video.provider._track = stream.getTracks()[0];
           }
-        );
+        ).catch(error => {
+          // Glow: upstream stopped the old track and then asked for the new one with
+          // no catch, so a camera that is unplugged, held by another tab, or named by
+          // a deviceId saved on a different machine left the camera dead, silent and
+          // unrecoverable. The old track cannot be restarted, but the provider can be
+          // asked for a camera again from scratch.
+          console.warn('Glow ML: could not switch to that camera.', error);
+          this.cameraRetriedAt = 0;
+          return this.ensureCamera().then(working => {
+            if (!working) {
+              this.reportProblem(Message.no_cameras[this.locale]
+                .replace('[BLOCK]', this.blockName('switch_webcam', {DEVICE: this.deviceName(args.DEVICE)})),
+              util);
+            }
+          });
+        });
       }
+      return undefined;
     }
   }
 
   getDevices() {
+    // Glow: the menu is dynamic, so this runs every time the dropdown is opened -
+    // the right moment to rebuild a list that was gathered before the child granted
+    // camera permission, when enumerateDevices() reports neither labels nor ids.
+    this.refreshDevices();
     return this.devices;
+  }
+
+  /**
+   * Glow: rebuild the camera list, at most one enumeration at a time.
+   */
+  refreshDevices() {
+    if (this.refreshingDevices || !navigator.mediaDevices) {
+      return;
+    }
+    this.refreshingDevices = true;
+    Promise.resolve(navigator.mediaDevices.enumerateDevices())
+      .then(media => {
+        const found = [{ text: 'default', value: '' }];
+        for (const device of media) {
+          if (device.kind === 'videoinput') {
+            found.push({
+              text: device.label,
+              value: device.deviceId
+            });
+          }
+        }
+        // Keep the old list if this enumeration told us nothing useful, so an
+        // unlucky refresh cannot empty a dropdown that was working.
+        if (found.length > 1 || this.devices.length <= 1) {
+          this.devices = found;
+        }
+      })
+      .catch(error => {
+        console.warn('Glow ML: could not list the cameras.', error);
+      })
+      .then(() => {
+        this.refreshingDevices = false;
+      });
   }
 
   /**
@@ -1986,7 +2537,17 @@ const resolveMobilenet = () => Promise.all([
   );
 });
 
-loadMl5().then(loaded => {
+/**
+ * Glow: everything above is declarations; this is the only thing the file *does*.
+ * Guarded so that requiring the file from a test runner defines the class and the
+ * helpers without trying to fetch ml5 or register anything.
+ */
+if (typeof Scratch !== 'undefined') {
+  start();
+}
+
+function start() {
+  loadMl5().then(loaded => {
   ml5 = loaded;
   return resolveMobilenet();
 }).then(() => {
@@ -1998,3 +2559,20 @@ loadMl5().then(loaded => {
   console.error(error);
   alert(`Glow ML could not start because ml5.js did not load.\n\nCheck the internet connection and add the extension again.\n\n${error.message}`);
 });
+}
+
+// Glow: for tests only. A browser never sees this; the extension reaches the editor
+// through Scratch.extensions.register above.
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    GlowMLBlocks,
+    validateCategoryName,
+    vetTrainingData,
+    sortCategories,
+    formatBytes,
+    bubbleDuration,
+    MAX_EXAMPLES_TOTAL,
+    MAX_EXAMPLES_PER_CATEGORY,
+    MAX_CATEGORY_NAME_LENGTH
+  };
+}
