@@ -1,13 +1,13 @@
 // Glow Lab integration of ML2Scratch by Junya Ishihara (champierre), AGPL-3.0.
-// Upstream: https://github.com/champierre/ml2scratch  (see GLOW-NOTES.md)
+// Upstream: https://github.com/champierre/ml2scratch
 //
 // Upstream ships this file as a scratch-vm built-in extension, so it required
 // scratch-vm internals and the 'ml5' npm package. Glow loads it instead as a
 // same-origin (therefore unsandboxed) TurboWarp custom extension, so the same
 // values come from the global Scratch API and from ml5 fetched at load time.
-// Everything below this preamble is champierre's original code, apart from the
-// Glow renaming, the block review recorded in GLOW-NOTES.md, and the
-// registration block at the end of the file.
+// Everything below this preamble is champierre's original code apart from the
+// changes marked 'Glow:', the renaming of labels to categories, and the
+// registration block at the end of the file. See glow-ets/scratch-gui#21.
 
 /* global Scratch */
 
@@ -51,7 +51,6 @@ const servedFrom = path => (
  * Where ml5 is loaded from. The self-hosted copy is preferred; drop
  * ml5.min.js next to this file and webpack ships it to static/extensions/.
  * The CDN is only a fallback for a checkout that has not vendored it yet.
- * See GLOW-NOTES.md.
  */
 const ML5_LOCAL_URL = servedFrom('static/extensions/glow-ml/ml5.min.js');
 const ML5_CDN_URL = 'https://unpkg.com/ml5@0.12.2/dist/ml5.min.js';
@@ -61,8 +60,8 @@ const ML5_CDN_URL = 'https://unpkg.com/ml5@0.12.2/dist/ml5.min.js';
  * then fetches two models of its own, a tfjs LayersModel from
  * storage.googleapis.com and a GraphModel from tfhub.dev. Both are plain
  * options on the constructor, so no patching of ml5 is needed - point them at
- * vendored copies and nothing leaves the origin. See GLOW-NOTES.md for what to
- * download.
+ * vendored copies and nothing leaves the origin. scripts/glow-fetch-mobilenet.mjs
+ * downloads them.
  */
 const MOBILENET_LOCAL_URL = servedFrom('static/extensions/glow-ml/mobilenet/model.json');
 const MOBILENET_GRAPH_LOCAL_URL = servedFrom('static/extensions/glow-ml/mobilenet-graph/model.json');
@@ -160,18 +159,13 @@ const bubbleDuration = message => Math.min(
 );
 
 /**
- * How many training examples to keep. A MobileNet feature vector is 1024 floats,
- * which serialises to roughly 7 KB, so 500 of them is about 3.5 MB - comfortably
- * inside the asset manager's 8 MB ceiling with room for other extensions.
+ * How many training examples to keep. A MobileNet feature vector is 1024 floats and
+ * serialises to roughly 7 KB, so 500 is about 3.5 MB - inside the asset manager's
+ * 8 MB ceiling with room for other extensions. Adjust the two together.
  *
- * This is the real defence against 'forever [train category A]'. Without it the
- * examples grow without bound, and long before memory runs out the extension is
- * spending twenty seconds per save serialising megabytes it is then told it
- * cannot store.
- *
- * Refusing rather than rotating is deliberate: rotation would let that same
- * forever loop run at full cost indefinitely, and would quietly throw away a
- * pupil's earlier examples.
+ * Checked before infer() runs, so a 'forever [train]' costs nothing once it hits the
+ * cap. Refusing rather than rotating: rotation would let that loop run at full cost
+ * for ever, and would silently discard a pupil's earlier examples.
  */
 const MAX_EXAMPLES_TOTAL = 500;
 
@@ -780,11 +774,9 @@ class GlowMLBlocks {
     }
 
     this.when_received = false;
-    // Glow: upstream used Array(8) - a leftover from the fixed 1..8 labels - and then
-    // indexed it by category name. Reading arr['__proto__'] returns Array.prototype,
-    // which is truthy, so 'when I recognize [__proto__]' fired on every evaluation
-    // for ever and the reset that should have stopped it was a silent no-op. A Map
-    // has no prototype keys to fall through to.
+    // Glow: a Map, not an object or array keyed by category name. Reading
+    // arr['__proto__'] returns Array.prototype, which is truthy, so the hat for a
+    // category named that would fire for ever and never reset.
     this.whenReceivedFlags = new Map();
     this.category = null;
     this.confidence = 0;
@@ -877,9 +869,8 @@ class GlowMLBlocks {
     }
 
     this.featureExtractor = ml5.featureExtractor('MobileNet', mobilenetOptions, error => {
-      // Glow: upstream ignores this argument and starts classifying regardless,
-      // which turns a failed model into one exception per interval forever and
-      // a video pipeline that never settles.
+      // Glow: do not start classifying when the model failed to load, or every
+      // interval throws.
       if (error) {
         this.reportBrokenModel(error);
         return;
@@ -897,12 +888,9 @@ class GlowMLBlocks {
 
     this.devices = [{ text: 'default', value: '' }];
 
-    // Glow: upstream's markup nested <html><body> inside the dialog, closed a <div>
-    // with </p> and ended with a second <body>. Browsers throw the stray tags away on
-    // innerHTML so it worked, but it is not markup anyone should copy. The pieces are
-    // also held on `this` and wired by reference rather than looked up by id: two
-    // instances of the extension would otherwise both answer to '#upload-button',
-    // and the second one's handler would be attached to the first one's dialog.
+    // Glow: held on `this` and wired by reference rather than looked up by id. Two
+    // instances of the extension would otherwise both answer to '#upload-button', and
+    // the second one's handler would attach to the first one's dialog.
     const dialog = document.createElement('dialog');
     dialog.innerHTML = `
       <div>${Message.upload_instruction[this.locale]}</div>
@@ -918,8 +906,8 @@ class GlowMLBlocks {
     closeButton.setAttribute('aria-label', Message.close[this.locale]);
 
     this.uploadDialog = dialog;
-    // Glow: accept only JSON in the picker. Upstream's input had no filter, so the
-    // obvious thing to try was any file at all.
+    // Glow: accept only JSON in the picker, so the obvious thing to try is not any
+    // file at all.
     this.uploadInput = dialog.querySelector('input[type=file]');
     document.body.appendChild(dialog);
 
@@ -931,11 +919,9 @@ class GlowMLBlocks {
       dialog.close();
     }
 
-    // Glow: upstream enumerated once here, concurrently with the first permission
-    // request, and never again - so for anyone who granted the camera afterwards the
-    // list held only entries with no label and no id, and the 'switch webcam'
-    // dropdown was useless for the rest of the session. refreshDevices() is called
-    // here, whenever the dropdown is opened, and whenever a camera is plugged in.
+    // Glow: enumerateDevices() reports neither labels nor ids before permission is
+    // granted, so the list has to be rebuilt - here, whenever the dropdown is opened,
+    // and whenever a camera is plugged in.
     this.refreshDevices();
     if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
       navigator.mediaDevices.addEventListener('devicechange', () => this.refreshDevices());
@@ -1170,10 +1156,9 @@ class GlowMLBlocks {
       return;
     }
     // Glow: one at a time - infer() is synchronous and GPU-bound, so two at once
-    // would contend rather than overlap. Upstream dropped the second call outright,
-    // which meant a 'forever [train A]' in one sprite starved a 'train B' in another
-    // indefinitely and silently. Queueing instead makes them take turns; the depth is
-    // bounded by the number of scripts, since each one waits for its own promise.
+    // contend rather than overlap. Queued rather than dropped, or a 'forever [train]'
+    // in one sprite would starve another sprite's train for ever. Depth is bounded by
+    // the number of scripts, since each waits on its own promise.
     this.trainQueue = this.trainQueue
       .then(() => {
         if (!this.checkExampleLimits(args.CATEGORY, util)) {
@@ -1292,11 +1277,9 @@ class GlowMLBlocks {
   reset(args) {
     if (this.actionRepeated('reset')) { return };
 
-    // Glow: upstream deferred all of this by a second, so a child who clicked and
-    // saw nothing happen clicked again and got a second dialog behind the first.
     if (args.CATEGORY == ALL) {
-      // Glow: only wiping everything is worth interrupting for. Resetting one
-      // category used to ask too, which trained people to click through it.
+      // Glow: only wiping everything is worth interrupting for. Asking on every
+      // single reset trains people to click through the question.
       if (!this.confirmOnce(Message.confirm_reset[this.locale])) {
         return;
       }
@@ -1348,9 +1331,8 @@ class GlowMLBlocks {
 
   download() {
     if (this.actionRepeated('download')) { return };
-    // Glow: upstream named the file after Date.now(), which is indistinguishable
-    // across 24 children on a shared account. Lead with the project title where
-    // there is one.
+    // Glow: named after the project and the time. Date.now() alone is
+    // indistinguishable across 24 children on a shared account.
     const title = (this.runtime.getTargetForStage() && this.runtime.emitProjectChanged) ?
       (document.title || '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') : '';
     const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
@@ -1381,11 +1363,10 @@ class GlowMLBlocks {
   /**
    * Glow: start the classify loop, replacing any loop already running.
    *
-   * Upstream assigned this.timer in three places without clearing it first, so a
-   * child who pressed 'turn classification on' while MobileNet was still loading -
-   * the exact window an impatient child clicks in - left the first interval running
-   * with nobody holding its handle. Nothing could stop it afterwards, and classify()
-   * ran twice a period for the rest of the session.
+   * The one place this.timer is assigned. Assigning it anywhere else without
+   * clearing first orphans an interval that nothing can then stop - which is easy to
+   * do, since 'turn classification on' can be pressed while the model is still
+   * loading.
    */
   startClassifying() {
     this.stopClassifying();
@@ -1406,10 +1387,9 @@ class GlowMLBlocks {
 
   setClassificationInterval(args, util) {
     // Glow: the menu accepts reporters, so this is whatever a variable happens to
-    // hold. Upstream multiplied it by 1000 and handed it to setInterval: text gave
-    // NaN, which setInterval reads as 0, and a huge number overflowed the timer and
-    // also fired every tick. Either way the result was a loop of synchronous GPU
-    // inference as fast as the browser allows, which locks the tab.
+    // hold. Unchecked it locks the tab: setInterval reads NaN as 0, and a number
+    // past the 32-bit timer range overflows and also fires every tick - either way a
+    // loop of synchronous GPU inference as fast as the browser allows.
     const seconds = Cast.toNumber(args.CLASSIFICATION_INTERVAL);
     if (!Number.isFinite(seconds) || seconds < MIN_INTERVAL_SECONDS || seconds > MAX_INTERVAL_SECONDS) {
       this.reportProblem(Message.bad_interval[this.locale]
@@ -1496,9 +1476,8 @@ class GlowMLBlocks {
     }
 
     const file = files.item(0);
-    // Glow: refuse before reading. Upstream read whatever was picked - there is no
-    // accept filter on the input - and a large file is megabytes of string and parsed
-    // objects on the main thread before anything looks at it.
+    // Glow: refuse before reading. A large file is megabytes of string and parsed
+    // objects on the main thread before anything has looked at it.
     if (file.size > MAX_TRAINING_BYTES) {
       this.reportProblem(Message.bad_training_data[this.locale]);
       this.uploadDialog.close();
@@ -1508,11 +1487,8 @@ class GlowMLBlocks {
     let fr = new FileReader();
 
     fr.onload = (e) => {
-      // Glow: upstream parsed and loaded straight from here. JSON.parse was
-      // unwrapped, so a file that is not JSON threw inside this callback with the
-      // dialog already closed and nothing shown; and knnClassifier.load() is async
-      // with its promise discarded, so every malformed shape became an unhandled
-      // rejection over a half-replaced classifier.
+      // Glow: everything goes through loadTrainingData. Parsing here directly would
+      // throw inside this callback with the dialog already closed and nothing shown.
       this.loadTrainingData(e.target.result).then(loaded => {
         if (loaded) {
           this.scheduleSave();
@@ -1640,8 +1616,6 @@ class GlowMLBlocks {
 
     for (let category in confidences) {
       if (confidences[category] > topConfidence) {
-        // Glow: upstream never advances topConfidence, so this returns the last
-        // category with a non-zero confidence rather than the best one.
         topConfidence = confidences[category];
         topConfidenceCategory = category;
       }
@@ -1652,15 +1626,13 @@ class GlowMLBlocks {
 
   updateCounts() {
     this.counts = this.knnClassifier.getCountByLabel();
-    // Glow: upstream logged the counts here on every training, which a loop turns
-    // into thousands of console lines. The 'categories and counts' reporter shows the
-    // same thing on the stage.
+    // Glow: deliberately silent. Logging here turns a training loop into thousands
+    // of console lines; the 'categories and counts' reporter shows the same thing.
   }
 
   actionRepeated(block) {
-    // Glow: keyed by block. Upstream shared one timestamp across reset, delete,
-    // download and upload, so clicking download and then reset within a quarter of
-    // a second silently dropped the reset.
+    // Glow: keyed by block. One shared timestamp would let clicking download and then
+    // reset within a quarter of a second silently drop the reset.
     const key = block || 'any';
     const currentTime = Date.now();
     const last = this.blockClickedAt.get(key);
@@ -1675,12 +1647,8 @@ class GlowMLBlocks {
   /**
    * Glow: ask a yes/no question, and never let a second one queue up behind it.
    *
-   * confirm() blocks the main thread, so a script that reaches one on a loop piles
-   * the rest up to fire in a burst the moment the first is dismissed. Upstream also
-   * deferred the question by a whole second, which meant a child who clicked and saw
-   * nothing happen clicked again and got two dialogs. GLOW-NOTES already argues that
-   * a second modal is an obstacle rather than a warning; this applies the same rule
-   * to the ones that ask a question.
+   * confirm() blocks the main thread, so a script that reaches one on a loop piles the
+   * rest up to fire in a burst the moment the first is dismissed.
    * @param {string} message - the question
    * @returns {boolean} whether it was answered yes
    */
@@ -1864,16 +1832,15 @@ class GlowMLBlocks {
   /**
    * Glow: ask for the camera again, once, and say whether it is usable now.
    *
-   * The provider does not give up on its own: _setupVideo() nulls its cached promise
-   * in the failure path, so a fresh enableVideo() really does retry getUserMedia.
-   * Nothing here ever asked again, which is why a camera held by a second tab stayed
-   * "broken" long after that tab was closed.
+   * A camera that *did* work and was then taken away needs tearing down first:
+   * _setupVideo()'s cached promise is resolved, so enableVideo() hands it straight
+   * back without retrying. disableVideo()'s teardown runs in a .then gated on
+   * enabled still being false, so the two cannot be called in the same tick - hence
+   * the await between them.
    *
-   * The awkward case is a camera that *did* work and has since been taken away. The
-   * cached promise is then resolved, so enableVideo() hands it straight back without
-   * retrying; the track has to be torn down first. disableVideo()'s teardown runs in
-   * a .then and refuses to do anything unless enabled is still false, so the two
-   * cannot be called in the same tick - hence the await between them.
+   * Known limitation, glow-ets/scratch-gui#25: a camera *refused* once cannot be
+   * recovered at all. src/lib/video/camera.js caches the first getUserMedia promise,
+   * rejection included, and nothing pops a rejected entry.
    * @returns {Promise<boolean>} whether the camera can be used now
    */
   ensureCamera() {
@@ -2129,15 +2096,12 @@ class GlowMLBlocks {
   /**
    * Glow: report a problem once, however many scripts run into it.
    *
-   * A 'forever' loop hits a limit thousands of times a minute, and several loops
-   * can hit *different* limits, so the set holds everything already said - an
-   * earlier version remembered only the last message, and two scripts alternating
-   * between two messages re-alerted on every single frame.
+   * A Set of everything already said, not a single last-message slot: two loops
+   * hitting two different limits would otherwise each look new on every frame.
    *
-   * Only the first message opens a modal. A second modal is not a warning any
-   * more, it is an obstacle: the scripts keep running behind it and the pupil
-   * cannot reach the stop button. Everything after the first goes to a speech
-   * bubble instead, which is visible without blocking anything.
+   * Only the first message opens a modal. A second modal is not a warning any more
+   * but an obstacle - the scripts keep running behind it and the pupil cannot reach
+   * the stop button - so everything after the first goes to a speech bubble.
    * @param {string} message - what to report
    * @param {object} [util] - block utility, when a block is what raised this
    */
@@ -2354,9 +2318,8 @@ class GlowMLBlocks {
       // Still loading. Say nothing: the block was pressed early, that is all.
       return false;
     }
-    // Glow: this used to return false here too, so once the model was declared
-    // broken every block did nothing and said nothing for the rest of the session.
-    // The one message the child got was at load time and they clicked through it.
+    // Glow: say so. A broken model is permanent, and without this every block does
+    // nothing and says nothing for the rest of the session.
     this.reportProblem(Message.model_broken[this.locale], util);
     return false;
   }
@@ -2396,11 +2359,8 @@ class GlowMLBlocks {
             this.runtime.ioDevices.video.provider._track = stream.getTracks()[0];
           }
         ).catch(error => {
-          // Glow: upstream stopped the old track and then asked for the new one with
-          // no catch, so a camera that is unplugged, held by another tab, or named by
-          // a deviceId saved on a different machine left the camera dead, silent and
-          // unrecoverable. The old track cannot be restarted, but the provider can be
-          // asked for a camera again from scratch.
+          // Glow: the old track was already stopped and cannot be restarted, so ask
+          // the provider for a camera from scratch rather than leaving it dead.
           console.warn('Glow ML: could not switch to that camera.', error);
           this.cameraRetriedAt = 0;
           return this.ensureCamera().then(working => {
@@ -2458,14 +2418,12 @@ class GlowMLBlocks {
   }
 
   /**
-   * Glow: the name of a camera as the dropdown shows it. The block stores the
-   * deviceId, which is 64 hex characters and means nothing to a pupil, so a
-   * message about the block has to look the name back up.
+   * Glow: the camera's name as the dropdown shows it. The block stores a deviceId,
+   * which is 64 hex characters and means nothing to a pupil.
    *
-   * The name can be missing either way round: with no camera permission
-   * enumerateDevices() reports devices with empty labels, and a project saved on
-   * another machine names a camera this one has never seen. Both get a generic
-   * phrase rather than the raw id.
+   * The name can be missing either way round - enumerateDevices() reports empty
+   * labels before permission, and a project can name a camera this machine has never
+   * seen - so both fall back to a generic phrase rather than the raw id.
    * @param {string} value - the deviceId the block holds, '' for the default
    * @returns {string} something readable
    */
@@ -2616,7 +2574,7 @@ const resolveMobilenet = () => Promise.all([
     'Glow ML: MobileNet is not vendored (layers manifest: ' + hasLayers +
     ', graph manifest: ' + hasGraph + '), so ml5 will download it from ' +
     'storage.googleapis.com and tfhub.dev. Run ' +
-    '`node scripts/glow-fetch-mobilenet.mjs` to vendor it. See GLOW-NOTES.md.'
+    '`node scripts/glow-fetch-mobilenet.mjs` to vendor it.'
   );
 });
 
