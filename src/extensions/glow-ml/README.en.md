@@ -4,7 +4,8 @@
 > extensions sharing `glow-ml.js`:
 >
 > - **Glow ML Webcam** (`glow-ml-webcam.js`, id `glowMLWebcam`, stage prefix
->   "Glow MLW") learns and recognizes webcam images only, and has the video blocks.
+>   "Glow MLW") learns and recognizes webcam images only. Turning the video on
+>   and off and its transparency are left to Scratch's Video Sensing extension.
 > - **Glow ML Stage** (`glow-ml-stage.js`, id `glowMLStage`, stage prefix
 >   "Glow MLS") learns and recognizes the stage (including pen drawings) only, and never asks for the camera.
 >

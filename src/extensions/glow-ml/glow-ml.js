@@ -617,21 +617,15 @@ const Message = {
     'zh-cn': '每隔[CLASSIFICATION_INTERVAL]秒标记一次',
     'zh-tw': '每隔[CLASSIFICATION_INTERVAL]秒標記一次'
   },
-  toggle_video: {   // matches Scratch's webcam motion
+  // Glow: Video Sensing's block, named in video_is_off; Glow ML has no such block
+  // of its own any more.
+  toggle_video: {
     'ja': 'ビデオを[VIDEO_STATE]にする',
     'ja-Hira': 'ビデオを[VIDEO_STATE]にする',
     'en': 'turn video [VIDEO_STATE]',
     'it': '[VIDEO_STATE] il video della webcam',
     'zh-cn': '[VIDEO_STATE]摄像头',
     'zh-tw': '視訊設為[VIDEO_STATE]'
-  },
-  set_video_transparency: {
-    'ja': 'ビデオの透明度を[TRANSPARENCY]にする',
-    'ja-Hira': 'ビデオのとうめいどを[TRANSPARENCY]にする',
-    'en': 'set video transparency to [TRANSPARENCY]',
-    'it': 'imposta trasparenza video a [TRANSPARENCY]',
-    'zh-cn': '将视频透明度设为[TRANSPARENCY]',
-    'zh-tw': '將視訊透明度設為[TRANSPARENCY]'
   },
   switch_webcam: {
     'ja': 'カメラを[DEVICE]に切り替える',
@@ -656,14 +650,6 @@ const Message = {
     'it': 'spegni',
     'zh-cn': '关闭',
     'zh-tw': '關閉'
-  },
-  video_on_flipped: {
-    'ja': '左右反転',
-    'ja-Hira': 'さゆうはんてん',
-    'en': 'on flipped',
-    'it': 'acceso rovesciato',
-    'zh-cn': '镜像开启',
-    'zh-tw': '翻轉'
   },
   unnamed_camera: {
     'ja': '選んだカメラ',
@@ -1403,6 +1389,12 @@ class GlowMLBase {
     // video element in place but dead. Silent: the timer runs every second, and
     // train() or 'turn classification on' is where a person finds out.
     if (!this.inputAvailable()) {
+      // Glow: and stop reporting on a picture that is no longer arriving - the
+      // camera turned off with Video Sensing's 'turn video [off]', for one. The
+      // classifier keeps its training, this is not a reset, but the last thing it
+      // recognised is not an answer about now, so the reporters go quiet and the
+      // hats stop firing rather than repeating a stale category.
+      this.forgetRecognition();
       // Glow: the loop is the 'when I recognize' path, so it has to notice a camera
       // that has come back. The webcam's retry cooldown keeps this to one attempt
       // every few seconds however fast the loop runs.
@@ -1449,6 +1441,16 @@ class GlowMLBase {
       // ml5 rejects when the classifier was emptied while it was working.
       console.warn('Glow ML: a classification was dropped.', error);
     });
+  }
+
+  /**
+   * Glow: drop the last recognition result, keeping what was learned.
+   */
+  forgetRecognition() {
+    this.category = null;
+    this.confidence = 0;
+    this.when_received = false;
+    this.whenReceivedFlags.clear();
   }
 
   getTopConfidenceCategory(confidences) {

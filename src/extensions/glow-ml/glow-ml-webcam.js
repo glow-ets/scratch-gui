@@ -16,7 +16,6 @@
   const api = Scratch;
   const ArgumentType = api.ArgumentType;
   const BlockType = api.BlockType;
-  const Cast = api.Cast;
 
   const GLOW_ML_URL = new URL('static/extensions/glow-ml/glow-ml.js', location.href).href;
   const EXTENSION_URL = new URL('static/extensions/glow-ml/glow-ml-webcam.js', location.href).href;
@@ -100,11 +99,6 @@
         this.refreshingDevices = false;
         this.devices = [{ text: 'default', value: '' }];
 
-        this.globalVideoTransparency = 0;
-        this.setVideoTransparency({
-          TRANSPARENCY: this.globalVideoTransparency
-        });
-
         // Glow: VideoProvider._setupVideo() catches getUserMedia failures, calls its
         // own onError and resolves undefined, so there is nothing here to .catch().
         // A refused or missing camera arrives as a null video instead, which used to
@@ -126,17 +120,6 @@
       variantBlocks() {
         return [
           {
-            opcode: 'setVideoTransparency',
-            text: Message.set_video_transparency[this.locale],
-            blockType: BlockType.COMMAND,
-            arguments: {
-              TRANSPARENCY: {
-                type: ArgumentType.NUMBER,
-                defaultValue: 50
-              }
-            }
-          },
-          {
             opcode: 'switchCamera',
             blockType: BlockType.COMMAND,
             text: Message.switch_webcam[this.locale],
@@ -147,25 +130,12 @@
                 menu: 'mediadevices'
               }
             }
-          },
-          {
-            opcode: 'toggleVideo',
-            text: Message.toggle_video[this.locale],
-            blockType: BlockType.COMMAND,
-            arguments: {
-              VIDEO_STATE: {
-                type: ArgumentType.STRING,
-                menu: 'video_menu',
-                defaultValue: 'off'
-              }
-            }
           }
         ];
       }
 
       variantMenus() {
         return {
-          video_menu: this.getVideoMenu(),
           mediadevices: {
             acceptReporters: true,
             items: 'getDevices'
@@ -192,83 +162,6 @@
 
       checkInput(block, util) {
         return this.checkCamera(block, util);
-      }
-
-      /**
-       * The transparency setting of the video preview stored in a value
-       * accessible by any object connected to the virtual machine.
-       * @type {number}
-       */
-      get globalVideoTransparency() {
-        const stage = this.runtime.getTargetForStage();
-        if (stage) {
-          return stage.videoTransparency;
-        }
-        return 50;
-      }
-
-      set globalVideoTransparency(transparency) {
-        const stage = this.runtime.getTargetForStage();
-        if (stage) {
-          stage.videoTransparency = transparency;
-        }
-        return transparency;
-      }
-
-      toggleVideo(args, util) {
-        let state = args.VIDEO_STATE;
-        if (state === 'off') {
-          this.runtime.ioDevices.video.disableVideo();
-          // Glow: and stop reporting on a picture that is no longer arriving. The
-          // classifier keeps its training - this is not a reset - but the last thing it
-          // recognised is not an answer about now, so the reporters go quiet and the
-          // hats stop firing rather than repeating a stale category.
-          this.input = null;
-          this.category = null;
-          this.confidence = 0;
-          this.when_received = false;
-          this.whenReceivedFlags.clear();
-        } else {
-          const block = this.blockName('toggle_video', {VIDEO_STATE: state});
-          this.runtime.ioDevices.video.enableVideo().then(() => {
-            this.input = this.runtime.ioDevices.video.provider.video;
-            // Glow: enableVideo() resolves whether or not permission was given, so
-            // this is the only place the block can find out that nothing happened.
-            // Without it the failure was a console line and a dead stage.
-            this.checkCamera(block, util);
-          });
-          this.runtime.ioDevices.video.mirror = state === "on";
-        }
-      }
-
-      /**
-       * A scratch command block handle that configures the video preview's
-       * transparency from passed arguments.
-       * @param {object} args - the block arguments
-       * @param {number} args.TRANSPARENCY - the transparency to set the video
-       *   preview to
-       */
-      setVideoTransparency(args) {
-        const transparency = Cast.toNumber(args.TRANSPARENCY);
-        this.globalVideoTransparency = transparency;
-        this.runtime.ioDevices.video.setPreviewGhost(transparency);
-      }
-
-      getVideoMenu() {
-        return [
-          {
-            text: Message.off[this.locale],
-            value: 'off'
-          },
-          {
-            text: Message.on[this.locale],
-            value: 'on'
-          },
-          {
-            text: Message.video_on_flipped[this.locale],
-            value: 'on-flipped'
-          }
-        ]
       }
 
       /**
@@ -376,7 +269,9 @@
         }
         // Glow: a camera that was switched off is not a camera that was refused, and
         // "allow the camera in your browser" is the wrong thing to tell a child who
-        // turned it off a moment ago. Say which block turns it back on instead.
+        // turned it off a moment ago. Say which block turns it back on instead:
+        // Video Sensing's, since Glow ML Webcam leaves turning the video on and off,
+        // and its transparency, to that extension.
         const video = this.runtime.ioDevices.video;
         if (video && video.provider && !video.provider.enabled) {
           this.reportProblem(Message.video_is_off[this.locale]
