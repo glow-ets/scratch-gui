@@ -9,6 +9,7 @@
  */
 import {
     validateCategoryName,
+    clampCategoryName,
     vetTrainingData,
     sortCategories,
     formatBytes,
@@ -103,6 +104,36 @@ describe('validateCategoryName', () => {
         const decomposed = 'café';
         expect(validateCategoryName(decomposed).name).toBe(composed);
         expect(validateCategoryName(decomposed, [composed]).reason).toBe('duplicate');
+    });
+});
+
+describe('clampCategoryName', () => {
+    test('leaves a name within the limit alone', () => {
+        expect(clampCategoryName('cat')).toBe('cat');
+        expect(clampCategoryName('x'.repeat(MAX_CATEGORY_NAME_LENGTH))).toBe('x'.repeat(MAX_CATEGORY_NAME_LENGTH));
+    });
+
+    test('cuts a longer name to the limit, so typing past it does nothing', () => {
+        expect(clampCategoryName('x'.repeat(MAX_CATEGORY_NAME_LENGTH + 5))).toBe('x'.repeat(MAX_CATEGORY_NAME_LENGTH));
+    });
+
+    test('counts an emoji once, the way validateCategoryName does', () => {
+        // maxlength would count UTF-16 units and stop at half as many cats.
+        const cats = CAT_FACE.repeat(MAX_CATEGORY_NAME_LENGTH);
+        expect(clampCategoryName(cats)).toBe(cats);
+        expect(clampCategoryName(cats + CAT_FACE)).toBe(cats);
+        expect(validateCategoryName(clampCategoryName(CAT_FACE.repeat(50))).ok).toBe(true);
+    });
+
+    test('counts a decomposed accent as one letter', () => {
+        const decomposed = 'e\u0301'.repeat(MAX_CATEGORY_NAME_LENGTH);
+        expect(Array.from(clampCategoryName(decomposed))).toHaveLength(MAX_CATEGORY_NAME_LENGTH);
+    });
+
+    test('never produces a name validateCategoryName calls too long', () => {
+        ['y'.repeat(100), WOMAN_ASTRONAUT.repeat(30), ` ${'z'.repeat(40)} `].forEach(raw => {
+            expect(validateCategoryName(clampCategoryName(raw)).reason).not.toBe('long');
+        });
     });
 });
 

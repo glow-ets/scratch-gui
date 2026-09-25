@@ -280,6 +280,21 @@ const validateCategoryName = (raw, existing) => {
 };
 
 /**
+ * Glow: cut a name being typed down to MAX_CATEGORY_NAME_LENGTH, counted the way
+ * validateCategoryName counts: code points after composing. Not <input maxlength>,
+ * which counts UTF-16 units and so would charge an emoji twice.
+ * @param {string} raw - the text in the input box
+ * @returns {string} at most MAX_CATEGORY_NAME_LENGTH code points of it
+ */
+const clampCategoryName = raw => {
+  const composed = String(raw).normalize('NFC');
+  const points = Array.from(composed);
+  return points.length > MAX_CATEGORY_NAME_LENGTH ?
+    points.slice(0, MAX_CATEGORY_NAME_LENGTH).join('') :
+    composed;
+};
+
+/**
  * Glow: check training data before ml5 is allowed near it.
  *
  * knnClassifier.load() validates nothing and is async, so a malformed file does not
@@ -446,6 +461,22 @@ const Message = {
     'it': 'Nome della nuova categoria:',
     'zh-cn': '新类别的名称？',
     'zh-tw': '新類別的名稱？'
+  },
+  ok: {
+    'ja': 'OK',
+    'ja-Hira': 'OK',
+    'en': 'OK',
+    'it': 'OK',
+    'zh-cn': '确定',
+    'zh-tw': '確定'
+  },
+  cancel: {
+    'ja': 'キャンセル',
+    'ja-Hira': 'キャンセル',
+    'en': 'Cancel',
+    'it': 'Annulla',
+    'zh-cn': '取消',
+    'zh-tw': '取消'
   },
   category_too_long: {
     'ja': 'カテゴリー名は[N]文字までです。',
@@ -918,6 +949,8 @@ class GlowMLBlocks {
     closeButton.onclick = () => {
       dialog.close();
     }
+
+    this.buildCategoryDialog();
 
     // Glow: enumerateDevices() reports neither labels nor ids before permission is
     // granted, so the list has to be rebuilt - here, whenever the dropdown is opened,
@@ -1705,25 +1738,127 @@ class GlowMLBlocks {
    * so a new category shows up in all of them straight away.
    */
   createCategory() {
-    const name = prompt(Message.new_category_prompt[this.locale], '');
-    if (name === null) {
+    const dialog = this.categoryDialog;
+    if (dialog.open) {
       return;
     }
-    // Glow: the same check the load paths use, so a name that could not be typed
-    // cannot arrive through a file either.
-    const verdict = validateCategoryName(name, this.categories);
-    if (!verdict.ok) {
-      if (verdict.reason === 'long') {
-        alert(Message.category_too_long[this.locale].replace('[N]', MAX_CATEGORY_NAME_LENGTH));
-      } else if (verdict.reason === 'duplicate') {
-        alert(Message.category_exists[this.locale]);
-      } else if (verdict.reason === 'characters' || verdict.reason === 'reserved') {
-        alert(Message.category_bad_name[this.locale]);
+    // Glow: the texts are set on every opening, because the language can change
+    // after the dialog was built.
+    dialog.querySelector('label').textContent = Message.new_category_prompt[this.locale];
+    this.categoryCancelButton.textContent = Message.cancel[this.locale];
+    this.categoryOkButton.textContent = Message.ok[this.locale];
+    this.categoryInput.value = '';
+    this.refreshCategoryDialog(false);
+    dialog.showModal();
+    this.categoryInput.focus();
+  }
+
+  /**
+   * Glow: the 'New category' dialog. It replaces prompt(), which could only check
+   * the name after OK: a name that was too long was refused and thrown away, and the
+   * pupil had to type it all again. Here the name can never grow past the limit, and
+   * a name that cannot be used keeps the dialog open with the text still in it and
+   * the reason underneath.
+   *
+   * Built once and wired by reference, like the upload dialog, so that two instances
+   * of the extension never answer each other's buttons.
+   */
+  buildCategoryDialog() {
+    const dialog = document.createElement('dialog');
+    dialog.innerHTML = `
+      <form method="dialog">
+        <label style="display:block;"></label>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <input type="text" autocomplete="off" spellcheck="false" style="flex:1;min-width:14em;">
+          <span style="font-variant-numeric:tabular-nums;opacity:0.7;"></span>
+        </div>
+        <div role="status" style="margin-top:6px;min-height:1.3em;color:#c00000;"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end;">
+          <button type="button"></button>
+          <button type="submit"></button>
+        </div>
+      </form>
+    `;
+    const form = dialog.querySelector('form');
+    const input = dialog.querySelector('input');
+    const [cancelButton, okButton] = dialog.querySelectorAll('button');
+    const label = dialog.querySelector('label');
+    // The label points at the input for screen readers; the id only has to be
+    // unique, not meaningful.
+    input.id = `glow-ml-new-category-${Math.random().toString(36).slice(2)}`;
+    label.htmlFor = input.id;
+
+    this.categoryDialog = dialog;
+    this.categoryInput = input;
+    this.categoryCounter = dialog.querySelector('span');
+    this.categoryHint = dialog.querySelector('[role=status]');
+    this.categoryCancelButton = cancelButton;
+    this.categoryOkButton = okButton;
+    document.body.appendChild(dialog);
+
+    input.addEventListener('input', event => {
+      // Glow: never cut a name while an input method is still composing it, or a
+      // Japanese pupil loses the characters being converted. compositionend below
+      // catches up once they are committed.
+      if (event.isComposing) {
+        return;
       }
-      // 'empty' says nothing: an empty prompt is a cancel by another name.
-      return;
+      this.clampCategoryInput();
+    });
+    input.addEventListener('compositionend', () => this.clampCategoryInput());
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const verdict = validateCategoryName(input.value, this.categories);
+      if (!verdict.ok) {
+        // OK is disabled in this state, but Enter still submits a form; stay open
+        // and keep the text.
+        this.refreshCategoryDialog(false);
+        return;
+      }
+      this.categories = this.categories.concat([verdict.name]);
+      dialog.close();
+    });
+
+    cancelButton.onclick = () => {
+      dialog.close();
+    };
+  }
+
+  /**
+   * Glow: cut the typed name down to the limit, and say so when that happened.
+   */
+  clampCategoryInput() {
+    const input = this.categoryInput;
+    const clamped = clampCategoryName(input.value);
+    const cut = clamped !== input.value;
+    if (cut) {
+      input.value = clamped;
     }
-    this.categories = this.categories.concat([verdict.name]);
+    this.refreshCategoryDialog(cut);
+  }
+
+  /**
+   * Glow: bring the counter, the reason and the OK button in line with the name
+   * as it is now.
+   * @param {boolean} cut - whether the last keystroke was refused for length
+   */
+  refreshCategoryDialog(cut) {
+    const value = this.categoryInput.value;
+    this.categoryCounter.textContent =
+      `${Array.from(value.normalize('NFC')).length}/${MAX_CATEGORY_NAME_LENGTH}`;
+    const verdict = validateCategoryName(value, this.categories);
+    let hint = '';
+    if (verdict.reason === 'duplicate') {
+      hint = Message.category_exists[this.locale];
+    } else if (verdict.reason === 'characters' || verdict.reason === 'reserved') {
+      hint = Message.category_bad_name[this.locale];
+    } else if (cut || verdict.reason === 'long') {
+      hint = Message.category_too_long[this.locale].replace('[N]', MAX_CATEGORY_NAME_LENGTH);
+    }
+    // 'empty' says nothing: there is nothing wrong with a name not typed yet.
+    this.categoryHint.textContent = hint;
+    this.categoryOkButton.disabled = !verdict.ok;
   }
 
   /**
@@ -2608,6 +2743,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     GlowMLBlocks,
     validateCategoryName,
+    clampCategoryName,
     vetTrainingData,
     sortCategories,
     formatBytes,
