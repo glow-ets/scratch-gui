@@ -82,6 +82,19 @@
         return EXTENSION_URL;
       }
 
+      /**
+       * Glow: written into training data this extension saves (see trainingMetadata
+       * in glow-ml.js), and the sources it loads. Stage data is pictures of the
+       * stage, so Webcam can take it as well.
+       */
+      static get DATA_SOURCE() {
+        return 'webcam';
+      }
+
+      static get ACCEPTS_SOURCES() {
+        return ['webcam', 'stage'];
+      }
+
       static get BLOCK_ICON_URI() {
         return BLOCK_ICON_URI;
       }

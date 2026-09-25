@@ -11,6 +11,10 @@ import {
     validateCategoryName,
     clampCategoryName,
     vetTrainingData,
+    trainingMetadata,
+    checkTrainingSource,
+    trainingFileName,
+    FEATURE_LENGTH,
     sortCategories,
     formatBytes,
     MAX_CATEGORY_NAME_LENGTH,
@@ -138,7 +142,8 @@ describe('clampCategoryName', () => {
 });
 
 describe('vetTrainingData', () => {
-    const COLS = 4;
+    // As MobileNet writes them: anything else is refused, see below.
+    const COLS = FEATURE_LENGTH;
     const values = n => {
         const out = {};
         for (let i = 0; i < n; i++) {
@@ -208,6 +213,24 @@ describe('vetTrainingData', () => {
         expect(vetTrainingData(noLabel).reason).toBe('name');
     });
 
+    test('refuses rows that MobileNet did not make', () => {
+        // A future audio or text model, or the full-width MobileNet, writes rows of
+        // another length; compared with ours they would classify as nonsense.
+        [COLS - 1, COLS + 1, 1024, 13].forEach(cols => {
+            const other = {
+                dataset: {0: {label: 'cat', shape: [2, cols], dtype: 'float32'}},
+                tensors: [values(2 * cols)]
+            };
+            expect(vetTrainingData(other).reason).toBe('features');
+        });
+    });
+
+    test('ignores the glowML entry, which ml5 does not read either', () => {
+        const withMeta = dataset(2);
+        withMeta.glowML = trainingMetadata('stage');
+        expect(vetTrainingData(withMeta).ok).toBe(true);
+    });
+
     test('enforces the caps that a file would otherwise walk past', () => {
         expect(vetTrainingData(dataset(MAX_EXAMPLES_PER_CATEGORY)).ok).toBe(true);
         expect(vetTrainingData(dataset(MAX_EXAMPLES_PER_CATEGORY + 1)).reason).toBe('per-category');
@@ -247,5 +270,77 @@ describe('formatBytes', () => {
         // This ends up in a message a child reads, where it used to say 'NaN KB'.
         expect(formatBytes(undefined)).not.toMatch('NaN');
         expect(formatBytes(-1)).not.toMatch('NaN');
+    });
+});
+
+describe('trainingMetadata', () => {
+    test('says what the data is and which extension saved it', () => {
+        expect(trainingMetadata('webcam')).toEqual({
+            format: 1, kind: 'image', model: 'mobilenet', features: FEATURE_LENGTH, source: 'webcam'
+        });
+    });
+});
+
+describe('checkTrainingSource', () => {
+    const file = meta => ({dataset: {}, tensors: [], glowML: meta});
+    const STAGE_ACCEPTS = ['stage'];
+    const WEBCAM_ACCEPTS = ['webcam', 'stage'];
+
+    test('Glow ML Stage never takes webcam data', () => {
+        const verdict = checkTrainingSource(file(trainingMetadata('webcam')), STAGE_ACCEPTS);
+        expect(verdict.ok).toBe(false);
+        expect(verdict.reason).toBe('source');
+        expect(verdict.source).toBe('webcam');
+    });
+
+    test('Glow ML Webcam takes stage data, and each takes its own', () => {
+        expect(checkTrainingSource(file(trainingMetadata('stage')), WEBCAM_ACCEPTS).ok).toBe(true);
+        expect(checkTrainingSource(file(trainingMetadata('webcam')), WEBCAM_ACCEPTS).ok).toBe(true);
+        expect(checkTrainingSource(file(trainingMetadata('stage')), STAGE_ACCEPTS).ok).toBe(true);
+    });
+
+    test('takes files older than the glowML entry, or from upstream ML2Scratch', () => {
+        expect(checkTrainingSource({dataset: {}, tensors: []}, STAGE_ACCEPTS).ok).toBe(true);
+    });
+
+    test('refuses data about something other than MobileNet pictures', () => {
+        expect(checkTrainingSource(file({...trainingMetadata('stage'), kind: 'audio'}), WEBCAM_ACCEPTS).reason)
+            .toBe('kind');
+        expect(checkTrainingSource(file({...trainingMetadata('stage'), model: 'yamnet'}), WEBCAM_ACCEPTS).reason)
+            .toBe('kind');
+    });
+
+    test('refuses a layout from a newer Glow Lab, or none that can be read', () => {
+        expect(checkTrainingSource(file({...trainingMetadata('stage'), format: 2}), WEBCAM_ACCEPTS).reason)
+            .toBe('newer');
+        expect(checkTrainingSource(file({...trainingMetadata('stage'), format: '1'}), WEBCAM_ACCEPTS).reason)
+            .toBe('newer');
+        [null, 'image', [], 42].forEach(meta => {
+            expect(checkTrainingSource(file(meta), WEBCAM_ACCEPTS).ok).toBe(false);
+        });
+    });
+
+    test('refuses a missing or made-up source', () => {
+        const noSource = trainingMetadata('stage');
+        delete noSource.source;
+        expect(checkTrainingSource(file(noSource), STAGE_ACCEPTS).reason).toBe('source');
+        expect(checkTrainingSource(file(trainingMetadata('__proto__')), STAGE_ACCEPTS).reason).toBe('source');
+    });
+});
+
+describe('trainingFileName', () => {
+    test('names the extension, the project and the time, as pictures', () => {
+        expect(trainingFileName('stage', 'My game', '2026-09-25-10-30'))
+            .toBe('glow-ml-stage-My-game-2026-09-25-10-30.pic.json');
+        expect(trainingFileName('webcam', '', '2026-09-25-10-30'))
+            .toBe('glow-ml-webcam-2026-09-25-10-30.pic.json');
+    });
+
+    test('keeps letters in any alphabet and drops what a file system would not like', () => {
+        expect(trainingFileName('stage', 'Città/../猫: gioco?', 't')).toBe('glow-ml-stage-Città-猫-gioco-t.pic.json');
+    });
+
+    test('keeps a very long title short', () => {
+        expect(trainingFileName('stage', 'x'.repeat(500), 't').length).toBeLessThan(100);
     });
 });

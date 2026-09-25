@@ -15,6 +15,13 @@
 > of webcam pictures could be turned back into blurry pictures of the pupils; a
 > Stage project's data holds none. It also lets a school that does not allow the
 > webcam still use machine learning.
+>
+> Training files are downloaded as `glow-ml-<webcam|stage>-<project>-<time>.pic.json`
+> and keep ml5's `dataset`/`tensors`, plus a `glowML` entry ml5 ignores:
+> `{"format": 1, "kind": "image", "model": "mobilenet", "features": 256, "source": "stage"}`.
+> Glow ML Stage refuses webcam data; Glow ML Webcam takes both; files without the
+> entry (older ones, upstream ML2Scratch) load if their rows are 256 numbers long.
+> Glow ML Stage also refuses to learn while the webcam shows on the stage.
 
 ML2Scratch connects Machine Learning([TensorFlow.js](https://www.tensorflow.org/js)) with Scratch.
 

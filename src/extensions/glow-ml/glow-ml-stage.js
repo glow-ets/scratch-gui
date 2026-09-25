@@ -71,6 +71,19 @@
         return EXTENSION_URL;
       }
 
+      /**
+       * Glow: written into training data this extension saves (see trainingMetadata
+       * in glow-ml.js), and the sources it loads: never webcam data, which would
+       * put pupils' faces into a Stage project.
+       */
+      static get DATA_SOURCE() {
+        return 'stage';
+      }
+
+      static get ACCEPTS_SOURCES() {
+        return ['stage'];
+      }
+
       static get BLOCK_ICON_URI() {
         return BLOCK_ICON_URI;
       }

@@ -151,9 +151,10 @@ const bubbleDuration = message => Math.min(
 );
 
 /**
- * How many training examples to keep. A MobileNet feature vector is 1024 floats and
- * serialises to roughly 7 KB, so 500 is about 3.5 MB - inside the asset manager's
- * 8 MB ceiling with room for other extensions. Adjust the two together.
+ * How many training examples to keep. A MobileNet feature vector is FEATURE_LENGTH
+ * floats and serialises to roughly 5.8 KB (measured), so 500 is about 2.9 MB. Webcam
+ * and Stage in one project can hold that much each, 5.8 MB together, inside the
+ * asset manager's 8 MB ceiling with room for other extensions. Adjust together.
  *
  * Checked before infer() runs, so a 'forever [train]' costs nothing once it hits the
  * cap. Refusing rather than rotating: rotation would let that loop run at full cost
@@ -287,6 +288,85 @@ const clampCategoryName = raw => {
 };
 
 /**
+ * Glow: how many numbers MobileNet turns one picture into, as the vendored model
+ * (MobileNet v1, width 0.25, ml5's default) produces them - measured, not 1024 as
+ * the full-width model would. Training data with rows of any other length was made
+ * by another model, or is not about pictures at all, and would be compared as if it
+ * were. Change together with the model.
+ */
+const FEATURE_LENGTH = 256;
+
+/**
+ * Glow: what a training file says about itself, next to ml5's own dataset and
+ * tensors. ml5 reads only those two, so the files still load in upstream
+ * ML2Scratch. Future Glow ML extensions (audio, text...) will write another kind;
+ * the file name carries it too (.pic.json), but names get changed and this does not.
+ *  - format: this layout, bumped only if it ever changes incompatibly;
+ *  - kind: what the vectors describe;
+ *  - model: which model made them;
+ *  - source: which extension saved them, so Glow ML Stage can refuse webcam data.
+ */
+const TRAINING_FORMAT = 1;
+const TRAINING_KIND = 'image';
+const TRAINING_MODEL = 'mobilenet';
+
+/**
+ * @param {string} source - the saving extension's DATA_SOURCE, e.g. 'stage'
+ * @returns {object} the glowML entry of a training file
+ */
+const trainingMetadata = source => ({
+  format: TRAINING_FORMAT,
+  kind: TRAINING_KIND,
+  model: TRAINING_MODEL,
+  features: FEATURE_LENGTH,
+  source
+});
+
+/**
+ * Glow: whether an extension may load this training data, by what the file says
+ * about itself. A file without a glowML entry predates it (or comes from upstream
+ * ML2Scratch): it is taken as pictures from an unknown source, and vetTrainingData
+ * has already checked its rows are MobileNet-sized.
+ * @param {*} parsed - the parsed file, already through vetTrainingData
+ * @param {string[]} accepts - the sources the loading extension takes
+ * @returns {{ok: boolean, reason: string, source: string}} reason is '' (fine),
+ *   'newer', 'kind' or 'source'
+ */
+const checkTrainingSource = (parsed, accepts) => {
+  const meta = parsed && parsed.glowML;
+  if (meta === undefined) {
+    return {ok: true, reason: '', source: ''};
+  }
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+    return {ok: false, reason: 'kind', source: ''};
+  }
+  if (typeof meta.format !== 'number' || meta.format > TRAINING_FORMAT) {
+    return {ok: false, reason: 'newer', source: ''};
+  }
+  if (meta.kind !== TRAINING_KIND || meta.model !== TRAINING_MODEL) {
+    return {ok: false, reason: 'kind', source: ''};
+  }
+  const source = typeof meta.source === 'string' ? meta.source : '';
+  if (!accepts.includes(source)) {
+    return {ok: false, reason: 'source', source};
+  }
+  return {ok: true, reason: '', source};
+};
+
+/**
+ * Glow: the download's name: which extension, which project, when - 24 pupils on
+ * one shared account need all three - and .pic.json for 'pictures'.
+ * @param {string} source - the saving extension's DATA_SOURCE
+ * @param {string} title - the project title, any characters
+ * @param {string} stamp - the time, already file-name safe
+ * @returns {string} e.g. glow-ml-stage-My-game-2026-09-25-10-30.pic.json
+ */
+const trainingFileName = (source, title, stamp) => {
+  const safeTitle = String(title || '').replace(/[^\p{L}\p{N}_-]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+  return `glow-ml-${source}-${safeTitle ? `${safeTitle}-` : ''}${stamp}.pic.json`;
+};
+
+/**
  * Glow: check training data before ml5 is allowed near it.
  *
  * knnClassifier.load() validates nothing and is async, so a malformed file does not
@@ -326,6 +406,11 @@ const vetTrainingData = parsed => {
     const [rows, cols] = shape;
     if (!Number.isSafeInteger(rows) || !Number.isSafeInteger(cols) || rows < 0 || cols <= 0) {
       return no('shape');
+    }
+    // Glow: rows made by another model, or not about pictures at all, would be
+    // compared with MobileNet's as if they meant the same thing.
+    if (cols !== FEATURE_LENGTH) {
+      return no('features');
     }
     // ml5 reads the label as the category name; an unnamed class is invisible to the
     // counts, which is what used to let a loaded file walk straight past both caps.
@@ -514,6 +599,38 @@ const Message = {
     'it': "Non è stato possibile caricare i dati di addestramento: sono danneggiati o troppo grandi. Non è stato cambiato nulla.",
     'zh-cn': '无法加载该训练数据：它已损坏或过大。未做任何更改。',
     'zh-tw': '無法載入該訓練資料：它已損壞或過大。未做任何變更。'
+  },
+  nothing_to_download: {
+    'ja': 'ダウンロードする学習データがまだありません。先にカテゴリーを学習して下さい。',
+    'ja-Hira': 'ダウンロードするがくしゅうデータがまだありません。さきにカテゴリーをがくしゅうしてください。',
+    'en': 'There is no training data to download yet: train a category first.',
+    'it': 'Non ci sono ancora dati di addestramento da scaricare: prima addestra una categoria.',
+    'zh-cn': '还没有可下载的训练数据：请先训练一个类别。',
+    'zh-tw': '還沒有可下載的訓練資料：請先訓練一個類別。'
+  },
+  training_data_not_pictures: {
+    'ja': 'この学習データは画像のものではないので、ここでは読み込めません。何も変更していません。',
+    'ja-Hira': 'このがくしゅうデータはがぞうのものではないので、ここではよみこめません。なにもへんこうしていません。',
+    'en': 'That training data is not about pictures, so it cannot be loaded here. Nothing was changed.',
+    'it': 'Questi dati di addestramento non riguardano immagini, quindi non si possono caricare qui. Non è stato cambiato nulla.',
+    'zh-cn': '该训练数据不是关于图像的，无法在此加载。未做任何更改。',
+    'zh-tw': '該訓練資料不是關於影像的，無法在此載入。未做任何變更。'
+  },
+  training_data_newer: {
+    'ja': 'この学習データは新しいバージョンのGlow Labで作られたので、読み込めません。何も変更していません。',
+    'ja-Hira': 'このがくしゅうデータはあたらしいバージョンのGlow Labでつくられたので、よみこめません。なにもへんこうしていません。',
+    'en': 'That training data was made by a newer Glow Lab, so it cannot be loaded. Nothing was changed.',
+    'it': 'Questi dati di addestramento sono stati creati da una versione più recente di Glow Lab, quindi non si possono caricare. Non è stato cambiato nulla.',
+    'zh-cn': '该训练数据由较新版本的 Glow Lab 创建，无法加载。未做任何更改。',
+    'zh-tw': '該訓練資料由較新版本的 Glow Lab 建立，無法載入。未做任何變更。'
+  },
+  training_data_from_webcam: {
+    'ja': 'この学習データはGlow ML Webcamで作られたものです。Glow ML Stageはカメラのデータを読み込みません。Glow ML Webcamで読み込んで下さい。何も変更していません。',
+    'ja-Hira': 'このがくしゅうデータはGlow ML Webcamでつくられたものです。Glow ML Stageはカメラのデータをよみこみません。Glow ML Webcamでよみこんでください。なにもへんこうしていません。',
+    'en': 'That training data was made with Glow ML Webcam, and Glow ML Stage does not load webcam data: load it with Glow ML Webcam instead. Nothing was changed.',
+    'it': 'Questi dati di addestramento sono stati creati con Glow ML Webcam, e Glow ML Stage non carica dati della webcam: caricali con Glow ML Webcam. Non è stato cambiato nulla.',
+    'zh-cn': '该训练数据由 Glow ML Webcam 创建，Glow ML Stage 不加载摄像头数据：请用 Glow ML Webcam 加载。未做任何更改。',
+    'zh-tw': '該訓練資料由 Glow ML Webcam 建立，Glow ML Stage 不載入攝影機資料：請用 Glow ML Webcam 載入。未做任何變更。'
   },
   category_exists: {
     'ja': 'そのカテゴリーはすでにあります。',
@@ -1268,14 +1385,28 @@ class GlowMLBase {
     this.scheduleSave();
   }
 
-  download() {
+  download(args, util) {
     if (this.actionRepeated('download')) { return };
-    // Glow: named after the project and the time. Date.now() alone is
-    // indistinguishable across 24 children on a shared account.
+    // Glow: not ml5's save(), which writes the bare dataset: this is the same data
+    // the project stores, glowML entry included, so the file says what it is.
+    const json = this.serializeTrainingData();
+    if (json === null) {
+      this.reportProblem(Message.nothing_to_download[this.locale], util);
+      return;
+    }
+    // Glow: named after the extension, the project and the time. Date.now() alone
+    // is indistinguishable across 24 children on a shared account.
     const title = (this.runtime.getTargetForStage() && this.runtime.emitProjectChanged) ?
-      (document.title || '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') : '';
+      (document.title || '') : '';
     const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
-    this.knnClassifier.save(`glow-ml-${title ? `${title}-` : ''}${stamp}`);
+    const url = URL.createObjectURL(new Blob([json], {type: 'application/json'}));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = trainingFileName(this.constructor.DATA_SOURCE, title, stamp);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
   upload() {
@@ -1413,7 +1544,22 @@ class GlowMLBase {
     const verdict = vetTrainingData(parsed);
     if (!verdict.ok) {
       console.warn(`${this.constructor.EXTENSION_NAME}: refusing training data (${verdict.reason})`);
-      this.reportProblem(Message.bad_training_data[this.locale]);
+      this.reportProblem(verdict.reason === 'features' ?
+        Message.training_data_not_pictures[this.locale] :
+        Message.bad_training_data[this.locale]);
+      return Promise.resolve(false);
+    }
+
+    // Glow: and whether this extension may take it, by what the file says it is.
+    const origin = checkTrainingSource(parsed, this.constructor.ACCEPTS_SOURCES);
+    if (!origin.ok) {
+      console.warn(`${this.constructor.EXTENSION_NAME}: refusing training data (${origin.reason}` +
+        `${origin.source ? `, from ${origin.source}` : ''})`);
+      this.reportProblem({
+        newer: Message.training_data_newer,
+        kind: Message.training_data_not_pictures,
+        source: Message.training_data_from_webcam
+      }[origin.reason][this.locale]);
       return Promise.resolve(false);
     }
 
@@ -2005,7 +2151,7 @@ class GlowMLBase {
       });
     }
     const tensors = Object.keys(dataset).map(key => (dataset[key] ? dataset[key].dataSync() : null));
-    return JSON.stringify({ dataset, tensors });
+    return JSON.stringify({ dataset, tensors, glowML: trainingMetadata(this.constructor.DATA_SOURCE) });
   }
 
   /**
@@ -2415,6 +2561,10 @@ if (typeof module !== 'undefined' && module.exports) {
     validateCategoryName,
     clampCategoryName,
     vetTrainingData,
+    trainingMetadata,
+    checkTrainingSource,
+    trainingFileName,
+    FEATURE_LENGTH,
     sortCategories,
     formatBytes,
     bubbleDuration,
