@@ -103,7 +103,7 @@
         if (this.inputAvailable()) {
           return true;
         }
-        console.warn('Glow ML: no stage canvas found, so there is nothing to learn from');
+        console.warn(`${this.constructor.EXTENSION_NAME}: no stage canvas found, so there is nothing to learn from`);
         return false;
       }
     }
@@ -121,6 +121,6 @@
       // register() call that will never come, so it would otherwise hang silently.
       // Say out loud what went wrong instead.
       console.error(error);
-      alert(`Glow ML could not start because ml5.js did not load.\n\nCheck the internet connection and add the extension again.\n\n${error.message}`);
+      alert(`Glow ML Stage could not start because ml5.js did not load.\n\nCheck the internet connection and add the extension again.\n\n${error.message}`);
     });
 })();

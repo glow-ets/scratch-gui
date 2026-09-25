@@ -815,7 +815,7 @@ class GlowMLBase {
     }
     if (this.assetManager) {
       this.assetManager.on('warning', event => {
-        console.warn(`Glow ML: the project is holding ${event.totalBytes} bytes of extension data, ` +
+        console.warn(`${this.constructor.EXTENSION_NAME}: the project is holding ${event.totalBytes} bytes of extension data, ` +
           `the limit is ${event.maxBytes}`);
       });
       // Loading a project replaces what the manager holds, so follow it.
@@ -823,7 +823,7 @@ class GlowMLBase {
       // The extension can also be added to a project that is already open.
       this.loadFromProject();
     } else {
-      console.warn('Glow ML: this VM has no glowAssetManager, so training data will not be saved ' +
+      console.warn(`${this.constructor.EXTENSION_NAME}: this VM has no glowAssetManager, so training data will not be saved ` +
         'inside the project. The download and upload blocks still work. See glow-ets/scratch-gui#22');
     }
 
@@ -854,7 +854,7 @@ class GlowMLBase {
     // the second one's handler would attach to the first one's dialog.
     const dialog = document.createElement('dialog');
     dialog.innerHTML = `
-      <div>${Message.upload_instruction[this.locale]}</div>
+      <div>${this.withName(Message.upload_instruction[this.locale])}</div>
       <div style="margin-top:10px;"><input type="file" accept="application/json,.json"></div>
       <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end;">
         <button type="button"></button>
@@ -1070,7 +1070,7 @@ class GlowMLBase {
         });
       })
       .catch(error => {
-        console.error('Glow ML: training failed.', error);
+        console.error(`${this.constructor.EXTENSION_NAME}: training failed.`, error);
       });
     return this.trainQueue;
   }
@@ -1308,7 +1308,7 @@ class GlowMLBase {
     let files = this.uploadInput.files;
 
     if (files.length <= 0) {
-      alert(Message.select_file[this.locale]);
+      alert(this.withName(Message.select_file[this.locale]));
       return false;
     }
 
@@ -1329,7 +1329,7 @@ class GlowMLBase {
       this.loadTrainingData(e.target.result).then(loaded => {
         if (loaded) {
           this.scheduleSave();
-          alert(Message.uploaded[this.locale]);
+          alert(this.withName(Message.uploaded[this.locale]));
         }
       });
     }
@@ -1368,7 +1368,7 @@ class GlowMLBase {
 
     const verdict = vetTrainingData(parsed);
     if (!verdict.ok) {
-      console.warn(`Glow ML: refusing training data (${verdict.reason})`);
+      console.warn(`${this.constructor.EXTENSION_NAME}: refusing training data (${verdict.reason})`);
       this.reportProblem(Message.bad_training_data[this.locale]);
       return Promise.resolve(false);
     }
@@ -1381,7 +1381,7 @@ class GlowMLBase {
         this.saveRefusedAtExamples = null;
         resolve(true);
       })).catch(error => {
-        console.error('Glow ML: ml5 could not load the training data.', error);
+        console.error(`${this.constructor.EXTENSION_NAME}: ml5 could not load the training data.`, error);
         this.knnClassifier.clearAllLabels();
         this.counts = null;
         this.reportProblem(Message.bad_training_data[this.locale]);
@@ -1449,7 +1449,7 @@ class GlowMLBase {
       }
     })).catch(error => {
       // ml5 rejects when the classifier was emptied while it was working.
-      console.warn('Glow ML: a classification was dropped.', error);
+      console.warn(`${this.constructor.EXTENSION_NAME}: a classification was dropped.`, error);
     });
   }
 
@@ -1491,7 +1491,7 @@ class GlowMLBase {
     const last = this.blockClickedAt.get(key);
     this.blockClickedAt.set(key, currentTime);
     if (last && last + 250 > currentTime) {
-      console.log(`Glow ML: ignoring a repeated click on ${key}.`);
+      console.log(`${this.constructor.EXTENSION_NAME}: ignoring a repeated click on ${key}.`);
       return true;
     }
     return false;
@@ -1511,7 +1511,8 @@ class GlowMLBase {
     }
     this.confirming = true;
     try {
-      return confirm(message);
+      // Glow: named, so a pupil with both extensions knows whose data goes.
+      return confirm(this.withName(message));
     } finally {
       this.confirming = false;
     }
@@ -1564,7 +1565,7 @@ class GlowMLBase {
     }
     // Glow: the texts are set on every opening, because the language can change
     // after the dialog was built.
-    dialog.querySelector('label').textContent = Message.new_category_prompt[this.locale];
+    dialog.querySelector('label').textContent = this.withName(Message.new_category_prompt[this.locale]);
     this.categoryCancelButton.textContent = Message.cancel[this.locale];
     this.categoryOkButton.textContent = Message.ok[this.locale];
     this.categoryInput.value = '';
@@ -1903,10 +1904,14 @@ class GlowMLBase {
    * @param {string} message - what to report
    * @param {object} [util] - block utility, when a block is what raised this
    */
-  reportProblem(message, util) {
+  reportProblem(problem, util) {
+    // Glow: said in the name of the extension, the way the stage monitors are
+    // ('Glow MLW: category'). Both Glow ML extensions have the same blocks, so
+    // '"train [Category A]" FAILED' alone does not say which one to look at.
+    const message = this.withName(problem);
     if (!this.reportedProblems.has(message)) {
       this.reportedProblems.add(message);
-      console.warn(`Glow ML: ${message}`);
+      console.warn(message);
       if (this.reportedProblems.size === 1) {
         // The very first problem gets a modal, which is the only one anybody
         // reads. Everything after it, including repeats of this one, is a bubble.
@@ -1920,6 +1925,15 @@ class GlowMLBase {
     }
     this.lastSayAt = now;
     this.sayOnTarget(message, util);
+  }
+
+  /**
+   * Glow: a message a person reads, prefixed with the extension's short name.
+   * @param {string} message - what to say
+   * @return {string} - e.g. 'Glow MLS: The upload is complete.'
+   */
+  withName(message) {
+    return `${this.constructor.EXTENSION_NAME}: ${message}`;
   }
 
   /**
@@ -1984,7 +1998,7 @@ class GlowMLBase {
       // this session; it just will not be saved with the project. Remember the
       // size so we do not pay to serialise it again until something is removed.
       this.saveRefusedAtExamples = exampleCount;
-      console.error('Glow ML: could not store the training data in the project.', error);
+      console.error(`${this.constructor.EXTENSION_NAME}: could not store the training data in the project.`, error);
       if (!this.warnedAboutSize) {
         this.warnedAboutSize = true;
         this.reportProblem(Message.too_much_data[this.locale]
@@ -2050,7 +2064,7 @@ class GlowMLBase {
       return;
     }
     if (asset.data.byteLength > MAX_TRAINING_BYTES) {
-      console.warn(`Glow ML: this project holds ${formatBytes(asset.data.byteLength)} of ` +
+      console.warn(`${this.constructor.EXTENSION_NAME}: this project holds ${formatBytes(asset.data.byteLength)} of ` +
         `training data, more than the ${formatBytes(MAX_TRAINING_BYTES)} allowed.`);
       this.reportProblem(Message.bad_training_data[this.locale]);
       return;
@@ -2059,7 +2073,7 @@ class GlowMLBase {
     try {
       text = new TextDecoder().decode(asset.data);
     } catch (error) {
-      console.error('Glow ML: the training data stored in this project could not be read.', error);
+      console.error(`${this.constructor.EXTENSION_NAME}: the training data stored in this project could not be read.`, error);
       this.reportProblem(Message.bad_training_data[this.locale]);
       return;
     }
@@ -2082,7 +2096,7 @@ class GlowMLBase {
     this.modelBroken = true;
     this.modelReady = false;
     this.stopClassifying();
-    console.error('Glow ML: MobileNet failed to load.', error);
+    console.error(`${this.constructor.EXTENSION_NAME}: MobileNet failed to load.`, error);
 
     const message = Message.model_broken[this.locale];
     if (!mobilenetOptions.mobilenetURL) {
@@ -2096,7 +2110,7 @@ class GlowMLBase {
       }
       const detail = problems.slice(0, 5).join('\n');
       const more = problems.length > 5 ? `\n... and ${problems.length - 5} more` : '';
-      console.error(`Glow ML: these vendored model files are missing or wrong:\n${detail}${more}`);
+      console.error(`${this.constructor.EXTENSION_NAME}: these vendored model files are missing or wrong:\n${detail}${more}`);
       this.reportProblem(
         `${message}\n\n${detail}${more}\n\n` +
         'Run `node scripts/glow-fetch-mobilenet.mjs`, then restart the dev server ' +

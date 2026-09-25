@@ -323,7 +323,7 @@
             ).catch(error => {
               // Glow: the old track was already stopped and cannot be restarted, so ask
               // the provider for a camera from scratch rather than leaving it dead.
-              console.warn('Glow ML: could not switch to that camera.', error);
+              console.warn(`${this.constructor.EXTENSION_NAME}: could not switch to that camera.`, error);
               this.cameraRetriedAt = 0;
               return this.ensureCamera().then(working => {
                 if (!working) {
@@ -372,7 +372,7 @@
             }
           })
           .catch(error => {
-            console.warn('Glow ML: could not list the cameras.', error);
+            console.warn(`${this.constructor.EXTENSION_NAME}: could not list the cameras.`, error);
           })
           .then(() => {
             this.refreshingDevices = false;
@@ -411,6 +411,6 @@
       // register() call that will never come, so it would otherwise hang silently.
       // Say out loud what went wrong instead.
       console.error(error);
-      alert(`Glow ML could not start because ml5.js did not load.\n\nCheck the internet connection and add the extension again.\n\n${error.message}`);
+      alert(`Glow ML Webcam could not start because ml5.js did not load.\n\nCheck the internet connection and add the extension again.\n\n${error.message}`);
     });
 })();
