@@ -110,7 +110,7 @@
         this.cameraRetry = null;
         this.cameraRetriedAt = 0;
         this.refreshingDevices = false;
-        this.devices = [{ text: 'default', value: '' }];
+        this.devices = [{ text: Message.default_camera[this.locale], value: '' }];
 
         // Glow: VideoProvider._setupVideo() catches getUserMedia failures, calls its
         // own onError and resolves undefined, so there is nothing here to .catch().
@@ -302,43 +302,46 @@
         // Glow: with no camera permission, enumerateDevices() reports no labels and
         // no ids, so the menu holds only the empty 'default' entry and picking it
         // used to do nothing at all, silently.
-        if (args.DEVICE === '' || !this.hasWorkingCamera()) {
+        if (!this.hasWorkingCamera()) {
           this.reportProblem(Message.no_cameras[this.locale]
             .replace('[BLOCK]', this.blockName('switch_webcam', {DEVICE: this.deviceName(args.DEVICE)})),
           util);
           return;
         }
-        if (args.DEVICE !== '') {
-          if (this.runtime.ioDevices.video.provider._track !== null) {
-            this.runtime.ioDevices.video.provider._track.stop();
-            const deviceId = args.DEVICE;
-            return navigator.mediaDevices.getUserMedia({ audio: false, video: { deviceId } }).then(
-              stream => {
-                try {
-                  this.runtime.ioDevices.video.provider._video.srcObject = stream;
-                } catch (error) {
-                  this.runtime.ioDevices.video.provider._video.src = window.URL.createObjectURL(stream);
-                }
-                // Needed for Safari/Firefox, Chrome auto-plays.
-                this.runtime.ioDevices.video.provider._video.play();
-                this.runtime.ioDevices.video.provider._track = stream.getTracks()[0];
+        // Glow: '' is the 'default' entry, which is also the block's default value:
+        // the camera the browser picks. It used to be reported as "can't find
+        // cameras" even with one working.
+        const video = args.DEVICE === '' ? true : {deviceId: args.DEVICE};
+        // Glow: a truthiness check, not !== null: a provider that never got a stream
+        // has undefined here, and .stop() on it threw.
+        if (this.runtime.ioDevices.video.provider._track) {
+          this.runtime.ioDevices.video.provider._track.stop();
+          return navigator.mediaDevices.getUserMedia({ audio: false, video }).then(
+            stream => {
+              try {
+                this.runtime.ioDevices.video.provider._video.srcObject = stream;
+              } catch (error) {
+                this.runtime.ioDevices.video.provider._video.src = window.URL.createObjectURL(stream);
               }
-            ).catch(error => {
-              // Glow: the old track was already stopped and cannot be restarted, so ask
-              // the provider for a camera from scratch rather than leaving it dead.
-              console.warn(`${this.constructor.EXTENSION_NAME}: could not switch to that camera.`, error);
-              this.cameraRetriedAt = 0;
-              return this.ensureCamera().then(working => {
-                if (!working) {
-                  this.reportProblem(Message.no_cameras[this.locale]
-                    .replace('[BLOCK]', this.blockName('switch_webcam', {DEVICE: this.deviceName(args.DEVICE)})),
-                  util);
-                }
-              });
+              // Needed for Safari/Firefox, Chrome auto-plays.
+              this.runtime.ioDevices.video.provider._video.play();
+              this.runtime.ioDevices.video.provider._track = stream.getTracks()[0];
+            }
+          ).catch(error => {
+            // Glow: the old track was already stopped and cannot be restarted, so ask
+            // the provider for a camera from scratch rather than leaving it dead.
+            console.warn(`${this.constructor.EXTENSION_NAME}: could not switch to that camera.`, error);
+            this.cameraRetriedAt = 0;
+            return this.ensureCamera().then(working => {
+              if (!working) {
+                this.reportProblem(Message.no_cameras[this.locale]
+                  .replace('[BLOCK]', this.blockName('switch_webcam', {DEVICE: this.deviceName(args.DEVICE)})),
+                util);
+              }
             });
-          }
-          return undefined;
+          });
         }
+        return undefined;
       }
 
       getDevices() {
@@ -359,7 +362,7 @@
         this.refreshingDevices = true;
         Promise.resolve(navigator.mediaDevices.enumerateDevices())
           .then(media => {
-            const found = [{ text: 'default', value: '' }];
+            const found = [{ text: Message.default_camera[this.locale], value: '' }];
             for (const device of media) {
               if (device.kind === 'videoinput') {
                 found.push({

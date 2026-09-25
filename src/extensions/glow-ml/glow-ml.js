@@ -812,6 +812,14 @@ const Message = {
     'zh-cn': '关闭',
     'zh-tw': '關閉'
   },
+  default_camera: {
+    'ja': 'デフォルト',
+    'ja-Hira': 'デフォルト',
+    'en': 'default',
+    'it': 'predefinita',
+    'zh-cn': '默认',
+    'zh-tw': '預設'
+  },
   unnamed_camera: {
     'ja': '選んだカメラ',
     'ja-Hira': 'えらんだカメラ',
