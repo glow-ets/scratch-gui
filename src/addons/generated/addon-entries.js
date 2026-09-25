@@ -82,4 +82,5 @@ export default {
   "tw-disable-compiler": () => import(/* webpackChunkName: "addon-entry-tw-disable-compiler" */ "../addons/tw-disable-compiler/_runtime_entry.js"),
   "editor-stepping": () => import(/* webpackChunkName: "addon-entry-editor-stepping" */ "../addons/editor-stepping/_runtime_entry.js"),
   "glow-branding": () => import(/* webpackChunkName: "addon-entry-glow-branding" */ "../addons/glow-branding/_runtime_entry.js"),
+  "glow-disable-webcam": () => import(/* webpackChunkName: "addon-entry-glow-disable-webcam" */ "../addons/glow-disable-webcam/_runtime_entry.js"),
 };

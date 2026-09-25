@@ -113,6 +113,10 @@ class SettingsStore extends EventTargetShim {
         this.store = this.createEmptyStore();
         this.remote = false;
         this.isAdvancedMode = false;
+        // glow-ets/scratch-gui#21: addons switched on by a URL parameter (dgw).
+        // Kept in memory only, so the parameter lasts as long as the page and is
+        // never written to localStorage; any toggle in the settings replaces it.
+        this.glowUrlEnabled = {};
     }
 
     /**
@@ -212,6 +216,9 @@ class SettingsStore extends EventTargetShim {
         const manifest = this.getAddonManifest(addonId);
         if (manifest.unsupported) {
             return false;
+        }
+        if (Object.prototype.hasOwnProperty.call(this.glowUrlEnabled, addonId)) {
+            return this.glowUrlEnabled[addonId];
         }
         const storage = this.getAddonStorage(addonId);
         if (Object.prototype.hasOwnProperty.call(storage, 'enabled')) {
@@ -324,6 +331,8 @@ class SettingsStore extends EventTargetShim {
         const storage = this.getAddonStorage(addonId);
         const manifest = this.getAddonManifest(addonId);
         const oldValue = this.getAddonEnabled(addonId);
+        // A choice made in the settings wins over the URL from now on.
+        delete this.glowUrlEnabled[addonId];
         if (enabled === null) {
             delete storage.enabled;
             // After clearing override, getAddonEnabled returns the mode-aware default
@@ -445,6 +454,16 @@ class SettingsStore extends EventTargetShim {
                 // ignore
             }
         }
+    }
+
+    /**
+     * glow-ets/scratch-gui#21: turn an addon on for this page only, the way a URL
+     * parameter should: over whatever localStorage says, without saving anything.
+     * Call before the addons start, as settings-store-singleton.js does.
+     * @param {string} addonId The addon.
+     */
+    glowEnableFromUrl (addonId) {
+        this.glowUrlEnabled[addonId] = true;
     }
 
     parseUrlParameter (parameter) {

@@ -82,7 +82,8 @@ const addons = [
     'tw-disable-cloud-variables',
     'tw-disable-compiler',
     'editor-stepping',
-    'glow-branding'
+    'glow-branding',
+    'glow-disable-webcam'
 ];
 
 const newAddons = [

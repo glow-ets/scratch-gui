@@ -118,6 +118,8 @@ export default [
         incompatibleWithScratch: true,
         internetConnectionRequired: true,
         bluetoothRequired: false,
+        // Glow: hidden by the glow-disable-webcam addon.
+        glowRequiresWebcam: true,
         extensionURL: new URL('static/extensions/glow-ml/glow-ml-webcam.js', location.href).href
     },
     {
@@ -191,6 +193,8 @@ export default [
             />
         ),
         extensionId: 'videoSensing',
+        // Glow: hidden by the glow-disable-webcam addon.
+        glowRequiresWebcam: true,
         iconURL: videoSensingIconURL,
         insetIconURL: videoSensingInsetIconURL,
         description: (
@@ -212,6 +216,8 @@ export default [
             />
         ),
         extensionId: 'faceSensing',
+        // Glow: hidden by the glow-disable-webcam addon.
+        glowRequiresWebcam: true,
         extensionURL: 'https://extensions.turbowarp.org/lab/face-sensing.js',
         iconURL: faceSensingIconURL,
         insetIconURL: faceSensingInsetIconURL,

@@ -11,6 +11,7 @@ import extensionLibraryContent, {
     galleryMore
 } from '../lib/libraries/extensions/index.jsx';
 import extensionTags from '../lib/libraries/tw-extension-tags';
+import SettingsStore from '../addons/settings-store-singleton';
 
 import LibraryComponent from '../components/library/library.jsx';
 import extensionIcon from '../components/action-menu/icon--sprite.svg';
@@ -159,7 +160,13 @@ class ExtensionLibrary extends React.PureComponent {
     render () {
         let library = null;
         if (this.state.gallery || this.state.galleryError || this.state.galleryTimedOut) {
-            library = extensionLibraryContent.map(toLibraryItem);
+            // glow-ets/scratch-gui#21: with glow-disable-webcam on, do not offer what
+            // cannot work. Projects that already use one still open; the addon makes
+            // their blocks say why they do nothing.
+            const webcamDisabled = SettingsStore.getAddonEnabled('glow-disable-webcam');
+            library = extensionLibraryContent
+                .filter(i => !(webcamDisabled && i.glowRequiresWebcam))
+                .map(toLibraryItem);
             library.push('---');
             if (this.state.gallery) {
                 library.push(toLibraryItem(galleryMore));

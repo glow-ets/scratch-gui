@@ -23,6 +23,8 @@ Optionally, you can enable advanced mode to unlock more TurboWarp features:
 - for 10x-100x faster code execution, uncheck _Disable compiler_ in _Advanced options_ panel.
 - for GUI and core modifications, see _Addons_ page (mostly intended for Glow Lab developers).
 
+To keep the webcam off for every extension, append `?dgw` to the URL (or enable the _Disable webcam_ addon). Video Sensing, Face Sensing and Glow ML Webcam disappear from the extension list, and projects that use them still open but their blocks say the webcam is not allowed. It only lasts for that page and a pupil can switch it off again, so to really forbid the camera use a browser policy (e.g. Chrome's `VideoCaptureAllowed`, Firefox's `Permissions.Camera`).
+
 ## Development
 
 ... was vibe coded (sic): most Glow customizations were written by Claude  under little to no supervision.  
