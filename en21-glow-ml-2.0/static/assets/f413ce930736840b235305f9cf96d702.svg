@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="80"
+   height="80"
+   viewBox="0 0 80 80"
+   version="1.1"
+   id="svg8"
+   sodipodi:docname="glow-ml-stage-small.svg"
+   inkscape:version="1.2.2 (b0a8486, 2022-12-01)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs12" />
+  <sodipodi:namedview
+     id="namedview10"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="0.88380595"
+     inkscape:cx="-471.82303"
+     inkscape:cy="50.916154"
+     inkscape:window-width="2256"
+     inkscape:window-height="1464"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg8" />
+  <!-- Glow ML Stage: the small icon of the extension library and the block palette.
+       glow-ets/scratch-gui#21 -->
+  <path
+     id="rect2"
+     style="fill:#b800b0"
+     d="m 12,0 h 56 c 6.648,0 12,5.352 12,12 v 56 c 0,6.648 -5.352,12 -12,12 H 12 C 5.352,80 0,74.648 0,68 V 12 C 0,5.352 5.352,0 12,0 Z" />
+  <g
+     fill="#b800b0"
+     stroke="#ffdafb"
+     stroke-width="8"
+     id="g20"
+     transform="matrix(0.00313745,-0.32468619,0.29006133,0.00351197,-11.429479,196.59193)">
+    <circle
+       cx="426.47681"
+       cy="102.40794"
+       r="30.479828"
+       id="circle16"
+       style="fill:#ffdafb;fill-opacity:1;stroke-width:12.8336" />
+    <circle
+       cx="426.47681"
+       cy="253.20287"
+       r="30.479828"
+       id="circle18"
+       style="fill:#ffdafb;fill-opacity:1;stroke-width:12.8336" />
+  </g>
+  <ellipse
+     cx="-20.735092"
+     cy="42.048851"
+     fill="#ffdafb"
+     id="circle22"
+     style="stroke-width:0.492335"
+     transform="matrix(0.00966258,-0.99995332,0.99992671,0.01210679,0,0)"
+     rx="12.501272"
+     ry="11.168422" />
+  <path
+     style="fill:none;fill-rule:evenodd;stroke:#ffdafb;stroke-width:5;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+     d="m 20.508216,59.270429 44.132652,0.316162"
+     id="path8743" />
+  <path
+     style="fill:none;fill-rule:evenodd;stroke:#ffdafb;stroke-width:5;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+     d="m 42.630054,21.031578 22.855341,39.6086 m 0.118223,-0.885105"
+     id="path8743-6"
+     sodipodi:nodetypes="cc" />
+  <path
+     style="fill:none;fill-rule:evenodd;stroke:#ffdafb;stroke-width:5;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+     d="M 41.646666,21.172845 19.553315,58.951162"
+     id="path8743-6-7"
+     sodipodi:nodetypes="cc" />
+</svg>

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="80"
+   height="80"
+   viewBox="0 0 80 80"
+   version="1.1"
+   id="svg328"
+   sodipodi:docname="glow-ml-webcam-small.svg"
+   inkscape:version="1.2.2 (b0a8486, 2022-12-01)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs332" />
+  <sodipodi:namedview
+     id="namedview330"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="5.2318504"
+     inkscape:cx="107.99238"
+     inkscape:cy="-20.260518"
+     inkscape:window-width="2256"
+     inkscape:window-height="1464"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg328" />
+  <!-- Glow ML Webcam: the small icon of the extension library and the block palette.
+       glow-ets/scratch-gui#21 -->
+  <rect
+     x="-0.066874109"
+     y="0.063028626"
+     width="80"
+     height="80"
+     rx="12"
+     ry="12"
+     fill="#b800b0"
+     id="rect2"
+     style="fill:#fc00ee;fill-opacity:1" />
+  <ellipse
+     style="color:#000000;overflow:visible;fill:none;fill-opacity:1;fill-rule:evenodd;stroke:#ffdafb;stroke-width:5.34919;stroke-linejoin:bevel;stroke-miterlimit:19.3;stroke-dasharray:none;paint-order:stroke markers fill;stop-color:#000000"
+     id="path7194"
+     cx="39.724106"
+     cy="38.624271"
+     rx="10.184997"
+     ry="10.349756" />
+  <ellipse
+     style="color:#000000;overflow:visible;fill:none;fill-opacity:1;fill-rule:evenodd;stroke:#ffdafb;stroke-width:3.81122;stroke-linejoin:bevel;stroke-miterlimit:19.3;stroke-dasharray:none;paint-order:stroke markers fill;stop-color:#000000"
+     id="path7194-7"
+     cx="60.902802"
+     cy="20.26078"
+     rx="5.026474"
+     ry="5.1703176" />
+  <path
+     style="fill:none;fill-rule:evenodd;stroke:#ffdafb;stroke-width:4.697;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+     d="m 47.776026,32.517713 8.550062,-7.510585"
+     id="path8446"
+     sodipodi:nodetypes="cc" />
+  <rect
+     style="color:#000000;overflow:visible;fill:none;fill-rule:evenodd;stroke:#ffffff;stroke-width:2.00146;stroke-linejoin:bevel;stroke-miterlimit:19.3;stroke-dasharray:none;paint-order:stroke markers fill;stop-color:#000000"
+     id="rect305"
+     width="63.852749"
+     height="59.467896"
+     x="8.0637236"
+     y="9.0382214"
+     rx="3.1051443"
+     ry="5.8768878" />
+</svg>
