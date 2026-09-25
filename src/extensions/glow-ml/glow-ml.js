@@ -1236,6 +1236,15 @@ class GlowMLBase {
   }
 
   train(args, util) {
+    // Glow: never learn under a name the saved data would be refused for. The
+    // dropdown only offers valid names, but a field can hold anything a hand-edited
+    // project.json put there, 'all' included - and one such label used to make the
+    // project's whole training data fail the check the next time it was opened.
+    if (!validateCategoryName(args.CATEGORY).ok) {
+      this.reportProblem(`${this.blockName('train', {CATEGORY: args.CATEGORY})}: ` +
+        Message.category_bad_name[this.locale], util);
+      return;
+    }
     if (!this.checkModelReady(util)) {
       return;
     }
