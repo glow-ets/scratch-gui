@@ -114,12 +114,15 @@ export default async function ({ addon }) {
   });
 
   const sayOnTarget = (text, util) => {
-    // The sprite that ran the block, or the one being edited, and only if visible.
-    // No falling back to the stage: scratch-gui hides a sprite while it is dragged,
-    // and the bubble would land in the middle of the stage. The loop reports again
-    // after the drop.
-    const target = util && util.target ? util.target : runtime.getEditingTarget();
-    if (!target || !target.visible) {
+    // The sprite that ran the block, or the one being edited. Skipped while it is
+    // dragged (scratch-gui hides it for the drag; the loop reports again after the
+    // drop); on the stage when it is hidden on purpose, so the pupil still hears.
+    const own = util && util.target ? util.target : runtime.getEditingTarget();
+    if (own && own.dragging) {
+      return;
+    }
+    const target = own && own.visible ? own : runtime.getTargetForStage();
+    if (!target) {
       return;
     }
     emitSay(target, text);

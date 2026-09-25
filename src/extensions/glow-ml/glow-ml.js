@@ -1806,14 +1806,24 @@ class GlowMLBase {
    */
   sayOnTarget(message, util) {
     // Glow: the sprite that ran the block, or, when no block did, whatever is being
-    // edited - and only if it is visible, since scratch3_looks drops a bubble whose
-    // target is hidden. No falling back to another target: scratch-gui hides a
-    // sprite for as long as it is dragged, and a loop reporting meanwhile used to
-    // put the bubble on the stage instead, in the middle of it. Skipping is enough;
-    // the loop reports again after the drop, and the message has already been given
-    // once as a modal and is in the console.
-    const target = util && util.target ? util.target : this.runtime.getEditingTarget();
-    if (!target || !target.visible || !this.runtime.emit) {
+    // edited.
+    const own = util && util.target ? util.target : this.runtime.getEditingTarget();
+    if (!this.runtime.emit) {
+      return;
+    }
+    // While the pupil drags it, scratch-gui hides the sprite (the drag style in
+    // containers/stage.jsx). That is not a sprite hidden on purpose: skip the bubble,
+    // and the loop reports again after the drop. Falling back to the stage here is
+    // what used to leave a bubble in the middle of it.
+    if (own && own.dragging) {
+      return;
+    }
+    // scratch3_looks drops a bubble whose target is hidden, so a sprite hidden on
+    // purpose gets it on the stage instead: without it, a pupil whose sprite is
+    // hidden would never hear about a problem after the first modal. emitSay()
+    // moves the bubble back to the sprite, and takes this one down, once it shows.
+    const target = own && own.visible ? own : this.runtime.getTargetForStage();
+    if (!target) {
       return;
     }
     this.emitSay(target, String(message));
