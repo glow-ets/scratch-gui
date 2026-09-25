@@ -143,6 +143,16 @@
         };
       }
 
+      /**
+       * Glow: Video Sensing's name as the palette shows it when the project has it,
+       * already translated by the editor; our own translation otherwise.
+       * @return {string} - the name to put in a message
+       */
+      videoSensingName() {
+        const category = (this.runtime._blockInfo || []).find(info => info.id === 'videoSensing');
+        return (category && category.name) || Message.video_sensing[this.locale];
+      }
+
       getInput() {
         return this.input;
       }
@@ -276,7 +286,8 @@
         if (video && video.provider && !video.provider.enabled) {
           this.reportProblem(Message.video_is_off[this.locale]
             .replace('[BLOCK]', block)
-            .replace('[TURN_ON]', this.blockName('toggle_video', {VIDEO_STATE: Message.on[this.locale]})),
+            .replace('[TURN_ON]', this.blockName('toggle_video', {VIDEO_STATE: Message.on[this.locale]}))
+            .replace('[EXTENSION]', () => this.videoSensingName()),
           util);
           return false;
         }

@@ -482,12 +482,22 @@ const Message = {
     'zh-tw': '類別名稱只能使用字母、數字、空格、-、_ 和表情符號。'
   },
   video_is_off: {
-    'ja': '[BLOCK]を停止しました。ビデオが切になっています。[TURN_ON]で入にして下さい。',
-    'ja-Hira': '[BLOCK]をていししました。ビデオがきりになっています。[TURN_ON]でいりにしてください。',
-    'en': '[BLOCK] FAILED: the video is off! Use [TURN_ON] to turn it back on.',
-    'it': "[BLOCK] E' FALLITO: il video è spento! Usa [TURN_ON] per riaccenderlo.",
-    'zh-cn': '[BLOCK]已停止：摄像头已关闭。请使用[TURN_ON]重新开启。',
-    'zh-tw': '[BLOCK]已停止：攝影機已關閉。請使用[TURN_ON]重新開啟。'
+    'ja': '[BLOCK]を停止しました。ビデオが切になっています。「[EXTENSION]」拡張機能の[TURN_ON]で入にして下さい。',
+    'ja-Hira': '[BLOCK]をていししました。ビデオがきりになっています。「[EXTENSION]」かくちょうきのうの[TURN_ON]でいりにしてください。',
+    'en': '[BLOCK] FAILED: the video is off! Use [TURN_ON] from the [EXTENSION] extension to turn it back on.',
+    'it': "[BLOCK] E' FALLITO: il video è spento! Usa [TURN_ON] dell'estensione [EXTENSION] per riaccenderlo.",
+    'zh-cn': '[BLOCK]已停止：摄像头已关闭。请使用“[EXTENSION]”扩展中的[TURN_ON]重新开启。',
+    'zh-tw': '[BLOCK]已停止：攝影機已關閉。請使用「[EXTENSION]」擴充功能中的[TURN_ON]重新開啟。'
+  },
+  // Glow: Video Sensing's name, for when that extension is not in the project and
+  // the editor's own translation of it is not at hand.
+  video_sensing: {
+    'ja': 'ビデオモーションセンサー',
+    'ja-Hira': 'ビデオモーションセンサー',
+    'en': 'Video Sensing',
+    'it': 'Rilevamento video',
+    'zh-cn': '视频侦测',
+    'zh-tw': '視訊偵測'
   },
   bad_interval: {
     'ja': '[BLOCK]は[MIN]秒から[MAX]秒までにして下さい。',
