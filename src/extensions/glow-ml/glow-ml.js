@@ -1576,9 +1576,8 @@ class GlowMLBase {
     dialog.innerHTML = `
       <form method="dialog">
         <label style="display:block;"></label>
-        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
-          <input type="text" autocomplete="off" spellcheck="false" style="flex:1;min-width:14em;">
-          <span style="font-variant-numeric:tabular-nums;opacity:0.7;"></span>
+        <div style="margin-top:10px;">
+          <input type="text" autocomplete="off" spellcheck="false" style="width:100%;min-width:14em;box-sizing:border-box;">
         </div>
         <div role="status" style="margin-top:6px;min-height:1.3em;color:#c00000;"></div>
         <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end;">
@@ -1598,7 +1597,6 @@ class GlowMLBase {
 
     this.categoryDialog = dialog;
     this.categoryInput = input;
-    this.categoryCounter = dialog.querySelector('span');
     this.categoryHint = dialog.querySelector('[role=status]');
     this.categoryCancelButton = cancelButton;
     this.categoryOkButton = okButton;
@@ -1647,14 +1645,12 @@ class GlowMLBase {
   }
 
   /**
-   * Glow: bring the counter, the reason and the OK button in line with the name
+   * Glow: bring the reason and the OK button in line with the name
    * as it is now.
    * @param {boolean} cut - whether the last keystroke was refused for length
    */
   refreshCategoryDialog(cut) {
     const value = this.categoryInput.value;
-    this.categoryCounter.textContent =
-      `${Array.from(value.normalize('NFC')).length}/${MAX_CATEGORY_NAME_LENGTH}`;
     const verdict = validateCategoryName(value, this.categories);
     let hint = '';
     if (verdict.reason === 'duplicate') {
