@@ -627,8 +627,24 @@ const Message = {
     'zh-cn': '每隔[CLASSIFICATION_INTERVAL]秒标记一次',
     'zh-tw': '每隔[CLASSIFICATION_INTERVAL]秒標記一次'
   },
-  // Glow: Video Sensing's block, named in video_is_off; Glow ML has no such block
-  // of its own any more.
+  // Glow: Video Sensing's blocks, named in video_is_off and webcam_on_stage; Glow ML
+  // has no such blocks of its own any more.
+  video_transparency: {
+    'ja': 'ビデオの透明度を[TRANSPARENCY]にする',
+    'ja-Hira': 'ビデオのとうめいどを[TRANSPARENCY]にする',
+    'en': 'set video transparency to [TRANSPARENCY]',
+    'it': 'imposta trasparenza video a [TRANSPARENCY]',
+    'zh-cn': '将视频透明度设为[TRANSPARENCY]',
+    'zh-tw': '將視訊透明度設為[TRANSPARENCY]'
+  },
+  webcam_on_stage: {
+    'ja': '[BLOCK]を停止しました。ステージにカメラの映像が映っています。Glow ML Stageはカメラから学習しません。「[EXTENSION]」拡張機能の[TURN_OFF]でビデオを切にするか、[TRANSPARENT]で見えなくするか、Glow ML Webcamを使って下さい。',
+    'ja-Hira': '[BLOCK]をていししました。ステージにカメラのえいぞうがうつっています。Glow ML Stageはカメラからがくしゅうしません。「[EXTENSION]」かくちょうきのうの[TURN_OFF]でビデオをきりにするか、[TRANSPARENT]でみえなくするか、Glow ML Webcamをつかってください。',
+    'en': '[BLOCK] FAILED: the webcam is showing on the stage, and Glow ML Stage does not learn from the webcam! Turn the video off with [TURN_OFF] or hide it with [TRANSPARENT] from the [EXTENSION] extension, or use Glow ML Webcam.',
+    'it': "[BLOCK] È FALLITO: la webcam si vede sullo stage, e Glow ML Stage non impara dalla webcam! Spegni il video con [TURN_OFF] o nascondilo con [TRANSPARENT] dell'estensione [EXTENSION], oppure usa Glow ML Webcam.",
+    'zh-cn': '[BLOCK]已停止：舞台上正显示摄像头画面，Glow ML Stage 不会从摄像头学习。请使用“[EXTENSION]”扩展中的[TURN_OFF]关闭视频，或用[TRANSPARENT]隐藏它，或改用 Glow ML Webcam。',
+    'zh-tw': '[BLOCK]已停止：舞台上正顯示攝影機畫面，Glow ML Stage 不會從攝影機學習。請使用「[EXTENSION]」擴充功能中的[TURN_OFF]關閉視訊，或用[TRANSPARENT]隱藏它，或改用 Glow ML Webcam。'
+  },
   toggle_video: {
     'ja': 'ビデオを[VIDEO_STATE]にする',
     'ja-Hira': 'ビデオを[VIDEO_STATE]にする',
@@ -1033,6 +1049,28 @@ class GlowMLBase {
   }
 
   /**
+   * Glow: whether what getInput() shows may be learned right now - which is to
+   * say kept, since learned examples are saved into the project. Recognising is
+   * not asked: it keeps nothing. Says why not, when not.
+   * @param {string} block - the block name, from blockName()
+   * @param {object} [util] - block utility, for the speech bubble
+   * @return {boolean} - whether training may go ahead
+   */
+  mayLearn(block, util) {
+    return true;
+  }
+
+  /**
+   * Glow: Video Sensing's name as the palette shows it when the project has it,
+   * already translated by the editor; our own translation otherwise.
+   * @return {string} - the name to put in a message
+   */
+  videoSensingName() {
+    const category = (this.runtime._blockInfo || []).find(info => info.id === 'videoSensing');
+    return (category && category.name) || Message.video_sensing[this.locale];
+  }
+
+  /**
    * @return {object[]} - the subclass's own blocks, shown after the shared ones
    */
   variantBlocks() {
@@ -1063,7 +1101,8 @@ class GlowMLBase {
         // child presses after closing the other tab that was holding the webcam, so
         // it is the one that has to notice the camera came back.
         return this.ensureInput().then(() => {
-          if (!this.checkInput(this.blockName('train', {CATEGORY: args.CATEGORY}), util)) {
+          const block = this.blockName('train', {CATEGORY: args.CATEGORY});
+          if (!this.checkInput(block, util) || !this.mayLearn(block, util)) {
             return undefined;
           }
           return this.trainNow(args, util);
@@ -1089,6 +1128,11 @@ class GlowMLBase {
     // wait for the glow to be on screen before starting it.
     return new Promise(resolve => {
       afterPaint(() => {
+        // Glow: asked again, because a frame has passed since train() asked.
+        if (!this.mayLearn(this.blockName('train', {CATEGORY: args.CATEGORY}), util)) {
+          resolve();
+          return;
+        }
         try {
           const features = this.featureExtractor.infer(this.getInput());
           this.knnClassifier.addExample(features, args.CATEGORY);

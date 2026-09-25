@@ -50,7 +50,7 @@
   };
 
   const define = GlowML => {
-    const {GlowMLBase} = GlowML;
+    const {GlowMLBase, Message} = GlowML;
 
     class GlowMLStageBlocks extends GlowMLBase {
 
@@ -104,6 +104,46 @@
           return true;
         }
         console.warn(`${this.constructor.EXTENSION_NAME}: no stage canvas found, so there is nothing to learn from`);
+        return false;
+      }
+
+      /**
+       * Glow: whether the webcam is showing on the stage. Video Sensing (and Glow ML
+       * Webcam, which turns the camera on) draw every camera frame into the stage
+       * canvas this extension reads - scratch-vm io/video.js, the VIDEO_LAYER
+       * drawable - unless the video is off or fully transparent.
+       * @return {boolean} - whether a picture of the stage would include the camera
+       */
+      webcamOnStage() {
+        const video = this.runtime.ioDevices && this.runtime.ioDevices.video;
+        if (!video || !video.provider || !video.provider.enabled || !video.videoReady) {
+          return false;
+        }
+        if (video._forceTransparentPreview) {
+          return false;
+        }
+        return (Number(video._ghost) || 0) < 100;
+      }
+
+      /**
+       * Glow: never keep webcam pictures. Learned examples are saved into the
+       * project, and keeping pupils' faces out of Stage projects is why Glow ML
+       * Stage exists. Recognising the stage with the video on is still fine: it
+       * keeps nothing.
+       */
+      mayLearn(block, util) {
+        if (!this.webcamOnStage()) {
+          return true;
+        }
+        const name = key => this.blockName(key, {
+          VIDEO_STATE: Message.off[this.locale],
+          TRANSPARENCY: '100'
+        });
+        this.reportProblem(Message.webcam_on_stage[this.locale]
+          .replace('[BLOCK]', block)
+          .replace('[TURN_OFF]', () => name('toggle_video'))
+          .replace('[TRANSPARENT]', () => name('video_transparency'))
+          .replace('[EXTENSION]', () => this.videoSensingName()), util);
         return false;
       }
     }

@@ -143,16 +143,6 @@
         };
       }
 
-      /**
-       * Glow: Video Sensing's name as the palette shows it when the project has it,
-       * already translated by the editor; our own translation otherwise.
-       * @return {string} - the name to put in a message
-       */
-      videoSensingName() {
-        const category = (this.runtime._blockInfo || []).find(info => info.id === 'videoSensing');
-        return (category && category.name) || Message.video_sensing[this.locale];
-      }
-
       getInput() {
         return this.input;
       }
