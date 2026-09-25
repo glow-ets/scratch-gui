@@ -84,6 +84,16 @@ export default async function ({ addon }) {
       clearTimeout(sayTimer);
       sayTimer = null;
     }
+    // One bubble of ours at a time: the timer just cleared belonged to the previous
+    // one, so a bubble on another target must come down now, or it stays forever.
+    if (text !== "" && sayTarget && sayTarget !== target) {
+      emittingSay = true;
+      try {
+        runtime.emit("SAY", sayTarget, "say", "");
+      } finally {
+        emittingSay = false;
+      }
+    }
     sayTarget = text === "" ? null : target;
     emittingSay = true;
     try {
@@ -104,9 +114,12 @@ export default async function ({ addon }) {
   });
 
   const sayOnTarget = (text, util) => {
-    const candidates = [util && util.target, runtime.getEditingTarget(), runtime.getTargetForStage()];
-    const target = candidates.find(candidate => candidate && candidate.visible) || runtime.getTargetForStage();
-    if (!target) {
+    // The sprite that ran the block, or the one being edited, and only if visible.
+    // No falling back to the stage: scratch-gui hides a sprite while it is dragged,
+    // and the bubble would land in the middle of the stage. The loop reports again
+    // after the drop.
+    const target = util && util.target ? util.target : runtime.getEditingTarget();
+    if (!target || !target.visible) {
       return;
     }
     emitSay(target, text);

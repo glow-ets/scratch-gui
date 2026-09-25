@@ -1805,17 +1805,15 @@ class GlowMLBase {
    * @param {object} [util] - block utility, when a block is what raised this
    */
   sayOnTarget(message, util) {
-    // scratch3_looks drops a bubble whose target is hidden, so pick something
-    // that can actually show it: the sprite that ran the block, then whatever is
-    // being edited, then the stage.
-    const candidates = [
-      util && util.target,
-      this.runtime.getEditingTarget(),
-      this.runtime.getTargetForStage()
-    ];
-    const target = candidates.find(candidate => candidate && candidate.visible) ||
-      this.runtime.getTargetForStage();
-    if (!target || !this.runtime.emit) {
+    // Glow: the sprite that ran the block, or, when no block did, whatever is being
+    // edited - and only if it is visible, since scratch3_looks drops a bubble whose
+    // target is hidden. No falling back to another target: scratch-gui hides a
+    // sprite for as long as it is dragged, and a loop reporting meanwhile used to
+    // put the bubble on the stage instead, in the middle of it. Skipping is enough;
+    // the loop reports again after the drop, and the message has already been given
+    // once as a modal and is in the console.
+    const target = util && util.target ? util.target : this.runtime.getEditingTarget();
+    if (!target || !target.visible || !this.runtime.emit) {
       return;
     }
     this.emitSay(target, String(message));
@@ -1840,6 +1838,17 @@ class GlowMLBase {
     if (this.sayTimer) {
       clearTimeout(this.sayTimer);
       this.sayTimer = null;
+    }
+    // Glow: one bubble of ours at a time. The timer above belonged to the previous
+    // one, so a bubble on another target has to come down now: left up, nothing
+    // would ever clear it, and it stayed until the green flag.
+    if (text !== '' && this.sayTarget && this.sayTarget !== target) {
+      this.emittingSay = true;
+      try {
+        this.runtime.emit('SAY', this.sayTarget, 'say', '');
+      } finally {
+        this.emittingSay = false;
+      }
     }
     this.sayTarget = text === '' ? null : target;
     this.emittingSay = true;
