@@ -495,7 +495,7 @@ const Message = {
     'ja': 'ビデオモーションセンサー',
     'ja-Hira': 'ビデオモーションセンサー',
     'en': 'Video Sensing',
-    'it': 'Rilevamento video',
+    'it': 'Movimento Webcam',
     'zh-cn': '视频侦测',
     'zh-tw': '視訊偵測'
   },
