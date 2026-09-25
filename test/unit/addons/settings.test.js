@@ -703,3 +703,70 @@ test('Settings migration 4 -> 5', () => {
     store.readLocalStorage();
     expect(store.getAddonSetting('fullscreen', 'toolbar')).toBe('hide');
 });
+
+// glow-ets/scratch-gui#21: ?dgw turns glow-disable-webcam on through glowEnableFromUrl.
+// A plain toggle: for the page only, never saved, and the pupil can switch it off.
+describe('glow: addons enabled from the URL', () => {
+    const DGW = 'glow-disable-webcam';
+
+    test('enables the addon without writing localStorage', () => {
+        const store = new SettingStore();
+        store.readLocalStorage();
+        expect(store.getAddonEnabled(DGW)).toBe(false);
+        store.glowEnableFromUrl(DGW);
+        expect(store.getAddonEnabled(DGW)).toBe(true);
+        expect(localStorage.getItem('tw:addons')).toBe(undefined);
+    });
+
+    test('wins over a choice stored earlier', () => {
+        localStorage.setItem('tw:addons', JSON.stringify({_: 5, [DGW]: {enabled: false}}));
+        const store = new SettingStore();
+        store.readLocalStorage();
+        expect(store.getAddonEnabled(DGW)).toBe(false);
+        store.glowEnableFromUrl(DGW);
+        expect(store.getAddonEnabled(DGW)).toBe(true);
+    });
+
+    test('also when ?addons= does not list it', () => {
+        const store = new SettingStore();
+        store.parseUrlParameter('cat-blocks');
+        store.glowEnableFromUrl(DGW);
+        expect(store.getAddonEnabled(DGW)).toBe(true);
+        expect(store.getAddonEnabled('cat-blocks')).toBe(true);
+    });
+
+    test('a toggle in the settings replaces it, and is what gets saved', () => {
+        const store = new SettingStore();
+        store.readLocalStorage();
+        store.glowEnableFromUrl(DGW);
+        const fn = jest.fn();
+        store.addEventListener('setting-changed', fn);
+        store.setAddonEnabled(DGW, false);
+        expect(store.getAddonEnabled(DGW)).toBe(false);
+        expect(fn).toHaveBeenCalledTimes(1);
+        expect(fn.mock.calls[0][0].detail.value).toBe(false);
+        expect(JSON.parse(localStorage.getItem('tw:addons'))[DGW]).toEqual({enabled: false});
+    });
+
+    test('switching it on again in the settings fires no change, as nothing changed', () => {
+        const store = new SettingStore();
+        store.readLocalStorage();
+        store.glowEnableFromUrl(DGW);
+        const fn = jest.fn();
+        store.addEventListener('setting-changed', fn);
+        store.setAddonEnabled(DGW, true);
+        expect(store.getAddonEnabled(DGW)).toBe(true);
+        expect(fn).toHaveBeenCalledTimes(0);
+    });
+
+    test('a new page without the parameter goes back to the stored choice', () => {
+        const first = new SettingStore();
+        first.readLocalStorage();
+        first.glowEnableFromUrl(DGW);
+        first.setAddonEnabled('cat-blocks', true); // saves, with the URL's choice left out
+        const second = new SettingStore();
+        second.readLocalStorage();
+        expect(second.getAddonEnabled(DGW)).toBe(false);
+        expect(second.getAddonEnabled('cat-blocks')).toBe(true);
+    });
+});
