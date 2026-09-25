@@ -6,7 +6,7 @@
 > - **Glow ML Webcam** (`glow-ml-webcam.js`, id `glowMLWebcam`, stage prefix
 >   "Glow MLW") learns and recognizes webcam images only, and has the video blocks.
 > - **Glow ML Stage** (`glow-ml-stage.js`, id `glowMLStage`, stage prefix
->   "Glow MLS") learns and recognizes the stage only, and never asks for the camera.
+>   "Glow MLS") learns and recognizes the stage (including pen drawings) only, and never asks for the camera.
 >
 > The "learn / recognize from [webcam|stage]" block is gone, so "Switching between
 > images to be learned/classified" below does not apply: pick the extension instead.
