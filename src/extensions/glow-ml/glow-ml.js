@@ -568,6 +568,14 @@ const Message = {
     'zh-cn': '取消',
     'zh-tw': '取消'
   },
+  category_limit: {
+    'ja': 'カテゴリーは[N]個までです。新しく作る前に、どれかを削除して下さい。',
+    'ja-Hira': 'カテゴリーは[N]こまでです。あたらしくつくるまえに、どれかをさくじょしてください。',
+    'en': 'There can be at most [N] categories: delete one before making a new one.',
+    'it': 'Ci possono essere al massimo [N] categorie: eliminane una prima di crearne una nuova.',
+    'zh-cn': '最多只能有[N]个类别：请先删除一个再新建。',
+    'zh-tw': '最多只能有[N]個類別：請先刪除一個再新增。'
+  },
   category_too_long: {
     'ja': 'カテゴリー名は[N]文字までです。',
     'ja-Hira': 'カテゴリーめいは[N]もじまでです。',
@@ -1845,7 +1853,7 @@ class GlowMLBase {
     form.addEventListener('submit', event => {
       event.preventDefault();
       const verdict = validateCategoryName(input.value, this.categories);
-      if (!verdict.ok) {
+      if (!verdict.ok || this.categoryPoolFull()) {
         // OK is disabled in this state, but Enter still submits a form; stay open
         // and keep the text.
         this.refreshCategoryDialog(false);
@@ -1881,8 +1889,11 @@ class GlowMLBase {
   refreshCategoryDialog(cut) {
     const value = this.categoryInput.value;
     const verdict = validateCategoryName(value, this.categories);
+    const full = this.categoryPoolFull();
     let hint = '';
-    if (verdict.reason === 'duplicate') {
+    if (full) {
+      hint = Message.category_limit[this.locale].replace('[N]', MAX_CATEGORIES);
+    } else if (verdict.reason === 'duplicate') {
       hint = Message.category_exists[this.locale];
     } else if (verdict.reason === 'characters' || verdict.reason === 'reserved') {
       hint = Message.category_bad_name[this.locale];
@@ -1891,7 +1902,16 @@ class GlowMLBase {
     }
     // 'empty' says nothing: there is nothing wrong with a name not typed yet.
     this.categoryHint.textContent = hint;
-    this.categoryOkButton.disabled = !verdict.ok;
+    this.categoryOkButton.disabled = full || !verdict.ok;
+  }
+
+  /**
+   * Glow: whether the pool already holds MAX_CATEGORIES. The categories getter
+   * shows no more than that, so a category created past it used to vanish.
+   * @return {boolean} - whether a new category would be one too many
+   */
+  categoryPoolFull() {
+    return this.categories.length >= MAX_CATEGORIES;
   }
 
   /**
