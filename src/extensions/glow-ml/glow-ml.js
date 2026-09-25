@@ -174,6 +174,24 @@ const MIN_INTERVAL_SECONDS = 0.2;
 const MAX_INTERVAL_SECONDS = 3600;
 
 /**
+ * Glow: whether 'recognize once every [N] seconds' takes this many seconds. The one
+ * check, used by the block and by the menu that offers values for it: the menu
+ * used to offer 0.1, which the block then refused.
+ * @param {number} seconds - a number, or anything a reporter produced
+ * @returns {boolean} whether it is a usable interval
+ */
+const validInterval = seconds => (
+  typeof seconds === 'number' && Number.isFinite(seconds) &&
+  seconds >= MIN_INTERVAL_SECONDS && seconds <= MAX_INTERVAL_SECONDS
+);
+
+/**
+ * Glow: the values the interval menu offers, fastest last. Only values
+ * validInterval() takes, so the shortest one is the floor itself.
+ */
+const CLASSIFICATION_INTERVALS = ['1', '0.5', String(MIN_INTERVAL_SECONDS)];
+
+/**
  * Glow: the largest serialised training data we will read, whether it arrives from
  * the upload block or from a project. MAX_EXAMPLES_TOTAL examples come to roughly
  * 3.4 MB, so this is generous; the point is that a file is refused before it is
@@ -739,8 +757,8 @@ const Message = {
   set_classification_interval: {
     'ja': '分類を[CLASSIFICATION_INTERVAL]秒間に1回行う',
     'ja-Hira': 'ぶんるいを[CLASSIFICATION_INTERVAL]びょうかんに1かいおこなう',
-    'en': 'Recognize once every [CLASSIFICATION_INTERVAL] seconds',
-    'it': 'Riconosci una volta ogni [CLASSIFICATION_INTERVAL] secondi',
+    'en': 'recognize once every [CLASSIFICATION_INTERVAL] seconds',
+    'it': 'riconosci una volta ogni [CLASSIFICATION_INTERVAL] secondi',
     'zh-cn': '每隔[CLASSIFICATION_INTERVAL]秒标记一次',
     'zh-tw': '每隔[CLASSIFICATION_INTERVAL]秒標記一次'
   },
@@ -1461,7 +1479,7 @@ class GlowMLBase {
     // past the 32-bit timer range overflows and also fires every tick - either way a
     // loop of synchronous GPU inference as fast as the browser allows.
     const seconds = Cast.toNumber(args.CLASSIFICATION_INTERVAL);
-    if (!Number.isFinite(seconds) || seconds < MIN_INTERVAL_SECONDS || seconds > MAX_INTERVAL_SECONDS) {
+    if (!validInterval(seconds)) {
       this.reportProblem(Message.bad_interval[this.locale]
         .replace('[BLOCK]', this.blockName('set_classification_interval',
           {CLASSIFICATION_INTERVAL: args.CLASSIFICATION_INTERVAL}))
@@ -1899,24 +1917,7 @@ class GlowMLBase {
   }
 
   getClassificationIntervalMenu() {
-    return [
-      {
-        text: '1',
-        value: '1'
-      },
-      {
-        text: '0.5',
-        value: '0.5'
-      },
-      {
-        text: '0.2',
-        value: '0.2'
-      },
-      {
-        text: '0.1',
-        value: '0.1'
-      }
-    ]
+    return CLASSIFICATION_INTERVALS.map(value => ({text: value, value}));
   }
 
   getClassificationMenu() {
@@ -2560,6 +2561,10 @@ if (typeof module !== 'undefined' && module.exports) {
     GlowMLBase,
     validateCategoryName,
     clampCategoryName,
+    validInterval,
+    CLASSIFICATION_INTERVALS,
+    MIN_INTERVAL_SECONDS,
+    MAX_INTERVAL_SECONDS,
     vetTrainingData,
     trainingMetadata,
     checkTrainingSource,

@@ -10,6 +10,10 @@
 import {
     validateCategoryName,
     clampCategoryName,
+    validInterval,
+    CLASSIFICATION_INTERVALS,
+    MIN_INTERVAL_SECONDS,
+    MAX_INTERVAL_SECONDS,
     vetTrainingData,
     trainingMetadata,
     checkTrainingSource,
@@ -342,5 +346,22 @@ describe('trainingFileName', () => {
 
     test('keeps a very long title short', () => {
         expect(trainingFileName('stage', 'x'.repeat(500), 't').length).toBeLessThan(100);
+    });
+});
+
+describe('recognition interval', () => {
+    test('the menu offers only values the block takes', () => {
+        // It used to offer 0.1, and the block answered that 0.1 was not allowed.
+        CLASSIFICATION_INTERVALS.forEach(value => {
+            expect(validInterval(Number(value))).toBe(true);
+        });
+        expect(CLASSIFICATION_INTERVALS).toContain(String(MIN_INTERVAL_SECONDS));
+    });
+
+    test('refuses what would lock the tab', () => {
+        // setInterval reads NaN as 0, and past the 32-bit range it fires every tick.
+        [0, 0.1, MIN_INTERVAL_SECONDS - 0.01, -1, NaN, Infinity, MAX_INTERVAL_SECONDS + 1, '1', null]
+            .forEach(value => expect(validInterval(value)).toBe(false));
+        [MIN_INTERVAL_SECONDS, 1, MAX_INTERVAL_SECONDS].forEach(value => expect(validInterval(value)).toBe(true));
     });
 });
