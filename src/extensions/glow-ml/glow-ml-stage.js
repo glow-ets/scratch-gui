@@ -2,9 +2,7 @@
 // Part of the Glow Lab integration of ML2Scratch by Junya Ishihara (champierre),
 // AGPL-3.0; see glow-ml.js for the shared part and glow-ets/scratch-gui#21.
 //
-// Never touches the camera: no video blocks, and nothing here calls ioDevices.video
-// or getUserMedia. The training data a project saves is therefore made of features
-// of stage pictures only, and a school that does not allow the webcam can use it.
+// Never touches the camera
 
 /* global Scratch */
 
@@ -78,8 +76,6 @@
       }
 
       /**
-       * A darker shade of Glow ML Webcam's magenta, so the two read as one family
-       * in the palette but a script shows at a glance which one it uses.
        * @return {string[]} - color1, color2, color3
        */
       static get COLORS() {

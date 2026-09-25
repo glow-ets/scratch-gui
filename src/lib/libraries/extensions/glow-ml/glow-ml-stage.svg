@@ -23,15 +23,15 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      showgrid="false"
-     inkscape:zoom="1.1443368"
-     inkscape:cx="171.27825"
-     inkscape:cy="144.18832"
+     inkscape:zoom="1.1078521"
+     inkscape:cx="36.105903"
+     inkscape:cy="82.140928"
      inkscape:window-width="2256"
      inkscape:window-height="1464"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="glow-ml" />
+     inkscape:current-layer="glow-ml-stage" />
   <!-- Glow Machine Learning extension icon, glow-ets/scratch-gui#21.
        Laid out like glow-midi.svg: Glow swirl on the left, wordmark on the
        right. Background is the magenta of glow-ml-small.png, which is also the
@@ -45,106 +45,111 @@
      ry="24"
      fill="#b800b0"
      id="rect2" />
+  <rect
+     style="color:#000000;overflow:visible;fill:none;fill-rule:evenodd;stroke:#ffffff;stroke-width:5.60688;stroke-linejoin:bevel;stroke-miterlimit:19.3;stroke-dasharray:none;paint-order:stroke markers fill;stop-color:#000000"
+     id="rect305"
+     width="228.92459"
+     height="143.15341"
+     x="329.91504"
+     y="48.868748"
+     rx="11.13255"
+     ry="14.147074" />
   <!-- A 3-2-1 network: examples in, features across, one label out. The single
        output node is filled to read as 'the answer', the rest are outlines. -->
   <g
-     stroke="#ffdafb"
-     stroke-width="6"
-     fill="none"
-     opacity="0.85"
-     id="g8"
-     transform="matrix(0.65338286,0,0,0.65338286,160.67466,2.33176)">
-    <path
-       d="m 400,80 84,52 m -84,-52 84,146 m -84,-47 84,-47 m -84,47 84,47 m -84,52 84,-146 m -84,146 84,-52"
-       id="path4" />
-    <path
-       d="m 484,132 72,47 m -72,47 72,-47"
-       id="path6" />
+     id="g3674"
+     transform="matrix(0.85789563,0,0,0.85789563,137.91055,28.30156)">
+    <g
+       stroke="#ffdafb"
+       stroke-width="6"
+       fill="none"
+       opacity="0.85"
+       id="g8"
+       transform="matrix(0.00925154,-0.95741739,0.85531745,0.01035592,204.14245,597.7943)">
+      <path
+         d="m 484,132 72,47 m -72,47 72,-47"
+         id="path6" />
+      <path
+         d="m 479.56513,134.49594 1.14784,91.86467"
+         id="path6-3"
+         sodipodi:nodetypes="cc" />
+    </g>
+    <g
+       fill="#b800b0"
+       stroke="#ffdafb"
+       stroke-width="8"
+       id="g20"
+       transform="matrix(0.00576707,-0.59681869,0.53317335,0.0064555,280.46139,389.63949)">
+      <circle
+         cx="426.15234"
+         cy="72.402451"
+         r="30.479828"
+         id="circle16"
+         style="fill:#ffdafb;fill-opacity:1;stroke-width:12.8336" />
+      <circle
+         cx="426.15234"
+         cy="223.19737"
+         r="30.479828"
+         id="circle18"
+         style="fill:#ffdafb;fill-opacity:1;stroke-width:12.8336" />
+    </g>
+    <ellipse
+       cx="-62.931847"
+       cy="363.02283"
+       fill="#ffdafb"
+       id="circle22"
+       style="stroke-width:0.904981"
+       transform="matrix(0.00966258,-0.99995332,0.99992671,0.01210679,0,0)"
+       rx="22.97909"
+       ry="20.529123" />
   </g>
-  <g
-     fill="#b800b0"
-     stroke="#ffdafb"
-     stroke-width="8"
-     id="g20"
-     transform="matrix(0.65338286,0,0,0.65338286,160.67466,2.33176)">
-    <circle
-       cx="400"
-       cy="80"
-       r="19"
-       id="circle10" />
-    <circle
-       cx="400"
-       cy="179"
-       r="19"
-       id="circle12" />
-    <circle
-       cx="400"
-       cy="278"
-       r="19"
-       id="circle14" />
-    <circle
-       cx="484"
-       cy="132"
-       r="19"
-       id="circle16" />
-    <circle
-       cx="484"
-       cy="226"
-       r="19"
-       id="circle18" />
-  </g>
-  <circle
-     cx="523.95551"
-     cy="119.28729"
-     r="15.681189"
-     fill="#ffdafb"
-     id="circle22"
-     style="stroke-width:0.653382" />
   <!-- Wordmark, same placement and treatment as glow-midi's 'MIDI'. -->
   <text
-     x="157.84526"
-     y="334.81604"
+     x="309.49033"
+     y="303.0795"
      text-anchor="middle"
      font-family="'Courier New', Courier, monospace"
      font-weight="bold"
-     font-size="77.2046px"
+     font-size="102.523px"
      fill="#ffdafb"
      stroke="#9c0093"
-     stroke-width="1.61428"
+     stroke-width="2.14364"
      stroke-opacity="0.83"
      id="text24"
-     style="stroke:#e148e7;stroke-opacity:1"><tspan
+     style="stroke:#e148e7;stroke-opacity:1"
+     transform="scale(0.92890634,1.0765348)"><tspan
        sodipodi:role="line"
        id="tspan366"
-       x="157.84526"
-       y="334.81604"
-       style="text-align:start;text-anchor:start;stroke-width:1.61428;stroke:#e148e7;stroke-opacity:1">Stage</tspan></text>
+       x="309.49033"
+       y="303.0795"
+       style="text-align:start;text-anchor:start;stroke:#e148e7;stroke-width:2.14364;stroke-opacity:1">Stage</tspan></text>
   <text
-     x="158.77757"
-     y="277.10751"
+     x="176.43208"
+     y="270.40775"
      text-anchor="middle"
      font-family="'Courier New', Courier, monospace"
      font-weight="bold"
-     font-size="77.2046px"
+     font-size="124.847px"
      fill="#ffdafb"
      stroke="#9c0093"
-     stroke-width="1.61428"
+     stroke-width="2.61042"
      stroke-opacity="0.83"
      id="text24-3"
-     style="stroke:#e148e7;stroke-opacity:1"><tspan
+     style="stroke:#e148e7;stroke-opacity:1"
+     transform="scale(0.82286228,1.2152702)"><tspan
        sodipodi:role="line"
        id="tspan366-7"
-       x="158.77757"
-       y="277.10751"
-       style="text-align:start;text-anchor:start;stroke-width:1.61428;stroke:#e148e7;stroke-opacity:1"><tspan
+       x="176.43208"
+       y="270.40775"
+       style="text-align:start;text-anchor:start;stroke:#e148e7;stroke-width:2.61042;stroke-opacity:1"><tspan
          dy="0"
          id="tspan468"
-         style="text-align:start;text-anchor:start;stroke-width:1.61428;stroke:#e148e7;stroke-opacity:1"><tspan
-   style="fill:#fbdaff;fill-opacity:1;stroke:#e148e7;stroke-opacity:1"
-   id="tspan974">ML</tspan></tspan></tspan></text>
+         style="text-align:start;text-anchor:start;stroke:#e148e7;stroke-width:2.61042;stroke-opacity:1"><tspan
+           style="fill:#fbdaff;fill-opacity:1;stroke:#e148e7;stroke-width:2.61042;stroke-opacity:1"
+           id="tspan974">ML</tspan></tspan></tspan></text>
   <g
      id="g316"
-     transform="matrix(3.4772302,0,0,3.4772302,27.125952,71.058384)">
+     transform="matrix(3.4772302,0,0,3.4772302,15.125952,71.058384)">
     <path
        fill="#fdfbfc"
        opacity="1"
@@ -156,14 +161,14 @@
        fill="#c000b4"
        opacity="1"
        stroke="none"
-       d="m 59.610922,47.966833 c 0.01946,-0.03434 0.05955,-0.05026 0.09965,-0.06617 -0.002,0.03074 -0.004,0.06147 -0.0217,0.106555 -0.02949,0.0022 -0.04341,-0.0098 -0.07796,-0.04037 z"
+       d="m 59.610922,46.241323 c 0.01946,-0.03434 0.05955,-0.05026 0.09965,-0.06617 -0.002,0.03074 -0.004,0.06147 -0.0217,0.106555 -0.02949,0.0022 -0.04341,-0.0098 -0.07796,-0.04037 z"
        id="path20-6"
        style="stroke-width:0.0781248" />
     <path
        fill="#c000b4"
        opacity="1"
        stroke="none"
-       d="m 38.474466,42.375355 c -0.0033,0.0018 0.0033,-0.0018 0,0 z"
+       d="m 38.474466,40.649845 c -0.0033,0.0018 0.0033,-0.0018 0,0 z"
        id="path22-0"
        style="stroke-width:0.0781248" />
   </g>

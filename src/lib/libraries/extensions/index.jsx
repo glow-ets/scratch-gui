@@ -130,7 +130,7 @@ export default [
         insetIconURL: glowMLStageInsetIconURL,
         description: (
             <FormattedMessage
-                defaultMessage="Train and recognize images from the stage, without the webcam. Customization of original Junya Ishihara's ML2Scratch."
+                defaultMessage="Train and recognize images from stage or pen. Customization of original Junya Ishihara's ML2Scratch."
                 description="Description for the 'Glow ML Stage' extension"
                 id="glow.extension.glowMLStage.description"
             />
