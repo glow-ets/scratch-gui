@@ -7,7 +7,12 @@
 // values come from the global Scratch API and from ml5 fetched at load time.
 // Everything below this preamble is champierre's original code apart from the
 // changes marked 'Glow:', the renaming of labels to categories, and the
-// registration block at the end of the file. See glow-ets/scratch-gui#21.
+// loading code at the end of the file. See glow-ets/scratch-gui#21.
+//
+// Glow: this file is the part shared by the Glow ML extensions and registers
+// nothing by itself. glow-ml-webcam.js (camera only) and glow-ml-stage.js (stage
+// only) load it and extend GlowMLBase; the split keeps pupils' faces out of the
+// training data a Stage project saves, and lets a school do without the webcam.
 
 /* global Scratch */
 
@@ -84,21 +89,7 @@ let mobilenetOptions = {};
 let formatMessage = message => Scratch.translate(message);
 formatMessage.setup = () => ({locale: Scratch.vm.getLocale()});
 
-/**
- * URL to get this extension as a module.
- * When it was loaded as a module, 'extensionURL' will be replaced a URL which is retrieved from.
- * @type {string}
- */
-let extensionURL = servedFrom('static/extensions/glow-ml/glow-ml.js');
-
 const HAT_TIMEOUT = 100;
-
-/**
- * Glow: how often the extension may ask the browser for the camera again after being
- * refused. Every block that needs the camera goes through one shared attempt, so that
- * a 'forever' loop cannot turn a missing camera into a stream of permission requests.
- */
-const CAMERA_RETRY_MS = 3000;
 
 /**
  * Glow: how many categories a project may carry. A hand-edited project.json with
@@ -123,8 +114,9 @@ const ANY = 'any';
  * Where the training data lives inside the project, via the VM's asset manager
  * (glow-ets/scratch-gui#22). Stored as a real asset rather than in project.json,
  * so restore points share one copy of it instead of duplicating it per snapshot.
+ * The owner is the extension id, so Webcam and Stage in one project keep separate
+ * training data.
  */
-const ASSET_OWNER = 'glowML';
 const ASSET_NAME = 'training';
 
 /** How long to wait after the last change before writing the data again. */
@@ -375,11 +367,6 @@ const vetTrainingData = parsed => {
 const sortCategories = categories => categories.sort(
   (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
 );
-
-// Glow: the same artwork as the library inset icon, so the palette, the
-// blocks and the library card all read as one extension. Upstream's icon is
-// green, which clashed with the pink blocks.
-const blockIconURI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFOUlEQVR4Xu2az4oUSRDGo6rHVZQRvCzKIANCy6JP4BsIzjyBIIuCiHgVxbsiwt5FELz4BKPgyYOXfYJd/LM0LIsoHjyMIDJ2VRlfVsVMdk11T3ZGVXePGzm0U2NXZGX+8ouMzMhKhvS5ICvRBNJoSzN0BAygUggG0AAqCSjNTYEGUElAaW4KNIBKAkpzU6ABVBJQmpsCDaCSgNLcFGgAlQSU5qZAA6gkoDQ3BRpAJQGluSnQACoJKM1NgUqAS7H2T+hprOnC2P1OF9VtSWKONT/e36Rfb56khAr+If69f4o7wy343zSlTw/+o+O3j6oaPzVAKO9Sfp0OJD+B9z8bUrb+RQUwikJS5O6hWZ5TzqO5nz4Ftzer2o8+aKeiqDmwqJw2TRJK+LPfStLiuxhxCqyItdiO/TYG2+2NUuCk3iKsYI6GLgEYKg0pmAb8OycpG27oYgECGBuxH4Q8opN7WgVYRmS4ddlW6VZIpA4F7eqtHjBN/Z3Q40pbAwjlOSVwZHv351vX3v6505Rd6FEvRIVsN1LWltwiyVfXuGckDfd2Baxeb2sA0VEo7Z8K3ql7JyijL9TbWCbiDsJF6ypDFO/xegzQ/eXE4M4H6tNpAhixE3Xj3sfrD7f78Ype0pXixtzcOCqI1EdBgslWNiSAw0cK1LhVZA6eH3Qwjzl4XESxYuPby//JvNekrK1qWTKPoNYKQOkUPLW+rgKMX56XXcu99VcuOFlRTcBm5YLa7VyrAMd1GgrL+Mse715clOYfXDepbxbgZCop1nh+5ikGW9PYBfVMAEJhvSpI5DmrUXxtzupzAYrn2ZVbq3T+/nrU2M0EoCgNG8BempC4b33ui+qB0ki2dStnV6JqmhlAqDD9FwiT0n35ep5zn9BKlYvwmQF0Knz0miNymYjA9SIUbeRubR0YAgOKG1AJbhHUF9Lmve6ZKcCfCdzOFLAXYvt+IoGZzoGLOBbaPM7/HiD22prS+RyIxICUeuCQ7w4fPaI63HH7ZJbS9n65JqtJ+ULZj7//6z0dp+kPmDoHiJQWVvvYyg3o713Rt3/3DH3LMxpsvomOzEtpz43RuJxiPRPkp8Vg5+BFns51CrBMS3E6iwu62L/6G72rljG47q8eoyHDO1QBiHUlt01E6osrqM9p+LsO1gm2uhFptBjlSVs7BehcdqN8lFPBakpQnBS4nKgnFh7s/PxgUz1XNq45wHhe/agAiYRY9TnVaxpet500H6PhgIhO4OMm75BMtbKBSBIA8JB3QGhDPa+ogdcaQHEbmZClz34AQQrGuVL1cUeifOOkRKnPLpb1i9ulC/i5SL/e2DRW6y7s3JGTBBjxwWYZeRFdnet4Zxvj1l2414/KK2vHXB07B0hlRhtpfrjkXm7rQ3IunO64cOighYi/tTlQOorcWr1MWkY4t2IDsauf4I0cdUrFDPEyn4OIW448z6sAoPxXULp4CaA1gNIJf6JuOkhqGlVxZXTQvx6nAHlG4/s5o4fLroqm4BGirpB7ogCW72Q1l1JR5ffTnvXKcfleSvGfsasVuw6hu339JAqgJCFdRMUI13ohItg+OAoZSsxv1X0hdhP3sCMN4ojvPR92oZ4R0uypX29DpV+/H6blpYMh9S/2PS283halwM0/PtJy5BnCIhGN3f/6fYhS4CJBmHdbWt2JzLsz83i+AVRSN4AGUElAaW4KNIBKAkpzU6ABVBJQmpsCDaCSgNLcFGgAlQSU5qZAA6gkoDQ3BRpAJQGluSnQACoJKM1NgQZQSUBpbgo0gEoCSvMfVmgck4O62jUAAAAASUVORK5CYII=';
 
 const Message = {
   train: {
@@ -646,14 +633,6 @@ const Message = {
     'zh-cn': '将视频透明度设为[TRANSPARENCY]',
     'zh-tw': '將視訊透明度設為[TRANSPARENCY]'
   },
-  set_input: {
-    'ja': '[INPUT]の画像を学習/判定する',
-    'ja-Hira': '[INPUT]のがぞうをがくしゅう/はんていする',
-    'en': 'learn / recognize from [INPUT]',
-    'it': 'addestra / riconosci da [INPUT]',
-    'zh-cn': '学习/分类[INPUT]图像',
-    'zh-tw': '學習/分類[INPUT]影像'
-  },
   switch_webcam: {
     'ja': 'カメラを[DEVICE]に切り替える',
     'ja-Hira': 'カメラを[DEVICE]にきりかえる',
@@ -686,22 +665,6 @@ const Message = {
     'zh-cn': '镜像开启',
     'zh-tw': '翻轉'
   },
-  webcam: {
-    'ja': 'カメラ',
-    'ja-Hira': 'カメラ',
-    'en': 'webcam',
-    'it': 'webcam',
-    'zh-cn': '网络摄像头',
-    'zh-tw': '網路攝影機'
-  },
-  stage: {
-    'ja': 'ステージ',
-    'ja-Hira': 'ステージ',
-    'en': 'stage',
-    'it': 'stage',
-    'zh-cn': '舞台',
-    'zh-tw': '舞台'
-  },
   unnamed_camera: {
     'ja': '選んだカメラ',
     'ja-Hira': 'えらんだカメラ',
@@ -719,12 +682,12 @@ const Message = {
     'zh-tw': '[BLOCK]沒有任何作用：沒有可切換的攝影機。請在瀏覽器中允許攝影機。'
   },
   no_input: {
-    'ja': '[BLOCK]を停止しました。カメラの映像がありません。ブラウザでカメラを許可するか、「[INPUT]」でステージから学習して下さい。',
-    'ja-Hira': '[BLOCK]をていししました。カメラのえいぞうがありません。ブラウザでカメラをきょかするか、「[INPUT]」でステージからがくしゅうしてください。',
-    'en': '[BLOCK] FAILED: there is no picture to learn from! Allow the camera in your browser, or use "[INPUT]" instead.',
-    'it': "[BLOCK] È FALLITO: non c'è nessuna immagine da cui imparare! Permetti la webcam nel browser, oppure usa \"[INPUT]\".",
-    'zh-cn': '[BLOCK]已停止：没有可学习的画面。请在浏览器中允许摄像头，或使用“[INPUT]”改从舞台学习。',
-    'zh-tw': '[BLOCK]已停止：沒有可學習的畫面。請在瀏覽器中允許攝影機，或使用「[INPUT]」改從舞台學習。'
+    'ja': '[BLOCK]を停止しました。カメラの映像がありません。ブラウザでカメラを許可して下さい。',
+    'ja-Hira': '[BLOCK]をていししました。カメラのえいぞうがありません。ブラウザでカメラをきょかしてください。',
+    'en': '[BLOCK] FAILED: there is no picture to learn from! Allow the camera in your browser.',
+    'it': "[BLOCK] È FALLITO: non c'è nessuna immagine da cui imparare! Permetti la webcam nel browser.",
+    'zh-cn': '[BLOCK]已停止：没有可学习的画面。请在浏览器中允许摄像头。',
+    'zh-tw': '[BLOCK]已停止：沒有可學習的畫面。請在瀏覽器中允許攝影機。'
   },
   max_examples_per_category: {
     'ja': '[BLOCK]を停止しました。1つのカテゴリーに保存できる学習例は[N]個までです。[CATEGORY]をリセットするか削除すると、また学習できます。',
@@ -762,40 +725,25 @@ const Message = {
 
 const AvailableLocales = ['en', 'it', 'ja', 'ja-Hira', 'zh-cn', 'zh-tw'];
 
-class GlowMLBlocks {
-
-  /**
-   * @return {string} - the name of this extension.
-   */
-  static get EXTENSION_NAME() {
-    // Also the stage monitor prefix ('<name>: <block text>') and the palette
-    // category heading, so it has to stay short.
-    return 'Glow ML';
-  }
-
-  /**
-   * @return {string} - the ID of this extension.
-   */
-  static get EXTENSION_ID() {
-    return 'glowML';
-  }
-
-  /**
-   * URL to get this extension.
-   * @type {string}
-   */
-  static get extensionURL() {
-    return extensionURL;
-  }
-
-  /**
-   * Set URL to get this extension.
-   * extensionURL will be reset when the module is loaded from the web.
-   * @param {string} url - URL
-   */
-  static set extensionURL(url) {
-    extensionURL = url;
-  }
+/**
+ * Glow: what every Glow ML extension shares - the category pool, training and
+ * recognising, the example caps, saving into the project, and how problems are
+ * reported. It never registers itself: glow-ml-webcam.js and glow-ml-stage.js each
+ * extend it with where the picture comes from, their own blocks, and their
+ * identity. They differ in what they may look at, which is the point of having two:
+ * a teacher who does not want the webcam used picks the one that cannot use it,
+ * and the training data a Stage project saves holds no pupil's face.
+ *
+ * A subclass provides:
+ *  - static EXTENSION_ID, EXTENSION_NAME, EXTENSION_URL and COLORS ([c1, c2, c3]),
+ *    and static BLOCK_ICON_URI;
+ *  - getInput(): what to show MobileNet, or null;
+ *  - inputAvailable(): whether getInput() is worth calling right now, silently;
+ *  - ensureInput(): a Promise<boolean>, a chance to bring a lost input back;
+ *  - checkInput(block, util): like inputAvailable(), but says what is wrong;
+ *  - variantBlocks() and variantMenus(): its own blocks, after the shared ones.
+ */
+class GlowMLBase {
 
   constructor(runtime) {
     this.runtime = runtime;
@@ -823,24 +771,12 @@ class GlowMLBlocks {
     this.modelBroken = false;
 
     this.interval = 1000;
-    this.globalVideoTransparency = 0;
-    this.setVideoTransparency({
-      TRANSPARENCY: this.globalVideoTransparency
-    });
 
     // Glow: not cached. document.querySelector('canvas') returns the first canvas in
     // the document, and React remounts the stage on the small/large toggle and on
     // fullscreen, so a reference taken here goes stale and detached. Training then
     // ran silently against a blank node, with a green glow and no error.
     this.canvas = null;
-
-    // Glow: VideoProvider._setupVideo() catches getUserMedia failures, calls its
-    // own onError and resolves undefined, so there is nothing here to .catch().
-    // A refused or missing camera arrives as a null video instead, which used to
-    // surface much later as ml5 reading '.elt' of null, reported as a broken model.
-    this.runtime.ioDevices.video.enableVideo().then(() => {
-      this.input = this.runtime.ioDevices.video.provider.video;
-    });
 
     this.knnClassifier = ml5.KNNClassifier();
 
@@ -860,15 +796,11 @@ class GlowMLBlocks {
     this.reportedProblems = new Set();
     // When the last speech bubble went up, so a loop cannot emit one per frame.
     this.lastSayAt = 0;
-    // The in-flight camera retry, and when the last one started.
-    this.cameraRetry = null;
-    this.cameraRetriedAt = 0;
     // When each block was last clicked, and whether a question is already on screen.
     this.blockClickedAt = new Map();
     this.confirming = false;
     // Training runs one at a time; this is the tail of the queue.
     this.trainQueue = Promise.resolve();
-    this.refreshingDevices = false;
     // The bubble we put up, and the timer that takes it down again.
     this.sayTarget = null;
     this.sayTimer = null;
@@ -899,16 +831,20 @@ class GlowMLBlocks {
         'inside the project. The download and upload blocks still work. See glow-ets/scratch-gui#22');
     }
 
-    this.featureExtractor = ml5.featureExtractor('MobileNet', mobilenetOptions, error => {
-      // Glow: do not start classifying when the model failed to load, or every
-      // interval throws.
-      if (error) {
-        this.reportBrokenModel(error);
-        return;
-      }
+    // Glow: one MobileNet for every Glow ML extension in the page. It is the
+    // expensive part - megabytes of weights and a WebGL context - and infer() keeps
+    // no state between calls, so a project using both Webcam and Stage shares it.
+    // Each extension still has its own classifier.
+    const shared = sharedFeatureExtractor();
+    this.featureExtractor = shared.extractor;
+    shared.loaded.then(() => {
       console.log('[featureExtractor] Model Loaded!');
       this.modelReady = true;
       this.startClassifying();
+    }, error => {
+      // Glow: do not start classifying when the model failed to load, or every
+      // interval throws.
+      this.reportBrokenModel(error);
     });
 
     // The callback above has been seen to fire before a later stage of the load
@@ -916,8 +852,6 @@ class GlowMLBlocks {
     if (this.featureExtractor && this.featureExtractor.ready && this.featureExtractor.ready.catch) {
       this.featureExtractor.ready.catch(error => this.reportBrokenModel(error));
     }
-
-    this.devices = [{ text: 'default', value: '' }];
 
     // Glow: held on `this` and wired by reference rather than looked up by id. Two
     // instances of the extension would otherwise both answer to '#upload-button', and
@@ -951,27 +885,19 @@ class GlowMLBlocks {
     }
 
     this.buildCategoryDialog();
-
-    // Glow: enumerateDevices() reports neither labels nor ids before permission is
-    // granted, so the list has to be rebuilt - here, whenever the dropdown is opened,
-    // and whenever a camera is plugged in.
-    this.refreshDevices();
-    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
-      navigator.mediaDevices.addEventListener('devicechange', () => this.refreshDevices());
-    }
   }
 
   getInfo() {
     this.locale = this.setLocale();
 
     return {
-      id: GlowMLBlocks.EXTENSION_ID,
-      name: GlowMLBlocks.EXTENSION_NAME,
-      extensionURL: GlowMLBlocks.extensionURL,
-      blockIconURI: blockIconURI,
-      color1: '#f000ee',
-      color2: '#c000be',
-      color3: '#950094',
+      id: this.constructor.EXTENSION_ID,
+      name: this.constructor.EXTENSION_NAME,
+      extensionURL: this.constructor.EXTENSION_URL,
+      blockIconURI: this.constructor.BLOCK_ICON_URI,
+      color1: this.constructor.COLORS[0],
+      color2: this.constructor.COLORS[1],
+      color3: this.constructor.COLORS[2],
       blocks: [
         {
           blockType: BlockType.BUTTON,
@@ -1083,56 +1009,9 @@ class GlowMLBlocks {
               defaultValue: 'off'
             }
           }
-        },
-        {
-          opcode: 'setVideoTransparency',
-          text: Message.set_video_transparency[this.locale],
-          blockType: BlockType.COMMAND,
-          arguments: {
-            TRANSPARENCY: {
-              type: ArgumentType.NUMBER,
-              defaultValue: 50
-            }
-          }
-        },
-        {
-          opcode: 'switchCamera',
-          blockType: BlockType.COMMAND,
-          text: Message.switch_webcam[this.locale],
-          arguments: {
-            DEVICE: {
-              type: ArgumentType.STRING,
-              defaultValue: '',
-              menu: 'mediadevices'
-            }
-          }
-        },
-        {
-          opcode: 'setInput',
-          text: Message.set_input[this.locale],
-          blockType: BlockType.COMMAND,
-          arguments: {
-            INPUT: {
-              type: ArgumentType.STRING,
-              menu: 'input_menu',
-              defaultValue: 'webcam'
-            }
-          }
-        },
-        {
-          opcode: 'toggleVideo',
-          text: Message.toggle_video[this.locale],
-          blockType: BlockType.COMMAND,
-          arguments: {
-            VIDEO_STATE: {
-              type: ArgumentType.STRING,
-              menu: 'video_menu',
-              defaultValue: 'off'
-            }
-          }
         }
-      ],
-      menus: {
+      ].concat(this.variantBlocks()),
+      menus: Object.assign({
         train_menu: {
           items: 'getTrainMenu'
         },
@@ -1148,40 +1027,27 @@ class GlowMLBlocks {
         count_menu: {
           items: 'getCountMenu'
         },
-        video_menu: this.getVideoMenu(),
         classification_interval_menu: {
           acceptReporters: true,
           items: this.getClassificationIntervalMenu()
         },
-        classification_menu: this.getClassificationMenu(),
-        input_menu: this.getInputMenu(),
-        mediadevices: {
-          acceptReporters: true,
-          items: 'getDevices'
-        }
-      }
+        classification_menu: this.getClassificationMenu()
+      }, this.variantMenus())
     };
   }
 
   /**
-   * The transparency setting of the video preview stored in a value
-   * accessible by any object connected to the virtual machine.
-   * @type {number}
+   * @return {object[]} - the subclass's own blocks, shown after the shared ones
    */
-  get globalVideoTransparency() {
-    const stage = this.runtime.getTargetForStage();
-    if (stage) {
-      return stage.videoTransparency;
-    }
-    return 50;
+  variantBlocks() {
+    return [];
   }
 
-  set globalVideoTransparency(transparency) {
-    const stage = this.runtime.getTargetForStage();
-    if (stage) {
-      stage.videoTransparency = transparency;
-    }
-    return transparency;
+  /**
+   * @return {object} - menus used by variantBlocks()
+   */
+  variantMenus() {
+    return {};
   }
 
   train(args, util) {
@@ -1197,11 +1063,11 @@ class GlowMLBlocks {
         if (!this.checkExampleLimits(args.CATEGORY, util)) {
           return undefined;
         }
-        // Glow: ask for the camera again before giving up on it. This is the block a
+        // Glow: ask for the input again before giving up on it. This is the block a
         // child presses after closing the other tab that was holding the webcam, so
         // it is the one that has to notice the camera came back.
-        return this.ensureCamera().then(() => {
-          if (!this.checkInputReady(args, util)) {
+        return this.ensureInput().then(() => {
+          if (!this.checkInput(this.blockName('train', {CATEGORY: args.CATEGORY}), util)) {
             return undefined;
           }
           return this.trainNow(args, util);
@@ -1228,15 +1094,15 @@ class GlowMLBlocks {
     return new Promise(resolve => {
       afterPaint(() => {
         try {
-          const features = this.featureExtractor.infer(this.input);
+          const features = this.featureExtractor.infer(this.getInput());
           this.knnClassifier.addExample(features, args.CATEGORY);
           this.updateCounts();
           this.scheduleSave();
         } catch (error) {
           // The camera can die between the check above and here. That is not a
           // broken model, and saying so would be the old misleading message.
-          if (!this.usingStageInput() && !this.hasWorkingCamera()) {
-            this.checkCamera(this.blockName('train', {CATEGORY: args.CATEGORY}), util);
+          if (!this.inputAvailable()) {
+            this.checkInput(this.blockName('train', {CATEGORY: args.CATEGORY}), util);
           } else {
             this.reportBrokenModel(error);
           }
@@ -1386,9 +1252,9 @@ class GlowMLBlocks {
     }
     // Glow: classify() is on a timer and has to stay silent, so turning it on is the
     // moment to say that it will not see anything - and the moment to ask for the
-    // camera once more, in case it has come back.
-    return this.ensureCamera().then(() => {
-      this.checkCamera(this.blockName('toggle_classification', {CLASSIFICATION_STATE: state}), util);
+    // input once more, in case it has come back.
+    return this.ensureInput().then(() => {
+      this.checkInput(this.blockName('toggle_classification', {CLASSIFICATION_STATE: state}), util);
       this.startClassifying();
     });
   }
@@ -1434,70 +1300,12 @@ class GlowMLBlocks {
     }
 
     // Glow: this restarts the classify timer, so it has the same blind spot.
-    this.checkCamera(
+    this.checkInput(
       this.blockName('set_classification_interval', {CLASSIFICATION_INTERVAL: args.CLASSIFICATION_INTERVAL}),
       util
     );
     this.interval = seconds * 1000;
     this.startClassifying();
-  }
-
-  toggleVideo(args, util) {
-    let state = args.VIDEO_STATE;
-    if (state === 'off') {
-      this.runtime.ioDevices.video.disableVideo();
-      // Glow: and stop reporting on a picture that is no longer arriving. The
-      // classifier keeps its training - this is not a reset - but the last thing it
-      // recognised is not an answer about now, so the reporters go quiet and the
-      // hats stop firing rather than repeating a stale category.
-      if (!this.usingStageInput()) {
-        this.input = null;
-        this.category = null;
-        this.confidence = 0;
-        this.when_received = false;
-        this.whenReceivedFlags.clear();
-      }
-    } else {
-      const block = this.blockName('toggle_video', {VIDEO_STATE: state});
-      this.runtime.ioDevices.video.enableVideo().then(() => {
-        this.input = this.runtime.ioDevices.video.provider.video;
-        // Glow: enableVideo() resolves whether or not permission was given, so
-        // this is the only place the block can find out that nothing happened.
-        // Without it the failure was a console line and a dead stage.
-        if (!this.usingStageInput()) {
-          this.checkCamera(block, util);
-        }
-      });
-      this.runtime.ioDevices.video.mirror = state === "on";
-    }
-  }
-
-  /**
-   * A scratch command block handle that configures the video preview's
-   * transparency from passed arguments.
-   * @param {object} args - the block arguments
-   * @param {number} args.TRANSPARENCY - the transparency to set the video
-   *   preview to
-   */
-  setVideoTransparency(args) {
-    const transparency = Cast.toNumber(args.TRANSPARENCY);
-    this.globalVideoTransparency = transparency;
-    this.runtime.ioDevices.video.setPreviewGhost(transparency);
-  }
-
-  setInput(args, util) {
-    let input = args.INPUT;
-    if (input === 'webcam') {
-      this.input = this.runtime.ioDevices.video.provider.video;
-      // Glow: switching to a camera that is not there should say so now, rather
-      // than leaving the next train block to fail.
-      this.checkCamera(this.blockName('set_input', {INPUT: Message.webcam[this.locale]}), util);
-    } else {
-      this.input = this.stageCanvas();
-      if (!this.input) {
-        console.warn('Glow ML: no stage canvas found, so the stage cannot be used as input');
-      }
-    }
   }
 
   uploadButtonClicked() {
@@ -1590,15 +1398,15 @@ class GlowMLBlocks {
     if (!this.checkModelReady()) {
       return;
     }
-    // Glow: no picture, nothing to classify. Checks the camera rather than just
-    // this.input, because a permission revoked mid-session leaves the video
-    // element in place but dead. Silent: the timer runs every second, and
+    // Glow: no picture, nothing to classify. Asks the subclass rather than just
+    // looking at getInput(), because a permission revoked mid-session leaves the
+    // video element in place but dead. Silent: the timer runs every second, and
     // train() or 'turn classification on' is where a person finds out.
-    if (!this.usingStageInput() && (!this.input || !this.hasWorkingCamera())) {
+    if (!this.inputAvailable()) {
       // Glow: the loop is the 'when I recognize' path, so it has to notice a camera
-      // that has come back. ensureCamera's cooldown keeps this to one attempt every
-      // few seconds however fast the loop runs.
-      this.ensureCamera();
+      // that has come back. The webcam's retry cooldown keeps this to one attempt
+      // every few seconds however fast the loop runs.
+      this.ensureInput();
       return;
     }
     let numCategories = this.knnClassifier.getNumLabels();
@@ -1606,14 +1414,14 @@ class GlowMLBlocks {
 
     let features;
     try {
-      features = this.featureExtractor.infer(this.input);
+      features = this.featureExtractor.infer(this.getInput());
     } catch (error) {
       // Glow: the same distinction train() makes. A camera that died between the
       // check above and here is not a broken model, and declaring the model broken
       // is permanent - one transient throw from a background timer used to kill
       // training and recognising for the rest of the session.
-      if (!this.usingStageInput() && !this.hasWorkingCamera()) {
-        this.ensureCamera();
+      if (!this.inputAvailable()) {
+        this.ensureInput();
         return;
       }
       this.reportBrokenModel(error);
@@ -1705,7 +1513,7 @@ class GlowMLBlocks {
    */
   get categories() {
     const storage = this.runtime.extensionStorage || {};
-    const stored = storage[GlowMLBlocks.EXTENSION_ID];
+    const stored = storage[this.constructor.EXTENSION_ID];
     // Glow: the elements come out of project.json, so they are whatever that file
     // says. One number or null among them used to throw inside sortCategories'
     // comparator, which took out every menu and every block in the palette.
@@ -1726,9 +1534,9 @@ class GlowMLBlocks {
   }
 
   set categories(categories) {
-    const stored = this.runtime.extensionStorage[GlowMLBlocks.EXTENSION_ID] || {};
+    const stored = this.runtime.extensionStorage[this.constructor.EXTENSION_ID] || {};
     stored.categories = categories;
-    this.runtime.extensionStorage[GlowMLBlocks.EXTENSION_ID] = stored;
+    this.runtime.extensionStorage[this.constructor.EXTENSION_ID] = stored;
   }
 
   /**
@@ -1891,36 +1699,6 @@ class GlowMLBlocks {
     return this.getResetMenu();
   }
 
-  getVideoMenu() {
-    return [
-      {
-        text: Message.off[this.locale],
-        value: 'off'
-      },
-      {
-        text: Message.on[this.locale],
-        value: 'on'
-      },
-      {
-        text: Message.video_on_flipped[this.locale],
-        value: 'on-flipped'
-      }
-    ]
-  }
-
-  getInputMenu() {
-    return [
-      {
-        text: Message.webcam[this.locale],
-        value: 'webcam'
-      },
-      {
-        text: Message.stage[this.locale],
-        value: 'stage'
-      }
-    ]
-  }
-
   getClassificationIntervalMenu() {
     return [
       {
@@ -1956,86 +1734,6 @@ class GlowMLBlocks {
   }
 
   /**
-   * Glow: whether the camera is actually delivering frames right now.
-   *
-   * VideoProvider.videoReady covers a camera that never started - refused at the
-   * prompt, or absent from the machine. It does not notice a permission revoked
-   * mid-session: the track ends but the video element keeps its last dimensions,
-   * so readyState is the only reliable signal for that.
-   * @return {boolean} - whether the camera is usable
-   */
-  /**
-   * Glow: ask for the camera again, once, and say whether it is usable now.
-   *
-   * A camera that *did* work and was then taken away needs tearing down first:
-   * _setupVideo()'s cached promise is resolved, so enableVideo() hands it straight
-   * back without retrying. disableVideo()'s teardown runs in a .then gated on
-   * enabled still being false, so the two cannot be called in the same tick - hence
-   * the await between them.
-   *
-   * Known limitation, glow-ets/scratch-gui#25: a camera *refused* once cannot be
-   * recovered at all. src/lib/video/camera.js caches the first getUserMedia promise,
-   * rejection included, and nothing pops a rejected entry.
-   * @returns {Promise<boolean>} whether the camera can be used now
-   */
-  ensureCamera() {
-    if (this.hasWorkingCamera()) {
-      return Promise.resolve(true);
-    }
-    const video = this.runtime.ioDevices.video;
-    if (!video || !video.provider) {
-      return Promise.resolve(false);
-    }
-    // Glow: 'turn video off' means off. provider.enabled is the difference between
-    // a camera somebody switched off and one that was refused - disableVideo() sets
-    // it false, enableVideo() sets it true before it even asks for a stream. Without
-    // this check the classify timer called ensureCamera a second later and switched
-    // the camera straight back on.
-    if (!video.provider.enabled) {
-      return Promise.resolve(false);
-    }
-    // One attempt at a time, shared by every block and by the classify timer, so
-    // that a 'forever' loop cannot turn into a stream of getUserMedia requests.
-    if (this.cameraRetry) {
-      return this.cameraRetry;
-    }
-    const now = Date.now();
-    if (this.cameraRetriedAt && now - this.cameraRetriedAt < CAMERA_RETRY_MS) {
-      return Promise.resolve(false);
-    }
-    this.cameraRetriedAt = now;
-
-    const provider = video.provider;
-    const track = provider._track;
-    const stale = Boolean(track && track.readyState === 'ended');
-
-    this.cameraRetry = Promise.resolve()
-      .then(() => {
-        if (!stale) {
-          return null;
-        }
-        video.disableVideo();
-        // Let the teardown's .then run before asking again.
-        return new Promise(resolve => setTimeout(resolve, 0));
-      })
-      .then(() => video.enableVideo())
-      // enableVideo resolves even when getUserMedia was refused - the provider
-      // swallows the error into onError - so the answer is whether it works now,
-      // not whether this settled.
-      .catch(() => null)
-      .then(() => {
-        this.cameraRetry = null;
-        const working = this.hasWorkingCamera();
-        if (working) {
-          // Let the problem be reported again if it comes back.
-          this.reportedProblems.clear();
-        }
-        return working;
-      });
-    return this.cameraRetry;
-  }
-
-  /**
    * Glow: the stage canvas, looked up each time it is needed.
    * @returns {?HTMLCanvasElement} the canvas, or null before the stage has rendered
    */
@@ -2045,25 +1743,6 @@ class GlowMLBlocks {
     }
     this.canvas = document.querySelector('canvas');
     return this.canvas;
-  }
-
-  hasWorkingCamera() {
-    const video = this.runtime.ioDevices.video;
-    if (!video || !video.provider || !video.videoReady) {
-      return false;
-    }
-    const track = video.provider._track;
-    return !track || track.readyState !== 'ended';
-  }
-
-  /**
-   * Glow: 'Learn/Classify [stage] image' works with no camera at all, so a
-   * missing camera is only a problem when the stage is not the input.
-   * @return {boolean} - whether the stage is the current input
-   */
-  usingStageInput() {
-    const canvas = this.stageCanvas();
-    return Boolean(canvas) && this.input === canvas;
   }
 
   /**
@@ -2082,49 +1761,6 @@ class GlowMLBlocks {
       text = text.replace(`[${placeholder}]`, () => `[${values[placeholder]}]`);
     }
     return `"${text}"`;
-  }
-
-  /**
-   * Glow: the single place that decides whether there is a picture to work with,
-   * and what to tell someone when there is not.
-   * @param {string} block - the block name, from blockName()
-   * @param {object} [util] - block utility, for the speech bubble
-   * @return {boolean} - whether there is something to look at
-   */
-  checkCamera(block, util) {
-    if (this.usingStageInput()) {
-      return true;
-    }
-    if (this.hasWorkingCamera() && this.input) {
-      return true;
-    }
-    // Glow: a camera that was switched off is not a camera that was refused, and
-    // "allow the camera in your browser" is the wrong thing to tell a child who
-    // turned it off a moment ago. Say which block turns it back on instead.
-    const video = this.runtime.ioDevices.video;
-    if (video && video.provider && !video.provider.enabled) {
-      this.reportProblem(Message.video_is_off[this.locale]
-        .replace('[BLOCK]', block)
-        .replace('[TURN_ON]', this.blockName('toggle_video', {VIDEO_STATE: Message.on[this.locale]})),
-      util);
-      return false;
-    }
-    this.reportProblem(Message.no_input[this.locale]
-      .replace('[BLOCK]', block)
-      .replace('[INPUT]', Message.set_input[this.locale].replace('[INPUT]', Message.stage[this.locale])), util);
-    return false;
-  }
-
-  /**
-   * Glow: there is no point inferring without a picture. ml5 would take the null
-   * video, read '.elt' off it and throw, and the old catch-all reported that as
-   * a broken MobileNet - which is exactly what a pupil who refused the camera
-   * used to be told.
-   * @param {object} [util] - block utility, for the speech bubble
-   * @return {boolean} - whether there is something to learn from
-   */
-  checkInputReady(args, util) {
-    return this.checkCamera(this.blockName('train', {CATEGORY: args.CATEGORY}), util);
   }
 
   /**
@@ -2304,14 +1940,14 @@ class GlowMLBlocks {
     const json = this.serializeTrainingData();
     if (json === null) {
       // Nothing trained: take the entry out rather than storing an empty one.
-      if (this.assetManager.delete(ASSET_OWNER, ASSET_NAME)) {
+      if (this.assetManager.delete(this.constructor.EXTENSION_ID, ASSET_NAME)) {
         this.runtime.emitProjectChanged();
       }
       return;
     }
     const encoded = new TextEncoder().encode(json);
     try {
-      this.assetManager.set(ASSET_OWNER, ASSET_NAME, 'json', encoded);
+      this.assetManager.set(this.constructor.EXTENSION_ID, ASSET_NAME, 'json', encoded);
       // Otherwise the editor has no idea there is anything new to save.
       this.runtime.emitProjectChanged();
       this.warnedAboutSize = false;
@@ -2382,7 +2018,7 @@ class GlowMLBlocks {
     // should not follow the pupil into this one.
     this.modelBroken = false;
 
-    const asset = this.assetManager.get(ASSET_OWNER, ASSET_NAME);
+    const asset = this.assetManager.get(this.constructor.EXTENSION_ID, ASSET_NAME);
     if (!asset) {
       return;
     }
@@ -2467,108 +2103,6 @@ class GlowMLBlocks {
       return 'en';
     }
   }
-
-  switchCamera(args, util) {
-    // Glow: with no camera permission, enumerateDevices() reports no labels and
-    // no ids, so the menu holds only the empty 'default' entry and picking it
-    // used to do nothing at all, silently.
-    if (args.DEVICE === '' || !this.hasWorkingCamera()) {
-      this.reportProblem(Message.no_cameras[this.locale]
-        .replace('[BLOCK]', this.blockName('switch_webcam', {DEVICE: this.deviceName(args.DEVICE)})),
-      util);
-      return;
-    }
-    if (args.DEVICE !== '') {
-      if (this.runtime.ioDevices.video.provider._track !== null) {
-        this.runtime.ioDevices.video.provider._track.stop();
-        const deviceId = args.DEVICE;
-        return navigator.mediaDevices.getUserMedia({ audio: false, video: { deviceId } }).then(
-          stream => {
-            try {
-              this.runtime.ioDevices.video.provider._video.srcObject = stream;
-            } catch (error) {
-              this.runtime.ioDevices.video.provider._video.src = window.URL.createObjectURL(stream);
-            }
-            // Needed for Safari/Firefox, Chrome auto-plays.
-            this.runtime.ioDevices.video.provider._video.play();
-            this.runtime.ioDevices.video.provider._track = stream.getTracks()[0];
-          }
-        ).catch(error => {
-          // Glow: the old track was already stopped and cannot be restarted, so ask
-          // the provider for a camera from scratch rather than leaving it dead.
-          console.warn('Glow ML: could not switch to that camera.', error);
-          this.cameraRetriedAt = 0;
-          return this.ensureCamera().then(working => {
-            if (!working) {
-              this.reportProblem(Message.no_cameras[this.locale]
-                .replace('[BLOCK]', this.blockName('switch_webcam', {DEVICE: this.deviceName(args.DEVICE)})),
-              util);
-            }
-          });
-        });
-      }
-      return undefined;
-    }
-  }
-
-  getDevices() {
-    // Glow: the menu is dynamic, so this runs every time the dropdown is opened -
-    // the right moment to rebuild a list that was gathered before the child granted
-    // camera permission, when enumerateDevices() reports neither labels nor ids.
-    this.refreshDevices();
-    return this.devices;
-  }
-
-  /**
-   * Glow: rebuild the camera list, at most one enumeration at a time.
-   */
-  refreshDevices() {
-    if (this.refreshingDevices || !navigator.mediaDevices) {
-      return;
-    }
-    this.refreshingDevices = true;
-    Promise.resolve(navigator.mediaDevices.enumerateDevices())
-      .then(media => {
-        const found = [{ text: 'default', value: '' }];
-        for (const device of media) {
-          if (device.kind === 'videoinput') {
-            found.push({
-              text: device.label,
-              value: device.deviceId
-            });
-          }
-        }
-        // Keep the old list if this enumeration told us nothing useful, so an
-        // unlucky refresh cannot empty a dropdown that was working.
-        if (found.length > 1 || this.devices.length <= 1) {
-          this.devices = found;
-        }
-      })
-      .catch(error => {
-        console.warn('Glow ML: could not list the cameras.', error);
-      })
-      .then(() => {
-        this.refreshingDevices = false;
-      });
-  }
-
-  /**
-   * Glow: the camera's name as the dropdown shows it. The block stores a deviceId,
-   * which is 64 hex characters and means nothing to a pupil.
-   *
-   * The name can be missing either way round - enumerateDevices() reports empty
-   * labels before permission, and a project can name a camera this machine has never
-   * seen - so both fall back to a generic phrase rather than the raw id.
-   * @param {string} value - the deviceId the block holds, '' for the default
-   * @returns {string} something readable
-   */
-  deviceName(value) {
-    const device = this.devices.find(candidate => candidate.value === value);
-    if (device && device.text) {
-      return device.text;
-    }
-    return Message.unnamed_camera[this.locale];
-  }
 }
 
 // Glow: upstream ends with CommonJS exports, because it is built either into
@@ -2579,7 +2113,11 @@ const loadScript = url => new Promise((resolve, reject) => {
   const script = document.createElement('script');
   script.src = url;
   script.onload = () => resolve(window.ml5);
-  script.onerror = () => reject(new Error(`Glow ML: could not load ml5 from ${url}`));
+  script.onerror = () => {
+    // Glow: take the failed tag out, so a retry does not leave one per attempt.
+    script.remove();
+    reject(new Error(`Glow ML: could not load ml5 from ${url}`));
+  };
   document.head.appendChild(script);
 });
 
@@ -2714,34 +2252,81 @@ const resolveMobilenet = () => Promise.all([
 });
 
 /**
- * Glow: everything above is declarations; this is the only thing the file *does*.
- * Guarded so that requiring the file from a test runner defines the class and the
- * helpers without trying to fetch ml5 or register anything.
+ * Glow: one MobileNet feature extractor for the whole page, created by whichever
+ * Glow ML extension is built first. `loaded` settles when ml5's callback fires.
+ * @type {?{extractor: object, loaded: Promise}}
  */
-if (typeof Scratch !== 'undefined') {
-  start();
+let sharedExtractor = null;
+
+/**
+ * @returns {{extractor: object, loaded: Promise}} the page's MobileNet
+ */
+const sharedFeatureExtractor = () => {
+  if (!sharedExtractor) {
+    let resolveLoaded;
+    let rejectLoaded;
+    const loaded = new Promise((resolve, reject) => {
+      resolveLoaded = resolve;
+      rejectLoaded = reject;
+    });
+    const extractor = ml5.featureExtractor('MobileNet', mobilenetOptions, error => {
+      if (error) {
+        rejectLoaded(error);
+      } else {
+        resolveLoaded();
+      }
+    });
+    sharedExtractor = {extractor, loaded};
+  }
+  return sharedExtractor;
+};
+
+/**
+ * Glow: ml5 and the choice of MobileNet files, shared by every Glow ML extension.
+ * Only a success is kept: after a failure the next extension added tries again,
+ * which is what the alert in the entry scripts tells the pupil to do.
+ * @type {?Promise}
+ */
+let readyPromise = null;
+
+/**
+ * @returns {Promise} settles once ml5 is loaded and the MobileNet files are chosen
+ */
+const whenReady = () => {
+  if (!readyPromise) {
+    readyPromise = loadMl5()
+      .then(loaded => {
+        ml5 = loaded;
+        return resolveMobilenet();
+      })
+      .catch(error => {
+        readyPromise = null;
+        throw error;
+      });
+  }
+  return readyPromise;
+};
+
+/**
+ * Glow: this file registers nothing. glow-ml-webcam.js and glow-ml-stage.js load it
+ * as a plain script and find what they need here. It is evaluated once per page:
+ * the entry scripts share one loading promise, since a second evaluation would
+ * throw on the class declared twice.
+ */
+if (typeof window !== 'undefined') {
+  window.GlowML = {
+    GlowMLBase,
+    Message,
+    whenReady,
+    MAX_CATEGORY_NAME_LENGTH
+  };
 }
 
-function start() {
-  loadMl5().then(loaded => {
-  ml5 = loaded;
-  return resolveMobilenet();
-}).then(() => {
-  Scratch.extensions.register(new GlowMLBlocks(Scratch.vm.runtime));
-}).catch(error => {
-  // The extension manager has no way to hear about this: it is waiting for a
-  // register() call that will never come, so it would otherwise hang silently.
-  // Say out loud what went wrong instead.
-  console.error(error);
-  alert(`Glow ML could not start because ml5.js did not load.\n\nCheck the internet connection and add the extension again.\n\n${error.message}`);
-});
-}
-
-// Glow: for tests only. A browser never sees this; the extension reaches the editor
-// through Scratch.extensions.register above.
+// Glow: for tests only. A browser never sees this; the extensions reach the editor
+// through window.GlowML above.
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    GlowMLBlocks,
+    GlowMLBase,
     validateCategoryName,
     clampCategoryName,
     vetTrainingData,

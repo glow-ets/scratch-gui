@@ -1584,6 +1584,8 @@
     "it": {
         "glow.extension.glowLab.description": "Blocchi Glow Lab per attivit\u00e0 in classe.",
         "glow.extension.glowMidi.description": "Invia e ricevi messaggi MIDI con dispositivi Web MIDI.",
+        "glow.extension.glowMLWebcam.description": "Addestra e riconosci immagini dalla webcam. Personalizzazione di ML2Scratch di Junya Ishihara.",
+        "glow.extension.glowMLStage.description": "Addestra e riconosci immagini dallo stage, senza webcam. Personalizzazione di ML2Scratch di Junya Ishihara.",
         "tw.accent.blue": "Azzurro",
         "tw.accent.purple": "Viola",
         "tw.accent.rainbow": "Arcobaleno",

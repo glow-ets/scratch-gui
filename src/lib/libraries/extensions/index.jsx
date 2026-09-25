@@ -57,8 +57,10 @@ import glowLabIconURL from './glow-lab/glow-lab.svg';
 import glowLabInsetIconURL from './glow-lab/glow-lab-small.svg';
 import glowMidiIconURL from './glow-midi/glow-midi.svg';
 import glowMidiInsetIconURL from './glow-midi/glow-midi-small.svg';
-import glowMLIconURL from './glow-ml/glow-ml.svg';
-import glowMLInsetIconURL from './glow-ml/glow-ml-small.png';
+import glowMLWebcamIconURL from './glow-ml/glow-ml-webcam.svg';
+import glowMLWebcamInsetIconURL from './glow-ml/glow-ml-webcam-small.svg';
+import glowMLStageIconURL from './glow-ml/glow-ml-stage.svg';
+import glowMLStageInsetIconURL from './glow-ml/glow-ml-stage-small.svg';
 
 export default [
     {
@@ -96,16 +98,19 @@ export default [
         extensionURL: new URL('static/extensions/glow-midi/glow-midi.js', location.href).href
     },
     {
-        name: 'Glow Machine Learning',
-        extensionId: 'glowML',
+        // Glow: two extensions over one shared glow-ml.js, so that a class can train
+        // on the stage without the webcam ever being asked for, and so that saved
+        // training data from the stage holds no pupil's face. glow-ets/scratch-gui#21
+        name: 'Glow ML Webcam',
+        extensionId: 'glowMLWebcam',
         collaborator: 'champierre',
-        iconURL: glowMLIconURL,
-        insetIconURL: glowMLInsetIconURL,
+        iconURL: glowMLWebcamIconURL,
+        insetIconURL: glowMLWebcamInsetIconURL,
         description: (
             <FormattedMessage
-                defaultMessage="Train and recognize images from webcam or stage. Customization of original Junya Ishihara's ML2Scratch."
-                description="Description for the 'Glow Machine Learning' extension"
-                id="glow.extension.glowML.description"
+                defaultMessage="Train and recognize images from the webcam. Customization of original Junya Ishihara's ML2Scratch."
+                description="Description for the 'Glow ML Webcam' extension"
+                id="glow.extension.glowMLWebcam.description"
             />
         ),
         tags: ['glow'],
@@ -113,7 +118,27 @@ export default [
         incompatibleWithScratch: true,
         internetConnectionRequired: true,
         bluetoothRequired: false,
-        extensionURL: new URL('static/extensions/glow-ml/glow-ml.js', location.href).href
+        extensionURL: new URL('static/extensions/glow-ml/glow-ml-webcam.js', location.href).href
+    },
+    {
+        name: 'Glow ML Stage',
+        extensionId: 'glowMLStage',
+        collaborator: 'champierre',
+        iconURL: glowMLStageIconURL,
+        insetIconURL: glowMLStageInsetIconURL,
+        description: (
+            <FormattedMessage
+                defaultMessage="Train and recognize images from the stage, without the webcam. Customization of original Junya Ishihara's ML2Scratch."
+                description="Description for the 'Glow ML Stage' extension"
+                id="glow.extension.glowMLStage.description"
+            />
+        ),
+        tags: ['glow'],
+        featured: true,
+        incompatibleWithScratch: true,
+        internetConnectionRequired: true,
+        bluetoothRequired: false,
+        extensionURL: new URL('static/extensions/glow-ml/glow-ml-stage.js', location.href).href
     },
     {
         name: (

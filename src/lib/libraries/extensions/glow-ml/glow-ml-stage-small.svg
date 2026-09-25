@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">
+  <!-- Glow ML Stage: the small icon of the extension library and the block palette.
+       glow-ets/scratch-gui#21 -->
+  <rect x="0" y="0" width="80" height="80" rx="12" ry="12" fill="#b800b0"/>
+  <rect x="7" y="23" width="66" height="34" rx="6" ry="6" fill="none" stroke="#ffffff" stroke-width="4"/>
+  <text x="40" y="49" text-anchor="middle" font-family="'Courier New', Courier, monospace" font-weight="bold" font-size="25" fill="#ffffff">MLS</text>
+</svg>

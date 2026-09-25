@@ -1,5 +1,20 @@
 # ML2Scratch(Scratch2ML)
 
+> **Glow Lab note (glow-ets/scratch-gui#21).** In Glow Lab this is split into two
+> extensions sharing `glow-ml.js`:
+>
+> - **Glow ML Webcam** (`glow-ml-webcam.js`, id `glowMLWebcam`, stage prefix
+>   "Glow MLW") learns and recognizes webcam images only, and has the video blocks.
+> - **Glow ML Stage** (`glow-ml-stage.js`, id `glowMLStage`, stage prefix
+>   "Glow MLS") learns and recognizes the stage only, and never asks for the camera.
+>
+> The "learn / recognize from [webcam|stage]" block is gone, so "Switching between
+> images to be learned/classified" below does not apply: pick the extension instead.
+> The split is about privacy. Training data is saved inside the project, and features
+> of webcam pictures could be turned back into blurry pictures of the pupils; a
+> Stage project's data holds none. It also lets a school that does not allow the
+> webcam still use machine learning.
+
 ML2Scratch connects Machine Learning([TensorFlow.js](https://www.tensorflow.org/js)) with Scratch.
 
 If you take a few images with a webcam, label them, and learn them, you can classify similar new images based on the learning results. The captured images are not sent to the server, and all learning and classification are performed in the browser. (However, a network connection is required to load the application at startup and to download the learning model.)
